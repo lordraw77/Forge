@@ -1,0 +1,208 @@
+{
+  "outbound_network_blocked": true,
+  "matrix": {
+    "vLLM": {
+      "chat": {
+        "ok": true,
+        "detail": "content='pong' usage=11/7"
+      },
+      "stream": {
+        "ok": true,
+        "detail": "text='pong' chunks=4 usage=yes"
+      },
+      "tools": {
+        "ok": true,
+        "detail": "tool_calls=['get_weather']"
+      },
+      "429 mapped": {
+        "ok": true,
+        "detail": "RateLimitError"
+      },
+      "5xx retried": {
+        "ok": true,
+        "detail": "succeeded on attempt 3"
+      },
+      "timeout": {
+        "ok": true,
+        "detail": "Timeout after 1.0s"
+      }
+    },
+    "OpenAI-compatible (llama.cpp, NIM, TGI, LM Studio)": {
+      "chat": {
+        "ok": true,
+        "detail": "content='pong' usage=11/7"
+      },
+      "stream": {
+        "ok": true,
+        "detail": "text='pong' chunks=4 usage=yes"
+      },
+      "tools": {
+        "ok": true,
+        "detail": "tool_calls=['get_weather']"
+      },
+      "429 mapped": {
+        "ok": true,
+        "detail": "RateLimitError"
+      },
+      "5xx retried": {
+        "ok": true,
+        "detail": "succeeded on attempt 3"
+      },
+      "timeout": {
+        "ok": true,
+        "detail": "Timeout after 1.0s"
+      }
+    },
+    "Ollama (native API)": {
+      "chat": {
+        "ok": true,
+        "detail": "content='pong' usage=11/7"
+      },
+      "stream": {
+        "ok": true,
+        "detail": "text='pong' chunks=4 usage=yes"
+      },
+      "tools": {
+        "ok": true,
+        "detail": "tool_calls=['get_weather']"
+      },
+      "429 mapped": {
+        "ok": true,
+        "detail": "RateLimitError"
+      },
+      "5xx retried": {
+        "ok": true,
+        "detail": "succeeded on attempt 3"
+      },
+      "timeout": {
+        "ok": true,
+        "detail": "Timeout after 1.0s"
+      }
+    },
+    "Azure OpenAI": {
+      "chat": {
+        "ok": true,
+        "detail": "content='pong' usage=11/7"
+      },
+      "stream": {
+        "ok": true,
+        "detail": "text='pong' chunks=4 usage=yes"
+      },
+      "tools": {
+        "ok": true,
+        "detail": "tool_calls=['get_weather']"
+      },
+      "429 mapped": {
+        "ok": true,
+        "detail": "RateLimitError"
+      },
+      "5xx retried": {
+        "ok": true,
+        "detail": "succeeded on attempt 3"
+      },
+      "timeout": {
+        "ok": true,
+        "detail": "Timeout after 4.3s"
+      }
+    },
+    "Anthropic": {
+      "chat": {
+        "ok": true,
+        "detail": "content='pong' usage=11/7"
+      },
+      "stream": {
+        "ok": true,
+        "detail": "text='pong' chunks=4 usage=yes"
+      },
+      "tools": {
+        "ok": true,
+        "detail": "tool_calls=['get_weather']"
+      },
+      "429 mapped": {
+        "ok": true,
+        "detail": "RateLimitError"
+      },
+      "5xx retried": {
+        "ok": true,
+        "detail": "succeeded on attempt 3"
+      },
+      "timeout": {
+        "ok": true,
+        "detail": "Timeout after 1.0s"
+      }
+    },
+    "Mistral": {
+      "chat": {
+        "ok": true,
+        "detail": "content='pong' usage=11/7"
+      },
+      "stream": {
+        "ok": false,
+        "detail": "text='pong' chunks=4 usage=missing"
+      },
+      "tools": {
+        "ok": true,
+        "detail": "tool_calls=['get_weather']"
+      },
+      "429 mapped": {
+        "ok": true,
+        "detail": "RateLimitError"
+      },
+      "5xx retried": {
+        "ok": true,
+        "detail": "succeeded on attempt 3"
+      },
+      "timeout": {
+        "ok": true,
+        "detail": "Timeout after 1.0s"
+      }
+    }
+  },
+  "extra": {
+    "embeddings vLLM": {
+      "ok": true,
+      "detail": "2 vectors, dim 4"
+    },
+    "embeddings OpenAI-compatible": {
+      "ok": true,
+      "detail": "2 vectors, dim 4"
+    },
+    "embeddings Ollama": {
+      "ok": true,
+      "detail": "2 vectors, dim 4"
+    },
+    "rerank vLLM": {
+      "ok": true,
+      "detail": "2 results, path /rerank"
+    },
+    "Azure: deployment in path, api-version, api-key header": {
+      "ok": true,
+      "detail": "{\"path\": \"/openai/deployments/m-chat/chat/completions\", \"query\": {\"api-version\": \"2025-04-01-preview\"}}"
+    },
+    "Anthropic: x-api-key and anthropic-version headers": {
+      "ok": true,
+      "detail": "anthropic-version=2023-06-01"
+    },
+    "vLLM: bearer token": {
+      "ok": true,
+      "detail": "Authorization: Bearer \u2026"
+    },
+    "Ollama: native /api/chat": {
+      "ok": true,
+      "detail": "POST /api/chat"
+    }
+  },
+  "overhead": {
+    "raw_p50_ms": 2.64,
+    "raw_p95_ms": 4.09,
+    "litellm_p50_ms": 5.49,
+    "litellm_p95_ms": 8.27,
+    "overhead_p50_ms": 2.85,
+    "overhead_p95_ms": 4.18,
+    "litellm_mean_ms": 5.74
+  },
+  "import": {
+    "import_s": 3.08,
+    "rss_after_import_mb": 293.0
+  }
+}

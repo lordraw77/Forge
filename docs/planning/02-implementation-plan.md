@@ -65,7 +65,7 @@ Goal: decisions taken, skeleton running end to end, risky assumptions tested.
 | E0.2 ADRs | ADR 001–013 written and accepted ✅ (2026-10-16); spec text updates required by ADR-007 and ADR-013 | Architect, Docs |
 | E0.3 Threat model | STRIDE over the logical architecture; security baseline (headers, CSRF, rate limits, dependency audit policy) | Security |
 | E0.4 Skeleton | ✅ (2026-10-16) Monorepo, FastAPI health/readiness/version, Angular shell, Alembic baseline + RLS guard, Compose (ParadeDB, Valkey, SeaweedFS, Temporal), Makefile, CI (lint, types, tests, audits, image build, smoke, Trivy). Open: OTel collector profile, licence check in CI | DevOps, Engineer |
-| E0.5 Spikes | (a) ✅ 2026-10-16, ADR-004 confirmed ([report](../spikes/e05a-temporal-langgraph.md)) — Temporal + LangGraph (ADR-004): kill worker during an agent tool loop → resume at the last LangGraph checkpoint; `interrupt()` → Temporal signal after a worker restart → `Command(resume)`; idempotent tool replay; (b) 1M-chunk hybrid retrieval with RLS + kb filter, measure p95; (c) Foblex Flow editor prototype; (d) LiteLLM against vLLM / Ollama / OpenAI-compatible mocks | Engineer, Optimizer |
+| E0.5 Spikes | (a) ✅ 2026-10-16, ADR-004 confirmed ([report](../spikes/e05a-temporal-langgraph.md)) — Temporal + LangGraph (ADR-004): kill worker during an agent tool loop → resume at the last LangGraph checkpoint; `interrupt()` → Temporal signal after a worker restart → `Command(resume)`; idempotent tool replay; (b) ✅ 1M-chunk hybrid retrieval with RLS + kb filter, measure p95 ([report](../spikes/e05b-hybrid-retrieval.md)); (c) Foblex Flow editor prototype; (d) ✅ LiteLLM against vLLM / Ollama / OpenAI-compatible mocks ([report](../spikes/e05d-litellm-providers.md)) | Engineer, Optimizer |
 
 Exit: ADRs accepted, spikes report numbers, `make run` starts the full stack locally.
 
@@ -140,5 +140,5 @@ Definition of done: tests green in CI, tenant-isolation suite green, OpenAPI upd
 3. ~~Phase 1 user stories~~ ✅ [requirements/phase-1.md](../requirements/phase-1.md)
 4. ~~Threat model v1~~ ✅ [security/threat-model.md](../security/threat-model.md)
 5. ~~Skeleton (E0.4)~~ ✅
-6. Spikes: ~~E0.5a Temporal + LangGraph~~ ✅; next E0.5b (1M-chunk hybrid retrieval), E0.5d (LiteLLM providers), E0.5c (Foblex Flow).
+6. Spikes: ~~E0.5a Temporal + LangGraph~~ ✅, ~~E0.5b hybrid retrieval~~ ✅ (p95 39 ms at 1M), ~~E0.5d LiteLLM providers~~ ✅ (35/36, overhead 4 ms p95); next E0.5c (Foblex Flow graph editor).
 7. PO decisions pending: Q8 AGPL, ADR-014 PrimeNG licensing, ADR-015 object store.

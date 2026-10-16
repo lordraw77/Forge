@@ -34,6 +34,9 @@ dev = [
     "import-linter>=2.15",
     "pip-audit>=2.9",
 ]
+spikes = [
+    "litellm>=1.105.1",
+]
 
 [build-system]
 requires = ["hatchling>=1.27"]
@@ -54,7 +57,7 @@ ignore = ["S101"]  # assert is fine in tests; production code is checked by mypy
 [tool.ruff.lint.per-file-ignores]
 "migrations/**" = ["S608"]
 "tests/**" = ["S105", "S106", "S608"]
-"spikes/**" = ["S608", "E501", "S603"]  # throwaway spike code, constant schema names
+"spikes/**" = ["S608", "E501", "S603", "S311", "ASYNC230"]  # throwaway spike code, constant schema names
 
 [tool.mypy]
 python_version = "3.12"

@@ -18,3 +18,6 @@ frontend/.angular/
 
 # Build output
 dist/
+
+# Claude Code local configuration
+.claude/

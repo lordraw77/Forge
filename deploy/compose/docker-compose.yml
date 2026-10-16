@@ -26,6 +26,9 @@ services:
   db:
     image: paradedb/paradedb:0.26.2-pg17
     restart: unless-stopped
+    # Parallel index builds (HNSW, BM25) allocate maintenance_work_mem in /dev/shm;
+    # Docker's 64 MB default fails them (spike E0.5b).
+    shm_size: 2gb
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}

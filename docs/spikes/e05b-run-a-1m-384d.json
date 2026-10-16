@@ -1,0 +1,70 @@
+{
+  "label": "a1m384",
+  "rows_in_kb": 1000000,
+  "rows_total": 1100000,
+  "dims": 384,
+  "index_timings": {
+    "hnsw_build_s": 229.5,
+    "bm25_build_s": 34.0,
+    "kb_btree_build_s": 3.4
+  },
+  "sizes": {
+    "table": "1719 MB",
+    "hnsw_index": "1116 MB",
+    "bm25_index": "297 MB"
+  },
+  "latency": {
+    "vector_top40": {
+      "p50_ms": 9.6,
+      "p95_ms": 13.2,
+      "p99_ms": 15.4,
+      "mean_ms": 9.9,
+      "min_rows": 40,
+      "queries": 500
+    },
+    "bm25_top40": {
+      "p50_ms": 14.5,
+      "p95_ms": 39.5,
+      "p99_ms": 88.3,
+      "mean_ms": 18.0,
+      "min_rows": 40,
+      "queries": 500
+    },
+    "hybrid_rrf": {
+      "p50_ms": 9.9,
+      "p95_ms": 39.4,
+      "p99_ms": 81.6,
+      "mean_ms": 13.7,
+      "min_rows": 40,
+      "queries": 500
+    },
+    "vector_recall_at_10": 0.997,
+    "vector_plan": [
+      "Limit",
+      "  ->  Index Scan using chunk_a1m384_hnsw on chunk_a1m384",
+      "        Order By: ((embedding)::halfvec(384) <=> '[0.3840332,-0.19909668,-0.08520508,0.71777344,-0.47680664,0.6723633,0.64746094,-0.6928711,-1.1943359,0.7133789",
+      "        Filter: ((project_id = (NULLIF(current_setting('app.project_id'::text, true), ''::text))::uuid) AND (acl_groups && '{__public__,g13,g27,g43}'::text[]))"
+    ],
+    "vector_plan_summary": {
+      "uses_hnsw": true,
+      "topk_scan": false,
+      "heap_filter": false
+    },
+    "bm25_plan": [
+      "Limit",
+      "  ->  Custom Scan (ParadeDB Base Scan) on chunk_a1m384",
+      "        Table: chunk_a1m384",
+      "        Index: chunk_a1m384_bm25",
+      "        Exec Method: TopKScanExecState",
+      "        Scores: true",
+      "           TopK Order By: pdb.score() desc",
+      "           TopK Limit: 40",
+      "        Tantivy Query: {\"boolean\":{\"must\":[{\"with_index\":{\"query\":{\"match\":{\"field\":\"content\",\"value\":\"6b69fa 65879e45 20125f\",\"tokenizer\":null,\"distance\":null,"
+    ],
+    "bm25_plan_summary": {
+      "uses_hnsw": false,
+      "topk_scan": true,
+      "heap_filter": false
+    }
+  }
+}

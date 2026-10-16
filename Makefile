@@ -85,6 +85,13 @@ docker/smoke: ## End-to-end smoke test against the running stack
 spike/e05a: ## Spike E0.5a: worker crash + HITL with Temporal and LangGraph
 	@scripts/spike-e05a.sh
 
+.PHONY: spike/e05b spike/e05d
+spike/e05b: ## Spike E0.5b: hybrid retrieval benchmark (ROWS=1000000 DIMS=384)
+	@scripts/spike-e05b.sh "$(or $(ROWS),1000000)" "$(or $(DIMS),384)"
+
+spike/e05d: ## Spike E0.5d: LiteLLM provider matrix, air-gapped (needs root for unshare)
+	@scripts/spike-e05d.sh
+
 ## ---- Release
 .PHONY: release
 release: ## Build and push $(NAMESPACE)/forge-{backend,frontend}:$(VERSION)

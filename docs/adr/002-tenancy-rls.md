@@ -40,7 +40,7 @@ Projects (workspaces) are logical tenants (F8.5). The spec requires row-level se
 
 - Because the app connects as the owner and switches role, SQL injection could `RESET ROLE`. Accepted to keep the spec's single database URL; mitigated by bound parameters only (threat model TB2). A separate login role for the app can be added later via deployment wiring without code changes beyond `create_engine`.
 - Isolation holds even if application code forgets a filter.
-- Queries still add `project_id` filters explicitly so indexes are used.
+- Queries still add `project_id` filters explicitly so btree/HNSW indexes are used, **except BM25 (pg_search) queries**: there a literal `project_id = '<uuid>'` makes the planner abandon the BM25 scan. BM25 queries rely on RLS (with `project_id` included in the BM25 index) or use `project_id = app_project_id()` (spike E0.5b).
 - `forge_admin` is a privileged path and must stay small and reviewed.
 
 ## Alternatives

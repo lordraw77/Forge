@@ -1,0 +1,70 @@
+{
+  "label": "b250k1024",
+  "rows_in_kb": 250000,
+  "rows_total": 275000,
+  "dims": 1024,
+  "index_timings": {
+    "hnsw_build_s": 67.9,
+    "bm25_build_s": 6.6,
+    "kb_btree_build_s": 0.2
+  },
+  "sizes": {
+    "table": "907 MB",
+    "hnsw_index": "651 MB",
+    "bm25_index": "83 MB"
+  },
+  "latency": {
+    "vector_top40": {
+      "p50_ms": 2.0,
+      "p95_ms": 2.8,
+      "p99_ms": 3.5,
+      "mean_ms": 2.1,
+      "min_rows": 40,
+      "queries": 500
+    },
+    "bm25_top40": {
+      "p50_ms": 5.1,
+      "p95_ms": 11.9,
+      "p99_ms": 34.6,
+      "mean_ms": 6.8,
+      "min_rows": 40,
+      "queries": 500
+    },
+    "hybrid_rrf": {
+      "p50_ms": 9.0,
+      "p95_ms": 21.6,
+      "p99_ms": 48.5,
+      "mean_ms": 11.1,
+      "min_rows": 40,
+      "queries": 500
+    },
+    "vector_recall_at_10": 0.997,
+    "vector_plan": [
+      "Limit",
+      "  ->  Index Scan using chunk_b250k1024_hnsw on chunk_b250k1024",
+      "        Order By: ((embedding)::halfvec(1024) <=> '[0.15893555,1.1240234,0.24523926,-1.1816406,-0.0625,0.7265625,-0.08862305,-0.7373047,-0.5332031,0.15185547,-0",
+      "        Filter: ((project_id = (NULLIF(current_setting('app.project_id'::text, true), ''::text))::uuid) AND (acl_groups && '{__public__,g18,g10,g9}'::text[]))"
+    ],
+    "vector_plan_summary": {
+      "uses_hnsw": true,
+      "topk_scan": false,
+      "heap_filter": false
+    },
+    "bm25_plan": [
+      "Limit",
+      "  ->  Custom Scan (ParadeDB Base Scan) on chunk_b250k1024",
+      "        Table: chunk_b250k1024",
+      "        Index: chunk_b250k1024_bm25",
+      "        Exec Method: TopKScanExecState",
+      "        Scores: true",
+      "           TopK Order By: pdb.score() desc",
+      "           TopK Limit: 40",
+      "        Tantivy Query: {\"boolean\":{\"must\":[{\"with_index\":{\"query\":{\"match\":{\"field\":\"content\",\"value\":\"79c6ab65 0413103 fd45ebc\",\"tokenizer\":null,\"distance\":nul"
+    ],
+    "bm25_plan_summary": {
+      "uses_hnsw": false,
+      "topk_scan": true,
+      "heap_filter": false
+    }
+  }
+}
