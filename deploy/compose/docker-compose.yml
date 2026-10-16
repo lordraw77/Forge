@@ -96,6 +96,7 @@ services:
       POSTGRES_PWD: ${TEMPORAL_DB_PASSWORD}
       SKIP_DB_CREATE: "true"  # databases are created by deploy/compose/initdb
       TEMPORAL_ADDRESS: temporal:7233
+    ports: ["127.0.0.1:${FORGE_TEMPORAL_PORT:-7233}:7233"]  # host-side tools, spikes, tests
     healthcheck:
       test: ["CMD-SHELL", "temporal operator namespace describe -n default --address temporal:7233 >/dev/null 2>&1"]
       interval: 10s

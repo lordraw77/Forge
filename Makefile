@@ -80,6 +80,11 @@ docker/down: ## Remove containers and volumes (destroys local data)
 docker/smoke: ## End-to-end smoke test against the running stack
 	@scripts/smoke.sh
 
+## ---- Spikes (Phase 0)
+.PHONY: spike/e05a
+spike/e05a: ## Spike E0.5a: worker crash + HITL with Temporal and LangGraph
+	@scripts/spike-e05a.sh
+
 ## ---- Release
 .PHONY: release
 release: ## Build and push $(NAMESPACE)/forge-{backend,frontend}:$(VERSION)

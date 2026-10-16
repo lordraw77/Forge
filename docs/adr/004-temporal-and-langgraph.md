@@ -61,7 +61,16 @@ UseCaseRunWorkflow                               compiled per agent version
 - AC6 is met at two levels: node (Temporal) and agent step (LangGraph).
 - Days-long HITL waits do not hold a worker slot or a LangGraph process.
 - Two dependencies to operate and upgrade; mitigated by limiting LangGraph to the `agents` module behind an `AgentRuntime` interface.
-- Phase 0 spike E0.5a must prove: kill a worker during a tool loop → resume at the last LangGraph checkpoint; interrupt → signal after a restart → resume.
+- Validated by spike E0.5a on 2026-10-16: 9 of 9 checks, 6 of 6 runs ([report](../spikes/e05a-temporal-langgraph.md)).
+
+## Implementation rules (from spike E0.5a)
+
+1. The activity chooses how to start from the checkpoint (`aget_state`): no checkpoint → initial input; pending nodes → `None`; resume value → `Command(resume)`; finished → stored answer. It never re-submits the initial input on retry.
+2. Code before `interrupt()` is side-effect free; side-effecting tools use the `{thread_id}:{tool_call_id}` idempotency key and forward it to remote systems when they support one (closes the at-least-once window between the effect and `tool_call_log`).
+3. A background heartbeat runs every 2 s during the activity; `heartbeat_timeout` (crash-detection time) is set per node type.
+4. Workers set `sticky_queue_schedule_to_start_timeout` to 3 s (SDK default 10 s delays recovery after a crash) and shut down gracefully on SIGTERM.
+5. LangGraph and psycopg are imported only by activities, never by workflow code.
+6. One checkpointer pool per worker process (`autocommit`, `dict_row`, `prepare_threshold=0`, `search_path=langgraph`); checkpoint DDL ships as an Alembic migration, and `forge_app` gets DML grants on `langgraph` only.
 
 ## Alternatives
 
