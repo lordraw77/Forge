@@ -79,6 +79,7 @@ jobs:
           make docker/build
           make docker/run
           make docker/smoke
+          CI=1 make test/e2e
       - name: Stack logs on failure
         if: failure()
         run: docker compose -f deploy/compose/docker-compose.yml --project-directory . --env-file .env --env-file deploy/compose/infra.env logs --no-color --tail=300

@@ -25,7 +25,7 @@ install: ## Install backend and frontend dependencies
 	$(NPM) ci
 
 ## ---- Quality
-.PHONY: lint fmt typecheck test test/unit test/integration
+.PHONY: lint fmt typecheck test test/unit test/integration test/e2e
 lint: ## Lint backend (ruff, import contracts) and frontend
 	cd backend && uv run ruff check . && uv run ruff format --check . && uv run lint-imports
 	$(NPM) run lint
@@ -44,6 +44,9 @@ test/unit: ## Backend unit tests + frontend unit tests
 
 test/integration: ## Backend integration tests against the compose database
 	@scripts/test-integration.sh
+
+test/e2e: ## Playwright E2E tests against the running stack (make docker/run first)
+	@scripts/test-e2e.sh
 
 ## ---- Local run
 .PHONY: build run stop logs ps migrate

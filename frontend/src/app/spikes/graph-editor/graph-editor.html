@@ -1,0 +1,170 @@
+<div class="editor" tabindex="0" (keydown)="onKeydown($event)">
+  <header class="toolbar">
+    <strong>Graph editor</strong>
+    <p-tag severity="warn" value="Spike E0.5c" />
+    <span class="spacer"></span>
+    @for (type of palette; track type) {
+      <p-button
+        size="small"
+        [outlined]="true"
+        [label]="'+ ' + type"
+        [attr.data-testid]="'add-' + type"
+        (onClick)="add(type)"
+      />
+    }
+    <p-button
+      size="small"
+      severity="danger"
+      icon="pi pi-trash"
+      ariaLabel="Delete selection"
+      (onClick)="deleteSelection()"
+    />
+    <p-button size="small" severity="secondary" label="PRD sample" (onClick)="loadSample()" />
+    <p-button
+      size="small"
+      severity="secondary"
+      label="200 nodes"
+      data-testid="load-200"
+      (onClick)="loadSynthetic(200)"
+    />
+    @if (metrics()['last_render_ms'] !== undefined) {
+      <span class="metric" data-testid="render-ms">
+        {{ metrics()['nodes'] }} nodes rendered in {{ metrics()['last_render_ms'] }} ms
+      </span>
+    }
+  </header>
+
+  <div class="body">
+    <f-flow
+      fDraggable
+      (fFullRendered)="onRendered()"
+      (fCreateConnection)="onConnect($event)"
+      (fMoveNodes)="onMove($event)"
+      (fSelectionChange)="onSelection($event)"
+    >
+      <f-canvas fZoom>
+        <f-connection-for-create fType="bezier">
+          <f-connection-marker-arrow />
+        </f-connection-for-create>
+
+        @for (edge of edges(); track edge.id) {
+          <f-connection
+            [fConnectionId]="edge.id"
+            [fSourceId]="edge.source"
+            [fTargetId]="edge.target"
+            fType="bezier"
+          >
+            <f-connection-marker-arrow />
+          </f-connection>
+        }
+
+        @for (node of graph().nodes; track node.id) {
+          <div
+            fNode
+            [fNodeId]="node.id"
+            [fNodePosition]="position(node)"
+            class="node"
+            [class]="'node type-' + node.type"
+            [class.invalid]="invalidNodes().has(node.id)"
+            [attr.data-node-id]="node.id"
+          >
+            @if (inputPort(node); as port) {
+              <div
+                fConnector
+                fConnectorType="target"
+                [fConnectorId]="port.id"
+                class="port in"
+                [attr.data-port]="port.id"
+              ></div>
+            }
+            <div class="title" fDragHandle (dblclick)="openConfig(node.id)">
+              <span class="type">{{ node.type }}</span>
+              <span class="name">{{ node.id }}</span>
+              @if (node.hitl) {
+                <i class="pi pi-user" title="Human in the loop"></i>
+              }
+            </div>
+            <div class="detail">
+              {{ node.agent_ref ?? node.tool_ref ?? node.items ?? node.display_text ?? '' }}
+            </div>
+            @if (node.after_mode === 'any') {
+              <div class="detail">after: any</div>
+            }
+            <div class="outs">
+              @for (port of outputPorts(node); track port.id) {
+                <div class="out-row">
+                  <span>{{ port.label }}</span>
+                  <div
+                    fConnector
+                    fConnectorType="source"
+                    [fConnectorId]="port.id"
+                    [fConnectorMultiple]="true"
+                    class="port out"
+                    [attr.data-port]="port.id"
+                  ></div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </f-canvas>
+    </f-flow>
+
+    <aside class="side">
+      <h3>Validation</h3>
+      @if (issues().length === 0) {
+        <p-message severity="success" text="Graph is valid" data-testid="valid" />
+      }
+      @for (issue of issues(); track $index) {
+        <p-message
+          [severity]="issue.severity === 'error' ? 'error' : 'warn'"
+          [text]="(issue.node ? issue.node + ': ' : '') + issue.message"
+          size="small"
+          [attr.data-testid]="'issue-' + issue.code"
+        />
+      }
+      <h3>Definition (semantic JSON)</h3>
+      <pre data-testid="json">{{ json() }}</pre>
+    </aside>
+  </div>
+</div>
+
+<p-drawer
+  [visible]="drawerOpen()"
+  (visibleChange)="drawerOpen.set($event)"
+  position="right"
+  header="Node configuration"
+>
+  @if (selected(); as node) {
+    <div class="form">
+      <label for="node-name">Node Name</label>
+      <div class="row">
+        <input pInputText id="node-name" [(ngModel)]="renameTo" />
+        <p-button size="small" label="Rename" (onClick)="rename()" />
+      </div>
+      <label for="node-type">Node Type</label>
+      <input pInputText id="node-type" [value]="node.type" disabled />
+      @if (node.type === 'agent') {
+        <label for="agent-ref">Agent (name&#64;version)</label>
+        <input
+          pInputText
+          id="agent-ref"
+          [ngModel]="node.agent_ref"
+          (ngModelChange)="patch('agent_ref', $event)"
+        />
+        <label for="task">Task</label>
+        <input pInputText id="task" [ngModel]="node.task" (ngModelChange)="patch('task', $event)" />
+      }
+      @if (node.type !== 'start') {
+        <label for="after-mode">Execute After mode</label>
+        <p-select
+          inputId="after-mode"
+          [options]="['all', 'any']"
+          [ngModel]="node.after_mode ?? 'all'"
+          (ngModelChange)="patch('after_mode', $event === 'all' ? undefined : $event)"
+        />
+        <small>Depends on: {{ node.after ?? [] | json }}</small>
+      }
+    </div>
+  }
+</p-drawer>

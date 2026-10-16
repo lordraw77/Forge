@@ -11,6 +11,13 @@ export const routes: Routes = [
     component: Shell,
     children: [
       { path: '', component: Home, title: 'Forge' },
+      {
+        // Phase 0 spike E0.5c, not in the menu: graph use-case editor on Foblex Flow.
+        path: 'spikes/graph-editor',
+        title: 'Graph editor spike · Forge',
+        loadComponent: () =>
+          import('./spikes/graph-editor/graph-editor').then((m) => m.GraphEditor),
+      },
       ...MENU.map((entry) => ({
         path: entry.path,
         component: Placeholder,

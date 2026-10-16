@@ -3,3 +3,5 @@ dist
 .angular
 .vscode
 *.md
+e2e
+playwright.config.ts

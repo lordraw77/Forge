@@ -80,6 +80,7 @@ cd backend && uv sync                       # backend deps into backend/.venv
 make lint typecheck                          # ruff, import-linter contracts, mypy --strict, eslint
 make test/unit                               # backend + frontend unit tests
 make test/integration                        # starts db, migrates, runs tenant-isolation tests
+make test/e2e                                # Playwright (in a container) against the running stack
 ```
 
 Running the API on the host against the Compose database:

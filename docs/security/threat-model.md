@@ -47,7 +47,7 @@ Status: **P1** = control delivered in Phase 1, **P2** / **P3** later phases.
 | T | Mass assignment | Separate Pydantic input/output schemas, `extra="forbid"` | P1 |
 | R | User denies an admin action | Append-only audit log, actor + IP + diff | P1 |
 | I | IDOR across projects | RLS (ADR-002) + `404` for foreign IDs + isolation suite | P1 |
-| I | XSS via model output / document content rendered in UI | Markdown rendered with sanitizer (no raw HTML), strict CSP, Angular auto-escaping; links `rel=noopener` | P1 |
+| I | XSS via model output / document content rendered in UI | Markdown rendered with sanitizer (no raw HTML), strict CSP (`script-src 'self'`, no inline scripts: critical-CSS inlining disabled; `worker-src 'self' blob:` only for same-origin workers), Angular auto-escaping; links `rel=noopener`; E2E fails on any CSP violation in the console | P1 |
 | D | Request flooding, large uploads | Rate limits per IP/key, 100 MB body cap at proxy and app, request timeouts | P1 |
 | D | Cost exhaustion via LLM calls | Quotas tokens/day, requests/minute, `max_tokens` cap, per-run cost budget | P1 |
 | E | Privilege escalation via role edits | Only PA edits roles; PA cannot grant `super_admin`; API key scopes ∩ user permissions | P1 |

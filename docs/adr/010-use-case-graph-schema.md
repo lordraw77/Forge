@@ -33,3 +33,4 @@ Node types are described three ways (F5.3, use case JSON, Part 2 Graphical patte
 
 - The visual editor, the Planner Agent and import/export all target one schema; the Planner uses it as its structured output schema.
 - `schema_version` field allows later evolution.
+- Canvas layout is stored in a non-semantic `ui.positions` block (node id → x/y); validation, versioning diffs and execution ignore it. Output connector ids in the editor are exactly the `after` references (spike E0.5c).

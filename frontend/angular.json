@@ -33,6 +33,7 @@
               }
             ],
             "styles": [
+              "node_modules/@foblex/flow/styles/default.scss",
               "src/styles.scss"
             ],
             "polyfills": [
@@ -53,7 +54,15 @@
                   "maximumError": "8kB"
                 }
               ],
-              "outputHashing": "all"
+              "outputHashing": "all",
+              "optimization": {
+                "scripts": true,
+                "styles": {
+                  "minify": true,
+                  "inlineCritical": false
+                },
+                "fonts": true
+              }
             },
             "development": {
               "optimization": false,

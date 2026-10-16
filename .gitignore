@@ -15,6 +15,7 @@ __pycache__/
 node_modules/
 frontend/dist/
 frontend/.angular/
+frontend/e2e/.results/
 
 # Build output
 dist/
