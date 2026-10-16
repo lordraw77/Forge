@@ -1,0 +1,98 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: astral-sh/setup-uv@v10.3.0
+        with:
+          version: "0.11.31"
+          enable-cache: true
+      - run: uv sync --frozen --python 3.12
+      - name: Lint
+        run: uv run ruff check . && uv run ruff format --check .
+      - name: Module boundaries (ADR-001, ADR-005)
+        run: uv run lint-imports
+      - name: Type check
+        run: uv run mypy
+      - name: Unit tests
+        run: uv run pytest -m "not integration"
+      - name: Dependency audit
+        run: uv export --frozen --no-dev --no-hashes --no-emit-project -o /tmp/req.txt && uv run pip-audit -r /tmp/req.txt --strict
+
+  backend-integration:
+    runs-on: ubuntu-latest
+    needs: backend
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: astral-sh/setup-uv@v10.3.0
+        with:
+          version: "0.11.31"
+          enable-cache: true
+      - name: Tenant isolation and DB integration tests (PostgreSQL via compose)
+        run: scripts/test-integration.sh
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: "24.22.0"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run build
+      - name: Dependency audit
+        run: npm audit --omit=dev --audit-level=high
+
+  images:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: docker/setup-buildx-action@v4.4.1
+      - name: Build and smoke-test the stack
+        run: |
+          make docker/build
+          make docker/run
+          make docker/smoke
+      - name: Stack logs on failure
+        if: failure()
+        run: docker compose -f deploy/compose/docker-compose.yml --project-directory . --env-file .env --env-file deploy/compose/infra.env logs --no-color --tail=300
+      - name: Scan backend image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: forge-backend:dev
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: Scan web image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: forge-web:dev
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"

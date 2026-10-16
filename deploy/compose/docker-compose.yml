@@ -1,0 +1,171 @@
+# Forge – single node / lab deployment.
+# Run through the Makefile (`make docker/run`), which passes:
+#   --project-directory . --env-file .env --env-file deploy/compose/infra.env
+# Secrets come from those two files (scripts/gen-env.sh); nothing secret is hardcoded here.
+
+name: forge
+
+x-backend: &backend
+  image: ${FORGE_BACKEND_IMAGE:-forge-backend:dev}
+  build:
+    context: ./backend
+  restart: unless-stopped
+  env_file: [.env]
+  environment:
+    FORGE_REDIS_URL: redis://:${VALKEY_PASSWORD}@valkey:6379/0
+    FORGE_S3_ENDPOINT: http://s3:8333
+    FORGE_S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+    FORGE_S3_SECRET_KEY: ${S3_SECRET_KEY}
+    FORGE_TEMPORAL_ADDRESS: temporal:7233
+  read_only: true
+  tmpfs: [/tmp]
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+
+services:
+  db:
+    image: paradedb/paradedb:0.26.2-pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+      FORGE_DB_NAME: ${FORGE_DB_NAME}
+      FORGE_DB_USER: ${FORGE_DB_USER}
+      FORGE_DB_PASSWORD: ${FORGE_DB_PASSWORD}
+      TEMPORAL_DB_PASSWORD: ${TEMPORAL_DB_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./deploy/compose/initdb/10-forge.sh:/docker-entrypoint-initdb.d/10-forge.sh:ro
+    ports: ["127.0.0.1:${FORGE_DB_PORT:-5432}:5432"]
+    healthcheck:
+      # TCP, not the socket: the init server only listens on the socket, so this stays
+      # unhealthy until initdb scripts (roles, databases) have finished.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d ${FORGE_DB_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  valkey:
+    image: valkey/valkey:9.0.6-alpine3.24
+    restart: unless-stopped
+    command: ["valkey-server", "--requirepass", "${VALKEY_PASSWORD}", "--save", "60", "1000"]
+    volumes: [valkey-data:/data]
+    healthcheck:
+      test: ["CMD-SHELL", "valkey-cli -a \"$$VALKEY_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    environment:
+      VALKEY_PASSWORD: ${VALKEY_PASSWORD}
+
+  # S3-compatible object storage. MinIO no longer publishes container images;
+  # any S3 endpoint works (backend uses the S3 API only).
+  s3:
+    image: chrislusf/seaweedfs:4.47
+    restart: unless-stopped
+    environment:
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+    # Identity file is written to tmpfs from the environment, so no secret file is mounted.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        umask 077
+        printf '{"identities":[{"name":"forge","credentials":[{"accessKey":"%s","secretKey":"%s"}],"actions":["Admin","Read","Write","List","Tagging"]}]}' \
+          "$$S3_ACCESS_KEY" "$$S3_SECRET_KEY" > /tmp/s3.json
+        exec weed server -dir=/data -s3 -s3.port=8333 -s3.config=/tmp/s3.json -volume.max=0
+    tmpfs: [/tmp]
+    volumes: [s3-data:/data]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8333/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+
+  temporal:
+    image: temporalio/auto-setup:1.29.7
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_SEEDS: db
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: ${TEMPORAL_DB_PASSWORD}
+      SKIP_DB_CREATE: "true"  # databases are created by deploy/compose/initdb
+      TEMPORAL_ADDRESS: temporal:7233
+    healthcheck:
+      test: ["CMD-SHELL", "temporal operator namespace describe -n default --address temporal:7233 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  migrate:
+    <<: *backend
+    command: ["migrate"]
+    restart: "no"
+    depends_on:
+      db: { condition: service_healthy }
+
+  api:
+    <<: *backend
+    command: ["api"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      valkey: { condition: service_healthy }
+
+  worker-runs:
+    <<: *backend
+    command: ["worker", "runs"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      temporal: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "forge", "worker-health"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+
+  worker-ingest:
+    <<: *backend
+    command: ["worker", "ingest"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      temporal: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "forge", "worker-health"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+
+  web:
+    image: ${FORGE_WEB_IMAGE:-forge-web:dev}
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    depends_on:
+      api: { condition: service_healthy }
+    ports: ["${FORGE_HTTP_PORT:-8080}:8080"]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+
+  temporal-ui:
+    image: temporalio/ui:2.54.1
+    profiles: [tools]
+    depends_on:
+      temporal: { condition: service_healthy }
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    ports: ["127.0.0.1:8233:8080"]
+
+volumes:
+  db-data:
+  valkey-data:
+  s3-data:

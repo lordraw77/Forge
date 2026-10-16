@@ -1,0 +1,76 @@
+<div class="layout" [class.menu-open]="menuOpen()">
+  <aside class="sidebar" aria-label="Main navigation" i18n-aria-label>
+    <a class="brand" routerLink="/" (click)="menuOpen.set(false)">
+      <i class="pi pi-bolt" aria-hidden="true"></i>
+      <span>Forge</span>
+    </a>
+
+    <nav>
+      <ul>
+        @for (entry of menu; track entry.path) {
+          <li>
+            <a [routerLink]="entry.path" routerLinkActive="active" (click)="menuOpen.set(false)">
+              <i [class]="entry.icon" aria-hidden="true"></i>
+              <span>{{ entry.label }}</span>
+            </a>
+          </li>
+        }
+      </ul>
+    </nav>
+
+    <div class="profile">
+      <p-avatar [label]="user.initials" shape="circle" />
+      <div class="who">
+        <strong>{{ user.name }}</strong>
+        <small>{{ user.role }} · {{ user.email }}</small>
+      </div>
+      <p-button
+        icon="pi pi-sign-out"
+        [text]="true"
+        [rounded]="true"
+        ariaLabel="Log out"
+        i18n-ariaLabel
+      />
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <p-button
+        class="menu-toggle"
+        icon="pi pi-bars"
+        [text]="true"
+        (onClick)="toggleMenu()"
+        ariaLabel="Toggle menu"
+        i18n-ariaLabel
+      />
+      <label class="project" for="project-select">
+        <span i18n>Project</span>
+        <p-select
+          inputId="project-select"
+          [options]="projects"
+          [(ngModel)]="project"
+          optionLabel="name"
+          [filter]="true"
+          filterBy="name"
+        />
+      </label>
+      <span class="spacer"></span>
+      @switch (system.version()) {
+        @case (undefined) {
+          <p-tag severity="secondary" value="…" />
+        }
+        @case (null) {
+          <p-tag severity="danger" value="API offline" i18n-value />
+        }
+        @default {
+          <p-tag severity="success" [value]="'API ' + system.version()" />
+        }
+      }
+    </header>
+
+    <main class="content">
+      <router-outlet />
+    </main>
+  </div>
+</div>

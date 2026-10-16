@@ -1,0 +1,141 @@
+[project]
+name = "forge"
+version = "0.1.0"
+description = "Forge: self-hosted, LLM-agnostic platform for agents, RAG and governed prompts"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "fastapi>=0.143",
+    "uvicorn[standard]>=0.54",
+    "pydantic>=2.14",
+    "pydantic-settings>=2.16",
+    "sqlalchemy[asyncio]>=2.1",
+    "asyncpg>=0.32",
+    "alembic>=1.20",
+    "structlog>=26.1",
+    "redis>=6",
+    "temporalio>=1.34",
+]
+
+[project.scripts]
+forge = "forge.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1",
+    "pytest-asyncio>=1.2",
+    "httpx>=0.28",
+    "ruff>=0.17",
+    "mypy>=2.4",
+    "import-linter>=2.15",
+    "pip-audit>=2.9",
+]
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/forge"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "ASYNC", "RUF", "SIM", "PT"]
+ignore = ["S101"]  # assert is fine in tests; production code is checked by mypy/tests
+
+[tool.ruff.lint.per-file-ignores]
+"migrations/**" = ["S608"]
+"tests/**" = ["S105", "S106", "S608"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+mypy_path = "src"
+packages = ["forge"]
+
+[[tool.mypy.overrides]]
+module = ["temporalio.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "integration: needs PostgreSQL (FORGE_TEST_DATABASE_URL)",
+    "ac(id): links a test to a user story acceptance criterion, e.g. ac('US-1.1.1/1')",
+]
+addopts = "-ra --strict-markers"
+
+# ADR-001: modules talk only through their public `service` interface.
+[tool.importlinter]
+root_package = "forge"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Domain modules are independent except through their service interface"
+type = "independence"
+modules = [
+    "forge.iam",
+    "forge.tenancy",
+    "forge.admin",
+    "forge.gateway",
+    "forge.prompts",
+    "forge.rag",
+    "forge.tools",
+    "forge.agents",
+    "forge.usecases",
+    "forge.guardrails",
+    "forge.observability",
+]
+ignore_imports = [
+    "forge.* -> forge.*.service",
+]
+unmatched_ignore_imports_alerting = "none"
+
+[[tool.importlinter.contracts]]
+name = "core depends on no domain module"
+type = "forbidden"
+source_modules = ["forge.core"]
+forbidden_modules = [
+    "forge.api",
+    "forge.workers",
+    "forge.iam",
+    "forge.tenancy",
+    "forge.admin",
+    "forge.gateway",
+    "forge.prompts",
+    "forge.rag",
+    "forge.tools",
+    "forge.agents",
+    "forge.usecases",
+    "forge.guardrails",
+    "forge.observability",
+]
+
+# ADR-005: only the gateway talks to model providers.
+[[tool.importlinter.contracts]]
+name = "Only the gateway imports LiteLLM"
+type = "forbidden"
+source_modules = [
+    "forge.core",
+    "forge.api",
+    "forge.workers",
+    "forge.iam",
+    "forge.tenancy",
+    "forge.admin",
+    "forge.prompts",
+    "forge.rag",
+    "forge.tools",
+    "forge.agents",
+    "forge.usecases",
+    "forge.guardrails",
+    "forge.observability",
+]
+forbidden_modules = ["litellm"]
+allow_indirect_imports = true
