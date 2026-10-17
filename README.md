@@ -1,8 +1,15 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/svg/forge-logo-dark.svg">
+    <img src="docs/brand/svg/forge-logo-light.svg" alt="Forge" width="280">
+  </picture>
+</p>
+
 # Forge
 
 Self-hosted, LLM-agnostic platform to build and run agents, RAG pipelines and governed prompts, with multi-tenancy and observability. All models are external endpoints; Forge never hosts a model.
 
-**Status:** Phase 0 (inception). The repository holds the specification, the plan, the architecture decisions and a running skeleton: health endpoints, worker smoke workflow and the UI shell. No product features yet.
+**Status:** Phase 1, milestone M1.1 (platform core). Phase 0 delivered the specification, the plan, the architecture decisions, the spikes and a running skeleton. M1.1 adds the data foundation with row-level tenant isolation, local authentication (Argon2id, TOTP, rotating sessions, CSRF), secrets and runtime settings, the Super Admin console and the Projects Studio, in English and Italian.
 
 | Document | Content |
 | --- | --- |
@@ -38,9 +45,28 @@ make docker/run   # start the stack and wait until every service is healthy
 make docker/smoke # end-to-end check: UI, API proxy, readiness, a workflow on each worker queue
 ```
 
-Open <http://localhost:8080>. The initial admin password is `FORGE_ADMIN_PASSWORD` in `.env`. Login screens arrive with E1.2.
+Open <http://localhost:8080> and sign in as described in [First sign-in](#first-sign-in).
 
 `make help` lists every target.
+
+## First sign-in
+
+On first start, with an empty user table, the API creates a Super Admin from `FORGE_ADMIN_USERNAME`, `FORGE_ADMIN_EMAIL` and `FORGE_ADMIN_PASSWORD` in `.env`.
+
+1. Sign in with that username and password.
+2. Set a new password when asked (at least 12 characters, not a common password), then accept the terms of use.
+3. Remove `FORGE_ADMIN_PASSWORD` from `.env`. It is read only to create the first admin; changing it later has no effect, and the API logs a warning while it is still set.
+
+Create the other users from the Super Admin console (profile menu → Super Admin Console → Users). Each one gets a temporary password and goes through the same first sign-in steps.
+
+### Lost admin password or locked account
+
+```bash
+make admin/reset                    # the admin from .env
+make admin/reset ADMIN_USER=alice   # any username; creates a Super Admin if it does not exist
+```
+
+It prompts for a temporary password, clears the lockout and makes the account a Super Admin. At the next sign-in the user must set a new password and accept the terms again. The reset is recorded in the audit log as `user.ensure_superuser`. It needs shell access to the host running the stack, so it works even when nobody can sign in.
 
 ## Configuration
 
@@ -117,6 +143,7 @@ docker run --rm -it --network host -v "$PWD/frontend:/app" -w /app node:24.22.0-
 | `migrate` fails with `role "forge_app" does not exist` | The DB volume predates the init script. Recreate it with `make docker/down` (this **deletes local data**) |
 | `temporal` keeps restarting | `make logs SERVICE=temporal`; the `temporal` and `temporal_visibility` databases are created by `deploy/compose/initdb/10-forge.sh` on first volume init only |
 | UI shows "API offline" | `curl localhost:8080/api/v1/version`; check `api` health |
+| Sign-in rejected for the admin, or account locked after failed attempts | `make admin/reset` (see [Lost admin password or locked account](#lost-admin-password-or-locked-account)) |
 | Integration tests skipped | They need `FORGE_TEST_DATABASE_URL`; use `make test/integration` |
 
 ## Release

@@ -1,0 +1,65 @@
+<main class="page">
+  <p-card styleClass="card">
+    <div class="brand">
+      <img src="brand/forge-logo-light.svg" alt="Forge" width="168" height="56" />
+    </div>
+
+    @if (error(); as message) {
+      <p-message severity="error" [text]="message" data-testid="login-error" />
+    }
+
+    @if (!challenge()) {
+      <form (ngSubmit)="submit()" class="form">
+        <label for="login" i18n>Username or email</label>
+        <input
+          pInputText
+          id="login"
+          name="login"
+          autocomplete="username"
+          required
+          [(ngModel)]="loginName"
+        />
+        <label for="password" i18n>Password</label>
+        <p-password
+          inputId="password"
+          name="password"
+          [(ngModel)]="password"
+          [feedback]="false"
+          [toggleMask]="true"
+          autocomplete="current-password"
+          [fluid]="true"
+        />
+        <p-button type="submit" label="Sign in" i18n-label [loading]="busy()" [fluid]="true" />
+      </form>
+    } @else {
+      <form (ngSubmit)="submitCode()" class="form">
+        @if (useRecovery) {
+          <label for="code" i18n>Recovery code</label>
+          <input pInputText id="code" name="code" autocomplete="off" [(ngModel)]="code" />
+        } @else {
+          <label for="code" i18n>Authentication code</label>
+          <input
+            pInputText
+            id="code"
+            name="code"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            maxlength="6"
+            [(ngModel)]="code"
+          />
+        }
+        <p-button type="submit" label="Verify" i18n-label [loading]="busy()" [fluid]="true" />
+        <div class="links">
+          <button type="button" class="link" (click)="useRecovery = !useRecovery; code = ''">
+            @if (useRecovery) {
+              <span i18n>Use an authentication code</span>
+            } @else {
+              <span i18n>Use a recovery code</span>
+            }
+          </button>
+          <button type="button" class="link" (click)="restart()" i18n>Back</button>
+        </div>
+      </form>
+    }
+  </p-card>
+</main>

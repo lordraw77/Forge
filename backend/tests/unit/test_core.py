@@ -71,3 +71,18 @@ def test_cli_roles() -> None:
     assert parser.parse_args(["migrate"]).revision == "head"
     with pytest.raises(SystemExit):
         parser.parse_args(["worker", "unknown"])
+
+
+def test_sql_statements_respect_dollar_quotes_and_comments() -> None:
+    from forge.core.sqlscript import statements
+
+    script = """
+    CREATE TABLE a (x int); -- trailing; comment
+    CREATE FUNCTION f() RETURNS int LANGUAGE sql AS $$ SELECT 1; $$;
+    INSERT INTO a VALUES (';');
+    """
+    assert statements(script) == [
+        "CREATE TABLE a (x int)",
+        "CREATE FUNCTION f() RETURNS int LANGUAGE sql AS $$ SELECT 1; $$",
+        "INSERT INTO a VALUES (';')",
+    ]

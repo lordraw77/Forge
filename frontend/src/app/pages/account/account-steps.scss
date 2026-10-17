@@ -1,0 +1,48 @@
+// Shared by the first-login step components (a shared `styles` constant hangs the Angular build).
+.page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: var(--p-surface-100);
+}
+:host ::ng-deep .card {
+  width: min(30rem, 100%);
+}
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.eula {
+  white-space: pre-wrap;
+  max-height: 40vh;
+  overflow: auto;
+  padding: 0.75rem;
+  background: var(--p-surface-50);
+  border-radius: var(--p-border-radius-md);
+}
+.qr {
+  display: block;
+  margin: 0.5rem auto;
+  width: 200px;
+  height: 200px;
+}
+code {
+  word-break: break-all;
+}
+.codes {
+  columns: 2;
+  font-family: monospace;
+  padding-left: 1.2rem;
+}
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 0.75rem;
+}

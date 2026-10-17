@@ -1,5 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 
+import { loginAsAdmin } from './support';
+
 /** Spike E0.5c: Foblex Flow editor over the ADR-010 graph schema, in a real browser. */
 
 interface Definition {
@@ -25,8 +27,16 @@ test.describe('graph editor spike (E0.5c)', () => {
 
   test.beforeEach(async ({ page }) => {
     errors.length = 0;
-    page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+    // HTTP error statuses are asserted through the UI (e.g. the pre-login 401 probe, policy 422s).
+    page.on(
+      'console',
+      (m) =>
+        m.type() === 'error' &&
+        !m.text().startsWith('Failed to load resource') &&
+        errors.push(m.text()),
+    );
     page.on('pageerror', (e) => errors.push(e.message));
+    await loginAsAdmin(page);
     await page.goto('/spikes/graph-editor');
     await expect(page.locator('[data-node-id="start"]')).toBeVisible();
   });
@@ -78,7 +88,9 @@ test.describe('graph editor spike (E0.5c)', () => {
     for (let i = 1; i <= 30; i++) await page.mouse.move(box.x + 20 + i * 4, box.y + 5 + i * 3);
     const dragMs = Date.now() - t0;
     await page.mouse.up();
-    console.log(`E05C_DRAG_SMALL ${JSON.stringify({ moves: 30, total_ms: dragMs, per_move_ms: dragMs / 30 })}`);
+    console.log(
+      `E05C_DRAG_SMALL ${JSON.stringify({ moves: 30, total_ms: dragMs, per_move_ms: dragMs / 30 })}`,
+    );
     const moved = (await title.boundingBox())!;
     expect(Math.abs(moved.x - box.x)).toBeGreaterThan(50);
     expect(await definition(page)).toEqual(before);
@@ -103,7 +115,9 @@ test.describe('graph editor spike (E0.5c)', () => {
     for (let i = 1; i <= 30; i++) await page.mouse.move(box.x + 10 + i * 4, box.y + 5 + i * 2);
     const dragMs = Date.now() - t0;
     await page.mouse.up();
-    console.log(`E05C_DRAG ${JSON.stringify({ moves: 30, total_ms: dragMs, per_move_ms: dragMs / 30 })}`);
+    console.log(
+      `E05C_DRAG ${JSON.stringify({ moves: 30, total_ms: dragMs, per_move_ms: dragMs / 30 })}`,
+    );
     await page.screenshot({ path: 'e2e/.results/graph-editor-200.png' });
     expect(errors).toEqual([]);
   });

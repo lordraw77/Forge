@@ -70,3 +70,20 @@ async def project_scope(
             },
         )
         yield session
+
+
+@asynccontextmanager
+async def admin_scope(
+    sessions: async_sessionmaker[AsyncSession], user_id: uuid.UUID | None = None
+) -> AsyncIterator[AsyncSession]:
+    """Cross-project access as `forge_admin` (BYPASSRLS), for named platform code paths only.
+
+    ADR-002: keep callers few and reviewed (Super Admin console, purge, API key lookup).
+    """
+    async with sessions() as session, session.begin():
+        await session.execute(text("SET LOCAL ROLE forge_admin"))
+        await session.execute(
+            text("SELECT set_config('app.user_id', :user_id, true)"),
+            {"user_id": str(user_id) if user_id else ""},
+        )
+        yield session

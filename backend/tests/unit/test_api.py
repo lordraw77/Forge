@@ -13,6 +13,7 @@ from forge.core.settings import Settings
 UNREACHABLE = Settings(
     database_url="postgresql+asyncpg://forge:x@127.0.0.1:1/forge",
     redis_url="redis://127.0.0.1:1/0",
+    master_key="a2V5a2V5a2V5a2V5a2V5a2V5a2V5a2V5a2V5a2V5a2U=",
 )
 
 
@@ -31,7 +32,10 @@ def test_liveness_does_not_depend_on_dependencies(client: TestClient) -> None:
 def test_readiness_reports_unreachable_dependencies(client: TestClient) -> None:
     resp = client.get("/readyz")
     assert resp.status_code == 503
-    assert resp.json() == {"status": "fail", "checks": {"database": "fail", "redis": "fail"}}
+    assert resp.json() == {
+        "status": "fail",
+        "checks": {"database": "fail", "redis": "fail", "initialised": "fail"},
+    }
 
 
 def test_version(client: TestClient) -> None:

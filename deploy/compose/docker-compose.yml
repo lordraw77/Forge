@@ -54,6 +54,7 @@ services:
     restart: unless-stopped
     command: ["valkey-server", "--requirepass", "${VALKEY_PASSWORD}", "--save", "60", "1000"]
     volumes: [valkey-data:/data]
+    ports: ["127.0.0.1:${FORGE_VALKEY_PORT:-6379}:6379"]  # host-side tests and tools
     healthcheck:
       test: ["CMD-SHELL", "valkey-cli -a \"$$VALKEY_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
       interval: 5s

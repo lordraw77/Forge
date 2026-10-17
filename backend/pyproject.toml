@@ -19,6 +19,11 @@ dependencies = [
     "langgraph-checkpoint-postgres>=3.2.0",
     "psycopg[binary]>=3.3.6",
     "psycopg-pool>=3.3.3",
+    "argon2-cffi>=25.1.0",
+    "pyotp>=2.10.0",
+    "cryptography>=50.0.2",
+    "pyjwt>=2.15.1",
+    "email-validator>=2.3.0",
 ]
 
 [project.scripts]
@@ -55,7 +60,7 @@ select = ["E", "F", "W", "I", "B", "UP", "S", "ASYNC", "RUF", "SIM", "PT"]
 ignore = ["S101"]  # assert is fine in tests; production code is checked by mypy/tests
 
 [tool.ruff.lint.per-file-ignores]
-"migrations/**" = ["S608"]
+"migrations/**" = ["S608", "E501"]  # SQL DDL reads better unwrapped
 "tests/**" = ["S105", "S106", "S608"]
 "spikes/**" = ["S608", "E501", "S603", "S311", "ASYNC230"]  # throwaway spike code, constant schema names
 
@@ -67,7 +72,7 @@ mypy_path = "src"
 packages = ["forge"]
 
 [[tool.mypy.overrides]]
-module = ["temporalio.*"]
+module = ["temporalio.*", "asyncpg.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
@@ -102,7 +107,7 @@ modules = [
     "forge.observability",
 ]
 ignore_imports = [
-    "forge.* -> forge.*.service",
+    "forge.** -> forge.*.service",
 ]
 unmatched_ignore_imports_alerting = "none"
 

@@ -60,6 +60,78 @@ def _migrate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _rotate_kek(_args: argparse.Namespace) -> int:
+    from forge.admin.service import secrets
+    from forge.core.crypto import Envelope
+    from forge.core.db import admin_scope, create_engine, session_factory
+
+    async def run() -> int:
+        settings = get_settings()
+        if settings.master_key is None:
+            raise SystemExit("FORGE_MASTER_KEY is required")
+        engine = create_engine(settings)
+        try:
+            async with admin_scope(session_factory(engine)) as s:
+                return await secrets.rotate_all(
+                    s, Envelope.from_master_key(settings.master_key.get_secret_value())
+                )
+        finally:
+            await engine.dispose()
+
+    print(f"re-wrapped {asyncio.run(run())} secrets")
+    return 0
+
+
+def _ensure_superuser(args: argparse.Namespace) -> int:
+    """Create or reset a Super Admin (break-glass recovery, automation). Needs container access."""
+    from sqlalchemy import func, select
+
+    from forge.admin.service import Eula, audit
+    from forge.core.context import Actor
+    from forge.core.db import admin_scope, create_engine, session_factory
+    from forge.iam import passwords
+    from forge.iam.models import User
+
+    password = sys.stdin.readline().rstrip("\n") if args.password_stdin else None
+    if not password:
+        raise SystemExit("provide the password on stdin with --password-stdin")
+
+    async def run() -> str:
+        engine = create_engine(get_settings())
+        try:
+            async with admin_scope(session_factory(engine)) as s:
+                user = (
+                    await s.execute(
+                        select(User).where(func.lower(User.username) == args.username.lower())
+                    )
+                ).scalar_one_or_none()
+                created = user is None
+                if user is None:
+                    user = User(username=args.username, email=args.email, full_name=args.full_name)
+                    s.add(user)
+                user.is_super_admin, user.status = True, "active"
+                user.password_hash = passwords.hash_password(password)
+                user.locked_until, user.failed_logins = None, 0
+                user.must_change_password = not args.ready
+                if args.ready:
+                    user.eula_version = Eula().version  # automation accounts skip first-login steps
+                await s.flush()
+                await audit.record(
+                    s,
+                    Actor(id=None, label="cli"),
+                    "user.ensure_superuser",
+                    "user",
+                    user.id,
+                    {"username": user.username, "created": created, "ready": args.ready},
+                )
+                return "created" if created else "updated"
+        finally:
+            await engine.dispose()
+
+    print(f"super admin {args.username} {asyncio.run(run())}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="forge")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -75,6 +147,23 @@ def build_parser() -> argparse.ArgumentParser:
 
     health = sub.add_parser("worker-health", help="exit 0 if the local worker is alive")
     health.set_defaults(func=_worker_health)
+
+    secrets_cmd = sub.add_parser("secrets", help="secret store maintenance")
+    secrets_sub = secrets_cmd.add_subparsers(dest="secrets_command", required=True)
+    rotate = secrets_sub.add_parser("rotate-kek", help="re-wrap every secret under the current KEK")
+    rotate.set_defaults(func=_rotate_kek)
+
+    users_cmd = sub.add_parser("users", help="user maintenance")
+    users_sub = users_cmd.add_subparsers(dest="users_command", required=True)
+    ensure = users_sub.add_parser("ensure-superuser", help="create or reset a Super Admin")
+    ensure.add_argument("--username", required=True)
+    ensure.add_argument("--email", required=True)
+    ensure.add_argument("--full-name", default="Administrator")
+    ensure.add_argument("--password-stdin", action="store_true")
+    ensure.add_argument(
+        "--ready", action="store_true", help="skip first-login steps (automation accounts only)"
+    )
+    ensure.set_defaults(func=_ensure_superuser)
 
     migrate = sub.add_parser("migrate", help="apply database migrations")
     migrate.add_argument("revision", nargs="?", default="head")

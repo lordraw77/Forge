@@ -48,6 +48,11 @@ test/integration: ## Backend integration tests against the compose database
 test/e2e: ## Playwright E2E tests against the running stack (make docker/run first)
 	@scripts/test-e2e.sh
 
+## ---- Code generation
+.PHONY: api/client
+api/client: ## Regenerate the frontend API client from the backend OpenAPI spec
+	@scripts/gen-api-client.sh
+
 ## ---- Local run
 .PHONY: build run stop logs ps migrate
 build: docker/build ## Build all images
@@ -61,6 +66,15 @@ logs: ## Follow logs (SERVICE=api to filter)
 
 ps: ## Show service status
 	$(COMPOSE) ps
+
+ADMIN_USER ?= $(shell grep -s '^FORGE_ADMIN_USERNAME=' .env | cut -d= -f2-)
+ADMIN_EMAIL ?= $(shell grep -s '^FORGE_ADMIN_EMAIL=' .env | cut -d= -f2-)
+.PHONY: admin/reset
+admin/reset: ## Reset (or create) a Super Admin and unlock it; prompts for a temporary password
+	@test -n "$(ADMIN_USER)" || { echo "set ADMIN_USER=<username>"; exit 1; }
+	@read -rsp "Temporary password for $(ADMIN_USER): " pw; echo; \
+	  printf '%s\n' "$$pw" | $(COMPOSE) exec -T api forge users ensure-superuser \
+	    --username "$(ADMIN_USER)" --email "$(or $(ADMIN_EMAIL),$(ADMIN_USER)@localhost)" --password-stdin
 
 migrate: ## Apply database migrations
 	$(COMPOSE) run --rm migrate

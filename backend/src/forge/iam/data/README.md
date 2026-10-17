@@ -1,0 +1,1 @@
+`common-passwords.txt`: the 10,000 most common passwords, from [SecLists](https://github.com/danielmiessler/SecLists) (`Passwords/Common-Credentials/10k-most-common.txt`), MIT License, Copyright (c) 2018 Daniel Miessler. Used by the password policy (US-1.2.4).

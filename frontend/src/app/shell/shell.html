@@ -1,8 +1,7 @@
 <div class="layout" [class.menu-open]="menuOpen()">
   <aside class="sidebar" aria-label="Main navigation" i18n-aria-label>
     <a class="brand" routerLink="/" (click)="menuOpen.set(false)">
-      <i class="pi pi-bolt" aria-hidden="true"></i>
-      <span>Forge</span>
+      <img src="brand/forge-logo-dark.svg" alt="Forge" width="120" height="40" />
     </a>
 
     <nav>
@@ -19,18 +18,23 @@
     </nav>
 
     <div class="profile">
-      <p-avatar [label]="user.initials" shape="circle" />
+      <p-avatar [label]="initials()" shape="circle" />
       <div class="who">
-        <strong>{{ user.name }}</strong>
-        <small>{{ user.role }} · {{ user.email }}</small>
+        <strong data-testid="user-name">{{
+          session.user()?.full_name || session.user()?.username
+        }}</strong>
+        <small>{{ roleLabel() }} · {{ session.user()?.email }}</small>
       </div>
       <p-button
-        icon="pi pi-sign-out"
+        icon="pi pi-ellipsis-v"
         [text]="true"
         [rounded]="true"
-        ariaLabel="Log out"
+        ariaLabel="Profile menu"
         i18n-ariaLabel
+        data-testid="profile-menu"
+        (onClick)="profile.toggle($event)"
       />
+      <p-menu #profile [model]="profileItems()" [popup]="true" appendTo="body" />
     </div>
   </aside>
 
@@ -48,11 +52,16 @@
         <span i18n>Project</span>
         <p-select
           inputId="project-select"
-          [options]="projects"
-          [(ngModel)]="project"
+          [options]="session.projects()"
+          [ngModel]="session.project()?.id"
+          (ngModelChange)="session.selectProject($event)"
           optionLabel="name"
+          optionValue="id"
           [filter]="true"
           filterBy="name"
+          placeholder="No project"
+          i18n-placeholder
+          data-testid="project-select"
         />
       </label>
       <span class="spacer"></span>

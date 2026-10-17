@@ -1,0 +1,90 @@
+import { Component, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
+import { InputTextModule } from 'primeng/inputtext';
+import { MessageModule } from 'primeng/message';
+import { PasswordModule } from 'primeng/password';
+import { firstValueFrom } from 'rxjs';
+
+import { AuthService } from '../../api-client';
+import { problemMessage } from '../../core/http';
+import { Session } from '../../core/session';
+
+/** US-1.2.2 / US-1.2.3: username or email + password, then TOTP or a recovery code. */
+@Component({
+  selector: 'forge-login',
+  imports: [FormsModule, ButtonModule, CardModule, InputTextModule, MessageModule, PasswordModule],
+  templateUrl: './login.html',
+  styleUrl: './login.scss',
+})
+export class Login {
+  private readonly auth = inject(AuthService);
+  private readonly session = inject(Session);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+
+  protected loginName = '';
+  protected password = '';
+  protected code = '';
+  protected useRecovery = false;
+  protected readonly challenge = signal<string | null>(null);
+  protected readonly error = signal<string | null>(null);
+  protected readonly busy = signal(false);
+
+  protected async submit(): Promise<void> {
+    await this.run(async () => {
+      const res = await firstValueFrom(
+        this.auth.login({ loginIn: { login: this.loginName, password: this.password } }),
+      );
+      if (res.status === 'totp_required') {
+        this.challenge.set(res.challenge ?? null);
+        this.password = '';
+      } else {
+        await this.done();
+      }
+    });
+  }
+
+  protected async submitCode(): Promise<void> {
+    const challenge = this.challenge();
+    if (!challenge) return;
+    await this.run(async () => {
+      await firstValueFrom(
+        this.auth.loginTotp({
+          loginTotpIn: this.useRecovery
+            ? { challenge, recovery_code: this.code }
+            : { challenge, code: this.code },
+        }),
+      );
+      await this.done();
+    });
+  }
+
+  protected restart(): void {
+    this.challenge.set(null);
+    this.code = '';
+    this.error.set(null);
+  }
+
+  private async done(): Promise<void> {
+    const me = await this.session.load();
+    const step = this.session.pendingStep(me?.flags);
+    const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
+    await this.router.navigateByUrl(step ?? (returnUrl?.startsWith('/') ? returnUrl : '/'));
+  }
+
+  private async run(action: () => Promise<void>): Promise<void> {
+    this.busy.set(true);
+    this.error.set(null);
+    try {
+      await action();
+    } catch (e) {
+      this.error.set(problemMessage(e, $localize`Sign-in failed`));
+      if (this.challenge()) this.code = '';
+    } finally {
+      this.busy.set(false);
+    }
+  }
+}

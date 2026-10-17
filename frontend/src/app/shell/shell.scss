@@ -14,7 +14,7 @@
   flex-direction: column;
   gap: 0.5rem;
   padding: 1rem 0.75rem;
-  background: var(--p-surface-900);
+  background: #0b1220; // brand navy (docs/brand)
   color: var(--p-surface-0);
   overflow-y: auto;
 }
@@ -24,10 +24,13 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.25rem 0.75rem 1rem;
-  font-size: 1.25rem;
-  font-weight: 700;
   color: inherit;
   text-decoration: none;
+
+  img {
+    height: 2.25rem;
+    width: auto;
+  }
 }
 
 nav {

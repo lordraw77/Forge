@@ -1,6 +1,8 @@
-import { Component } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
+
+import { Session } from '../../core/session';
 
 /** Home (spec Part 2): greeting, two main actions, recent activity of the last 15 days. */
 @Component({
@@ -8,7 +10,7 @@ import { CardModule } from 'primeng/card';
   imports: [ButtonModule, CardModule],
   template: `
     <section class="hero">
-      <h1 i18n>Welcome, {{ userName }}</h1>
+      <h1 i18n>Welcome, {{ userName() }}</h1>
       <p i18n>Build, publish and run generative and agentic AI solutions.</p>
       <div class="actions">
         <p-button
@@ -46,6 +48,8 @@ import { CardModule } from 'primeng/card';
   `,
 })
 export class Home {
-  // Replaced by the authenticated user's name once /api/v1/me exists (E1.2).
-  protected readonly userName = 'Forge Admin';
+  private readonly session = inject(Session);
+  protected readonly userName = computed(
+    () => this.session.user()?.full_name || this.session.user()?.username || '',
+  );
 }

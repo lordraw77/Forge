@@ -38,6 +38,9 @@
             ],
             "polyfills": [
               "@angular/localize/init"
+            ],
+            "allowedCommonJsDependencies": [
+              "qrcode"
             ]
           },
           "configurations": {

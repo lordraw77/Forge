@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from forge.core.db import project_scope, session_factory
 from forge.core.rls import enable_project_rls
+from forge.core.sqlscript import statements
 
 
 async def test_app_role_is_bound_by_rls(app_engine: AsyncEngine) -> None:
@@ -58,9 +59,8 @@ async def scoped_table(owner_engine: AsyncEngine) -> AsyncIterator[str]:
     name = f"rls_probe_{uuid.uuid4().hex[:8]}"
     async with owner_engine.begin() as conn:
         await conn.execute(text(f"CREATE TABLE {name} (id serial PRIMARY KEY, project_id uuid)"))
-        for stmt in enable_project_rls(name, nullable_project=True).split(";"):
-            if stmt.strip():
-                await conn.execute(text(stmt))
+        for stmt in statements(enable_project_rls(name, nullable_project=True)):
+            await conn.execute(text(stmt))
     yield name
     async with owner_engine.begin() as conn:
         await conn.execute(text(f"DROP TABLE {name}"))

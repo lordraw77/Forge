@@ -49,6 +49,11 @@ class Settings(BaseSettings):
     # Boot-time log level, used until the GUI setting is loaded from the database.
     log_level: str = "INFO"
 
+    @property
+    def secure_cookies(self) -> bool:
+        """Cookies get the Secure flag whenever the public URL is HTTPS."""
+        return self.public_url.startswith("https://")
+
     @field_validator("master_key")
     @classmethod
     def _master_key_is_32_bytes(cls, value: SecretStr | None) -> SecretStr | None:

@@ -1,0 +1,179 @@
+"""Runtime application settings: typed, versioned, audited, live-reloaded (ADR-007)."""
+
+from __future__ import annotations
+
+import asyncio
+import contextlib
+from typing import Any, TypeVar
+
+import asyncpg
+from pydantic import BaseModel, Field
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from forge.admin import audit
+from forge.admin.models import Setting, SettingHistory
+from forge.core.context import Actor
+from forge.core.db import project_scope
+from forge.core.logging import get_logger
+
+log = get_logger(__name__)
+CHANNEL = "forge_config"
+
+
+class PasswordPolicy(BaseModel):
+    min_length: int = Field(default=12, ge=8, le=128)
+    history: int = Field(default=5, ge=0, le=24)
+    block_common: bool = True
+
+
+class LockoutPolicy(BaseModel):
+    threshold: int = Field(default=5, ge=3, le=50)
+    window_min: int = Field(default=15, ge=1, le=1440)
+    lock_min: int = Field(default=15, ge=1, le=1440)
+
+
+class SessionPolicy(BaseModel):
+    idle_min: int = Field(default=30, ge=5, le=1440)
+    absolute_h: int = Field(default=12, ge=1, le=168)
+
+
+class TotpPolicy(BaseModel):
+    required: bool = False
+
+
+class Eula(BaseModel):
+    version: str = "1"
+    text: str = (
+        "Forge is provided for authorised use within your organisation. Activity is logged. "
+        "Do not upload data you are not permitted to process."
+    )
+
+
+REGISTRY: dict[str, type[BaseModel]] = {
+    "auth.password_policy": PasswordPolicy,
+    "auth.lockout": LockoutPolicy,
+    "auth.session": SessionPolicy,
+    "auth.totp": TotpPolicy,
+    "system.eula": Eula,
+}
+
+M = TypeVar("M", bound=BaseModel)
+
+
+class UnknownSettingError(KeyError):
+    pass
+
+
+class SettingsStore:
+    """Process-wide cache of platform settings; reloads on NOTIFY from any process."""
+
+    def __init__(self, sessions: async_sessionmaker[AsyncSession], listen_dsn: str | None) -> None:
+        self._sessions = sessions
+        self._dsn = listen_dsn
+        self._values: dict[str, BaseModel] = {k: cls() for k, cls in REGISTRY.items()}
+        self._versions: dict[str, int] = {}
+        self._task: asyncio.Task[None] | None = None
+
+    def get(self, cls: type[M]) -> M:
+        for key, model in REGISTRY.items():
+            if model is cls:
+                value = self._values[key]
+                assert isinstance(value, cls)
+                return value
+        raise UnknownSettingError(cls.__name__)
+
+    def snapshot(self) -> dict[str, dict[str, Any]]:
+        return {
+            k: {"value": v.model_dump(), "version": self._versions.get(k, 0)}
+            for k, v in self._values.items()
+        }
+
+    async def reload(self, key: str | None = None) -> None:
+        async with project_scope(self._sessions, None) as session:
+            stmt = select(Setting).where(Setting.project_id.is_(None))
+            if key:
+                stmt = stmt.where(Setting.key == key)
+            for row in (await session.execute(stmt)).scalars():
+                cls = REGISTRY.get(row.key)
+                if cls is None:
+                    continue
+                self._values[row.key] = cls.model_validate(row.value)
+                self._versions[row.key] = row.version
+
+    async def set(
+        self, session: AsyncSession, actor: Actor, key: str, value: dict[str, Any]
+    ) -> BaseModel:
+        cls = REGISTRY.get(key)
+        if cls is None:
+            raise UnknownSettingError(key)
+        model = cls.model_validate(value)  # raises ValidationError with field details
+        row = (
+            await session.execute(
+                select(Setting)
+                .where(Setting.key == key, Setting.project_id.is_(None))
+                .with_for_update()
+            )
+        ).scalar_one_or_none()
+        before = row.value if row else cls().model_dump()
+        version = (row.version if row else 0) + 1
+        data = model.model_dump()
+        if row is None:
+            session.add(Setting(key=key, value=data, version=version, updated_by=actor.id))
+        else:
+            row.value, row.version, row.updated_by = data, version, actor.id
+        session.add(SettingHistory(key=key, value=data, version=version, updated_by=actor.id))
+        await audit.record(
+            session, actor, "setting.update", "setting", key, {"before": before, "after": data}
+        )
+        await session.execute(
+            text("SELECT pg_notify(:channel, :key)"), {"channel": CHANNEL, "key": key}
+        )
+        return model
+
+    # ---- live reload
+    async def start(self) -> None:
+        await self.reload()
+        if self._dsn:
+            self._task = asyncio.create_task(self._listen_forever())
+
+    async def stop(self) -> None:
+        if self._task:
+            self._task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._task
+
+    async def _listen_forever(self) -> None:
+        assert self._dsn
+        while True:
+            try:
+                conn = await asyncpg.connect(self._dsn)
+                try:
+                    await self.reload()  # catch up on anything missed while disconnected
+                    closed = asyncio.Event()
+                    conn.add_termination_listener(lambda _c, ev=closed: ev.set())
+                    await conn.add_listener(CHANNEL, self._on_notify)
+                    await closed.wait()
+                finally:
+                    with contextlib.suppress(Exception):
+                        await conn.close()
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log.warning("settings.listener_error", error=str(exc))
+            await asyncio.sleep(2)
+
+    def _on_notify(self, _conn: object, _pid: int, _channel: str, key: str) -> None:
+        asyncio.get_running_loop().create_task(self._reload_logged(key))
+
+    async def _reload_logged(self, key: str) -> None:
+        try:
+            await self.reload(key)
+            log.info("settings.reloaded", key=key, version=self._versions.get(key))
+        except Exception as exc:
+            log.warning("settings.reload_failed", key=key, error=str(exc))
+
+
+def listen_dsn(database_url: str) -> str:
+    """asyncpg wants a plain postgresql:// URL (no SQLAlchemy driver suffix)."""
+    return database_url.replace("postgresql+asyncpg://", "postgresql://", 1)

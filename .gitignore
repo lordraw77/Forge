@@ -22,3 +22,6 @@ dist/
 
 # Claude Code local configuration
 .claude/
+
+# Brand kit archive (contents live in docs/brand/)
+forge-brand.zip

@@ -1,7 +1,23 @@
-/// <reference types="@angular/localize" />
+import { loadTranslations } from '@angular/localize';
 
-import { bootstrapApplication } from '@angular/platform-browser';
-import { appConfig } from './app/app.config';
-import { App } from './app/app';
+import { currentLocale } from './app/core/locale';
 
-bootstrapApplication(App, appConfig).catch((err) => console.error(err));
+// Translations must be loaded before any module that calls $localize at import time
+// (menu, labels), so the application is imported dynamically afterwards.
+async function start(): Promise<void> {
+  const locale = currentLocale();
+  document.documentElement.lang = locale;
+  if (locale !== 'en') {
+    try {
+      const res = await fetch(`/i18n/${locale}.json`);
+      const data = (await res.json()) as { translations: Record<string, string> };
+      loadTranslations(data.translations);
+    } catch (error) {
+      console.error('translations unavailable, falling back to English', error);
+    }
+  }
+  const { bootstrap } = await import('./bootstrap');
+  await bootstrap();
+}
+
+start().catch((err: unknown) => console.error(err));

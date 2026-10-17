@@ -43,6 +43,7 @@ async def readyz(request: Request, response: Response) -> Readiness:
     checks: dict[str, CheckState] = {
         "database": await _check(_ping_db(request)),
         "redis": await _check(request.app.state.redis.ping()),
+        "initialised": "ok" if request.app.state.initialised else "fail",
     }
     ready = all(v == "ok" for v in checks.values())
     if not ready:
