@@ -90,7 +90,14 @@ function withCsrf(req: HttpRequest<unknown>): HttpRequest<unknown> {
 export function problemMessage(error: unknown, fallback = $localize`Something went wrong`): string {
   if (error instanceof HttpErrorResponse && error.error && typeof error.error === 'object') {
     const p = error.error as { title?: string; detail?: unknown; code?: string };
-    const detail = typeof p.detail === 'string' ? p.detail : '';
+    let detail = typeof p.detail === 'string' ? p.detail : '';
+    if (Array.isArray(p.detail)) {
+      // 422 validation errors: show why, without Pydantic's "Value error, " prefix.
+      detail = p.detail
+        .map((d: { msg?: string }) => (d.msg ?? '').replace(/^Value error, /, ''))
+        .filter(Boolean)
+        .join('; ');
+    }
     return [p.title, detail].filter(Boolean).join(': ') || fallback;
   }
   return fallback;

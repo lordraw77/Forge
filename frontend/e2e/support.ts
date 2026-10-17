@@ -34,7 +34,11 @@ export async function adminApi(baseURL: string): Promise<APIRequestContext> {
   const state = await ctx.storageState();
   await ctx.dispose();
   const csrf = state.cookies.find((c) => c.name === 'forge_csrf')?.value ?? '';
-  return request.newContext({ baseURL, storageState: state, extraHTTPHeaders: { 'X-CSRF-Token': csrf } });
+  return request.newContext({
+    baseURL,
+    storageState: state,
+    extraHTTPHeaders: { 'X-CSRF-Token': csrf },
+  });
 }
 
 /** RFC 6238 TOTP (SHA-1, 30 s, 6 digits) for enrolling and signing in from tests. */

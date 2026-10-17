@@ -22,4 +22,7 @@ docker run --rm -u "$(id -u):$(id -g)" -v "$root/frontend:/local" openapitools/o
 rm -f "$root/frontend/src/app/api-client/git_push.sh" "$root/frontend/src/app/api-client/.gitignore" \
   "$root/frontend/src/app/api-client/.openapi-generator-ignore"
 rm -rf "$root/frontend/src/app/api-client/.openapi-generator"
+# Committed formatted, so regenerations produce reviewable diffs (prettier skips it otherwise).
+docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$root/frontend:/app" -w /app node:24.22.0-trixie-slim \
+  npx prettier --write "src/app/api-client/**/*.ts" --ignore-path /dev/null >/dev/null
 echo "api client regenerated"

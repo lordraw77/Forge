@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from typing import Any, TypeVar
+from collections.abc import Awaitable, Callable
+from typing import Any, Literal, TypeVar
 
 import asyncpg
 from pydantic import BaseModel, Field
@@ -50,12 +51,25 @@ class Eula(BaseModel):
     )
 
 
+class GatewayLimits(BaseModel):
+    """Platform defaults and ceilings for project LLM usage (F1.6, US-1.7.1). 0 = unlimited."""
+
+    tokens_per_day: int = Field(default=0, ge=0)
+    requests_per_minute: int = Field(default=0, ge=0)
+    user_tokens_per_day: int = Field(default=0, ge=0)
+    user_requests_per_minute: int = Field(default=0, ge=0)
+    max_tokens_per_call: int = Field(default=0, ge=0)
+    max_tokens_policy: Literal["clamp", "reject"] = "clamp"
+    cache_ttl_max_s: int = Field(default=86400, ge=1, le=2_592_000)
+
+
 REGISTRY: dict[str, type[BaseModel]] = {
     "auth.password_policy": PasswordPolicy,
     "auth.lockout": LockoutPolicy,
     "auth.session": SessionPolicy,
     "auth.totp": TotpPolicy,
     "system.eula": Eula,
+    "gateway.limits": GatewayLimits,
 }
 
 M = TypeVar("M", bound=BaseModel)
@@ -74,6 +88,12 @@ class SettingsStore:
         self._values: dict[str, BaseModel] = {k: cls() for k, cls in REGISTRY.items()}
         self._versions: dict[str, int] = {}
         self._task: asyncio.Task[None] | None = None
+        self._subscribers: list[Callable[[str], Awaitable[None]]] = []
+
+    def subscribe(self, callback: Callable[[str], Awaitable[None]]) -> None:
+        """Call `callback(key)` for every notification on the config channel, including keys
+        that are not settings (e.g. `gateway`), and once more after a listener reconnect."""
+        self._subscribers.append(callback)
 
     def get(self, cls: type[M]) -> M:
         for key, model in REGISTRY.items():
@@ -150,6 +170,7 @@ class SettingsStore:
                 conn = await asyncpg.connect(self._dsn)
                 try:
                     await self.reload()  # catch up on anything missed while disconnected
+                    await self._notify_subscribers("*")
                     closed = asyncio.Event()
                     conn.add_termination_listener(lambda _c, ev=closed: ev.set())
                     await conn.add_listener(CHANNEL, self._on_notify)
@@ -167,11 +188,27 @@ class SettingsStore:
         asyncio.get_running_loop().create_task(self._reload_logged(key))
 
     async def _reload_logged(self, key: str) -> None:
-        try:
-            await self.reload(key)
-            log.info("settings.reloaded", key=key, version=self._versions.get(key))
-        except Exception as exc:
-            log.warning("settings.reload_failed", key=key, error=str(exc))
+        if key in REGISTRY:
+            try:
+                await self.reload(key)
+                log.info("settings.reloaded", key=key, version=self._versions.get(key))
+            except Exception as exc:
+                log.warning("settings.reload_failed", key=key, error=str(exc))
+        await self._notify_subscribers(key)
+
+    async def _notify_subscribers(self, key: str) -> None:
+        for callback in self._subscribers:
+            try:
+                await callback(key)
+            except Exception as exc:
+                log.warning("settings.subscriber_failed", key=key, error=str(exc))
+
+
+async def notify(session: AsyncSession, key: str) -> None:
+    """Publish a change on the config channel; delivered when the transaction commits."""
+    await session.execute(
+        text("SELECT pg_notify(:channel, :key)"), {"channel": CHANNEL, "key": key}
+    )
 
 
 def listen_dsn(database_url: str) -> str:

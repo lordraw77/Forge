@@ -38,6 +38,11 @@ export const routes: Routes = [
               import('./pages/projects/projects-studio').then((m) => m.ProjectInfo),
           },
           {
+            path: 'models',
+            loadComponent: () =>
+              import('./pages/projects/project-models').then((m) => m.ProjectModels),
+          },
+          {
             path: 'users',
             loadComponent: () =>
               import('./pages/projects/projects-studio').then((m) => m.ProjectUsers),
@@ -64,6 +69,10 @@ export const routes: Routes = [
             path: 'projects',
             loadComponent: () =>
               import('./pages/admin/admin-projects').then((m) => m.AdminProjects),
+          },
+          {
+            path: 'models',
+            loadComponent: () => import('./pages/admin/admin-models').then((m) => m.AdminModels),
           },
           {
             path: 'settings',

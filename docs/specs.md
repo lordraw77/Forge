@@ -18,7 +18,7 @@ Build a self-hosted, LLM-agnostic platform to create and run agents, RAG pipelin
 - Backend: Python
 - Frontend: Angular + PrimeNG
 - Database: PostgreSQL (also used for vectors and full-text search)
-- Models: all LLM, embedding and reranker models are external services, configured in the platform; Forge does not host or run any model
+- Models: all LLM, embedding, reranker and guard/classifier models are external services, configured in the platform; Forge does not host or run any of them. Small CPU models bundled as libraries (Docling layout/OCR, spaCy NER for Presidio) run in-process ([ADR-013](adr/013-guardrail-models.md))
 - Configuration: everything is configured from the GUI and stored in PostgreSQL; the `.env` file holds only the initial admin user and the minimum needed to boot (see [Configuration and bootstrap](#configuration-and-bootstrap))
 
 **In scope**
@@ -117,7 +117,7 @@ The Agent runtime orchestrates the other core services. Long runs and ingestion 
     | Field | Notes |
     | --- | --- |
     | Display name, logical alias | Alias used by prompts, agents and RAG |
-    | Type | Chat, Embedding, Reranker, Speech |
+    | Type | Chat, Embedding, Reranker, Speech, Guard (classifier, ADR-013) |
     | Provider type | One of the supported types above |
     | Base URL | Endpoint, including on-prem or private network |
     | Credentials | API key or cloud credentials, stored in the vault, write-only |
@@ -417,7 +417,7 @@ FORGE_PUBLIC_URL=https://forge.example.com
 ```
 
 - On first start, if no user exists, Forge creates the admin from `FORGE_ADMIN_*` with the Super Admin role and forces a password change at first login. On later starts these variables are ignored.
-- No other setting is read from `.env` or from config files.
+- No other application setting is read from `.env` or from config files. Infrastructure wiring (Redis/Valkey, S3 and Temporal addresses and their credentials) comes from deployment environment variables set by Compose or Helm, with working defaults; users never edit it ([ADR-007](adr/007-runtime-configuration.md)).
 
 **Admin Console (Super Admin)**
 

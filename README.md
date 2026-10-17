@@ -9,7 +9,7 @@
 
 Self-hosted, LLM-agnostic platform to build and run agents, RAG pipelines and governed prompts, with multi-tenancy and observability. All models are external endpoints; Forge never hosts a model.
 
-**Status:** Phase 1, milestone M1.1 (platform core). Phase 0 delivered the specification, the plan, the architecture decisions, the spikes and a running skeleton. M1.1 adds the data foundation with row-level tenant isolation, local authentication (Argon2id, TOTP, rotating sessions, CSRF), secrets and runtime settings, the Super Admin console and the Projects Studio, in English and Italian.
+**Status:** Phase 1, milestone M1.2 (LLM gateway) done; next is M1.3 (Prompt Studio). Phase 0 delivered the specification, the plan, the architecture decisions, the spikes, a running skeleton, the observability profile and the licence gate. M1.1 added tenant isolation, local authentication, secrets, runtime settings, the Super Admin console and the Projects Studio. M1.2 adds the model registry (providers, models, aliases with fallback chains, per-project enablement), Test Connection, the OpenAI-compatible `/v1` API with streaming, quotas and rate limits, and an optional response cache.
 
 | Document | Content |
 | --- | --- |
@@ -19,6 +19,7 @@ Self-hosted, LLM-agnostic platform to build and run agents, RAG pipelines and go
 | [docs/adr/](docs/adr/README.md) | Architecture decision records |
 | [docs/requirements/phase-1.md](docs/requirements/phase-1.md) | Phase 1 user stories and acceptance criteria |
 | [docs/security/threat-model.md](docs/security/threat-model.md) | STRIDE threat model and security requirements |
+| [CHANGELOG.md](CHANGELOG.md) | Changes per released version |
 
 ## Repository layout
 
@@ -78,6 +79,20 @@ Forge reads configuration from three places only (ADR-007):
 | Infrastructure wiring | `deploy/compose/infra.env`, injected by Compose | Database role passwords, Valkey password, S3 keys; Compose derives `FORGE_REDIS_URL`, `FORGE_S3_*`, `FORGE_TEMPORAL_ADDRESS` |
 | Application settings | PostgreSQL, edited from the GUI | Models, authentication, SMTP, connectors, guardrails, … (from E1.3) |
 
+### Models
+
+Models are configured in **Admin Console → Model providers**: add a provider (endpoint and API key), then its models, then point the aliases (`default-chat`, `fast`, `embedding`, `rerank`, or your own) at an ordered fallback chain. Enable each platform model for the projects that may use it. Project Admins see the enabled models in **Projects Studio → Models**, can override aliases, add project-only models and set the project's limits within the platform ceilings (setting `gateway.limits`).
+
+Clients call the OpenAI-compatible API with a project token that has the `llm.invoke` scope:
+
+```python
+from openai import OpenAI
+client = OpenAI(base_url="http://localhost:8080/v1", api_key="fk_…")
+client.chat.completions.create(model="default-chat", messages=[{"role": "user", "content": "Hi"}])
+```
+
+For a lab, `make providers/import` registers the providers whose keys are present in `.env` (`OLLAMA_HOST`, `GROQ_API_KEY`, `MISTRAL_API_KEY`, `CEREBRAS_API_KEY`, `OPENROUTER_API_KEY`, `NVIDIA_API_KEY`, `CLOUDFLARE_API_KEY` + `CLOUDFLARE_ACCOUNT_ID`, `GEMINI_API_KEY`). It is idempotent and keeps whatever already exists. Paid models (cost > 0) are in no alias. `docker compose … exec api forge providers test [--include-paid]` runs Test Connection on every platform model. The running platform never reads these variables; they only feed the import.
+
 **Back up `FORGE_MASTER_KEY` separately.** It encrypts every secret stored in the database, and if it is lost those secrets cannot be recovered.
 
 Both generated files are git-ignored and created with mode `600`.
@@ -96,6 +111,7 @@ Both generated files are git-ignored and created with mode `600`.
 | `valkey` | `valkey/valkey:9.0.6` | Rate limits, quotas, cache, SSE fan-out | `PING` |
 | `s3` | `chrislusf/seaweedfs:4.47` | S3-compatible object storage (ADR-015) | `/healthz` |
 | `temporal-ui` | `temporalio/ui:2.54.1` | Optional, `--profile tools`, on `127.0.0.1:8233` | — |
+| `otel-collector`, `prometheus`, `loki`, `grafana` | `otel/opentelemetry-collector-contrib:0.161.0`, `prom/prometheus:v3.15.0`, `grafana/loki:3.7.8`, `grafana/grafana:13.2.3` | Optional, `make obs/up` (profile `observability`, ADR-009): OTLP on `127.0.0.1:4317/4318`, Grafana on `127.0.0.1:3000` (admin password `GRAFANA_ADMIN_PASSWORD` in `infra.env`); `make obs/smoke` checks the pipeline | readiness endpoints |
 
 Containers run as non-root with read-only root filesystems where the image allows it, `no-new-privileges` and all capabilities dropped. PostgreSQL is published only on `127.0.0.1:5432` (`FORGE_DB_PORT` to change it), and the UI on `FORGE_HTTP_PORT` (default 8080).
 
@@ -107,6 +123,7 @@ make lint typecheck                          # ruff, import-linter contracts, my
 make test/unit                               # backend + frontend unit tests
 make test/integration                        # starts db, migrates, runs tenant-isolation tests
 make test/e2e                                # Playwright (in a container) against the running stack
+make licenses                                # licence gate (scripts/license-policy.json), also in CI
 ```
 
 Running the API on the host against the Compose database:

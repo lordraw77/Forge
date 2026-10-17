@@ -12,13 +12,14 @@ from fastapi import FastAPI
 
 from forge import __version__
 from forge.admin.service import SettingsStore, listen_dsn
-from forge.api import health, routes_admin, routes_auth, routes_projects
+from forge.api import health, routes_admin, routes_auth, routes_models, routes_projects, routes_v1
 from forge.api.deps import Services
 from forge.core.crypto import Envelope, derive_key
 from forge.core.db import create_engine, session_factory
 from forge.core.errors import install_problem_handlers
 from forge.core.logging import configure_logging, get_logger
 from forge.core.settings import Settings, get_settings
+from forge.gateway.service import Gateway
 from forge.iam.service import AuthService, TokenCodec
 from forge.tenancy.service import TenancyService
 
@@ -31,6 +32,7 @@ async def _initialise(app: FastAPI, svc: Services) -> None:
     while True:
         try:
             await svc.store.start()
+            await svc.gateway.start(svc.store)
             await svc.auth.ensure_bootstrap_admin(svc.settings)
             app.state.initialised = True
             log.info("api.initialised")
@@ -44,7 +46,7 @@ async def _initialise(app: FastAPI, svc: Services) -> None:
             delay = min(delay * 2, 30)
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0.5) -> FastAPI:
     settings = settings or get_settings()
 
     @asynccontextmanager
@@ -61,17 +63,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         store = SettingsStore(
             app.state.sessions, listen_dsn(settings.database_url.get_secret_value())
         )
+        envelope = Envelope.from_master_key(master)
         svc = Services(
             settings=settings,
             store=store,
             auth=AuthService(
                 app.state.sessions,
                 store,
-                Envelope.from_master_key(master),
+                envelope,
                 TokenCodec(derive_key(master, "forge/jwt/v1")),
                 app.state.redis,
             ),
             tenancy=TenancyService(app.state.sessions),
+            gateway=Gateway.build(
+                app.state.sessions,
+                envelope,
+                store,
+                app.state.redis,
+                backoff_base_s=gateway_backoff_s,
+            ),
         )
         app.state.services = svc
         init = asyncio.create_task(_initialise(app, svc))
@@ -83,6 +93,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             with contextlib.suppress(asyncio.CancelledError):
                 await init
             await store.stop()
+            await svc.gateway.stop()
             await app.state.redis.aclose()
             await app.state.engine.dispose()
             log.info("api.stopped")
@@ -102,4 +113,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(routes_auth.router)
     app.include_router(routes_projects.router)
     app.include_router(routes_admin.router)
+    app.include_router(routes_models.admin_router)
+    app.include_router(routes_models.project_router)
+    app.include_router(routes_v1.router)
     return app

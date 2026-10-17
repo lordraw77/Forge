@@ -1,0 +1,56 @@
+{
+  "_doc": "Licence policy for shipped dependencies (scripts/check-licenses.py). Copyleft that would bind Forge's own code (GPL, AGPL, SSPL, BUSL) is not allowed; weak copyleft used as a library (LGPL, MPL-2.0) is.",
+  "allowed": [
+    "MIT",
+    "MIT-0",
+    "ISC",
+    "0BSD",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "Apache-2.0",
+    "PSF-2.0",
+    "Python-2.0",
+    "Unlicense",
+    "CC0-1.0",
+    "Zlib",
+    "BlueOak-1.0.0",
+    "CC-BY-4.0",
+    "MPL-2.0",
+    "LGPL-2.1-only",
+    "LGPL-2.1-or-later",
+    "LGPL-3.0-only",
+    "LGPL-3.0-or-later",
+    "HPND",
+    "Unicode-3.0",
+    "CNRI-Python"
+  ],
+  "aliases": {
+    "MIT License": "MIT",
+    "Apache 2.0": "Apache-2.0",
+    "Apache License 2.0": "Apache-2.0",
+    "Apache Software License": "Apache-2.0",
+    "Apache-2": "Apache-2.0",
+    "Apache License, Version 2.0": "Apache-2.0",
+    "BSD": "BSD-3-Clause",
+    "BSD License": "BSD-3-Clause",
+    "3-Clause BSD License": "BSD-3-Clause",
+    "BSD 3-Clause": "BSD-3-Clause",
+    "new BSD": "BSD-3-Clause",
+    "ISC License": "ISC",
+    "PSF": "PSF-2.0",
+    "Python Software Foundation License": "PSF-2.0",
+    "MPL 2.0": "MPL-2.0",
+    "LGPLv3": "LGPL-3.0-only",
+    "LGPL-3.0": "LGPL-3.0-only",
+    "GNU LGPL v3": "LGPL-3.0-only",
+    "LGPL": "LGPL-2.1-or-later",
+    "Modified BSD License": "BSD-3-Clause"
+  },
+  "exceptions": {
+    "npm:primeng": {
+      "version_prefix": "21.",
+      "license": "MIT (Community versions section of LICENSE.md)",
+      "reason": "ADR-014: PrimeNG 21.x community releases are MIT; 22+ is commercial and needs a PO decision"
+    }
+  }
+}

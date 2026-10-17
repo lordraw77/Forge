@@ -24,6 +24,7 @@ const LABELS: Record<string, string> = {
   'auth.session': $localize`Sessions`,
   'auth.totp': $localize`Two-factor authentication`,
   'system.eula': $localize`Terms of use (EULA)`,
+  'gateway.limits': $localize`LLM gateway limits (0 = unlimited)`,
 };
 
 /** Super Admin console → Settings: GUI for runtime settings, applied without restart (ADR-007). */

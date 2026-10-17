@@ -52,7 +52,9 @@ describe('HTTP interceptors (ADR-011)', () => {
     const navigate = vi.spyOn(router, 'navigate');
     const result = firstValueFrom(http.get('/api/v1/me'));
     backend.expectOne('/api/v1/me').flush({}, { status: 401, statusText: 'Unauthorized' });
-    backend.expectOne('/api/v1/auth/refresh').flush({}, { status: 401, statusText: 'Unauthorized' });
+    backend
+      .expectOne('/api/v1/auth/refresh')
+      .flush({}, { status: 401, statusText: 'Unauthorized' });
     await expect(result).rejects.toBeInstanceOf(HttpErrorResponse);
     expect(navigate).not.toHaveBeenCalled();
     backend.verify();
@@ -64,5 +66,22 @@ describe('HTTP interceptors (ADR-011)', () => {
       error: { title: 'Password does not meet the policy', detail: 'Password is too common' },
     });
     expect(problemMessage(err)).toBe('Password does not meet the policy: Password is too common');
+  });
+
+  it('lists validation messages of a 422 response', () => {
+    const err = new HttpErrorResponse({
+      status: 422,
+      error: {
+        title: 'Request validation failed',
+        detail: [
+          { loc: ['body'], msg: 'Value error, plain HTTP needs config.allow_http' },
+          { loc: ['body', 'name'], msg: 'String should have at least 2 characters' },
+        ],
+      },
+    });
+    expect(problemMessage(err)).toBe(
+      'Request validation failed: plain HTTP needs config.allow_http; ' +
+        'String should have at least 2 characters',
+    );
   });
 });

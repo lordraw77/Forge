@@ -5,9 +5,14 @@ from __future__ import annotations
 import argparse
 import asyncio
 import sys
+from collections.abc import Awaitable, Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from forge.core.settings import get_settings
+
+if TYPE_CHECKING:
+    from forge.gateway.service import Gateway
 
 SOURCE_BACKEND_DIR = Path(__file__).resolve().parents[2]
 
@@ -132,6 +137,72 @@ def _ensure_superuser(args: argparse.Namespace) -> int:
     return 0
 
 
+def _with_gateway(action: Callable[[Gateway], Awaitable[list[str]]]) -> int:
+    """Run `action` with a gateway bound to the configured database and Valkey."""
+    import redis.asyncio as redis
+
+    from forge.admin.service import SettingsStore
+    from forge.core.crypto import Envelope
+    from forge.core.db import create_engine, session_factory
+    from forge.gateway.service import Gateway
+
+    async def run() -> list[str]:
+        settings = get_settings()
+        if settings.master_key is None:
+            raise SystemExit("FORGE_MASTER_KEY is required")
+        engine = create_engine(settings)
+        client = redis.from_url(settings.redis_url)
+        try:
+            sessions = session_factory(engine)
+            store = SettingsStore(sessions, None)
+            await store.reload()
+            gateway = Gateway.build(
+                sessions,
+                Envelope.from_master_key(settings.master_key.get_secret_value()),
+                store,
+                client,
+            )
+            return await action(gateway)
+        finally:
+            await client.aclose()
+            await engine.dispose()
+
+    for line in asyncio.run(run()):
+        print(line)
+    return 0
+
+
+def _import_providers(_args: argparse.Namespace) -> int:
+    from forge.gateway.seed import import_env
+
+    return _with_gateway(lambda gw: import_env(gw.catalog))
+
+
+def _test_providers(args: argparse.Namespace) -> int:
+    """Test Connection for every active platform model; paid ones (cost > 0) on request."""
+
+    async def run(gw: Gateway) -> list[str]:
+        await gw.registry.load()
+        lines = []
+        for m in sorted(gw.registry.snapshot.models.values(), key=lambda m: m.name):
+            if m.project_id is not None or m.status != "active":
+                continue
+            if args.model and m.name not in args.model:
+                continue
+            paid = m.cost_input > 0 or m.cost_output > 0
+            if paid and not args.include_paid and not args.model:
+                lines.append(f"skip  {m.name:32} paid model (use --include-paid)")
+                continue
+            r = await gw.service.test_connection(m)
+            extra = f"dims={r.dimensions}" if r.dimensions else (r.sample or "")[:60]
+            status = "ok   " if r.ok else "FAIL "
+            detail = extra if r.ok else f"{r.error_code}: {r.detail[:160]}"
+            lines.append(f"{status} {m.name:32} {r.latency_ms:6d} ms  {detail}")
+        return lines
+
+    return _with_gateway(run)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="forge")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -164,6 +235,18 @@ def build_parser() -> argparse.ArgumentParser:
         "--ready", action="store_true", help="skip first-login steps (automation accounts only)"
     )
     ensure.set_defaults(func=_ensure_superuser)
+
+    providers_cmd = sub.add_parser("providers", help="model provider maintenance")
+    providers_sub = providers_cmd.add_subparsers(dest="providers_command", required=True)
+    import_env = providers_sub.add_parser(
+        "import-env",
+        help="register lab providers from OLLAMA_HOST, GROQ_API_KEY, ... (idempotent)",
+    )
+    import_env.set_defaults(func=_import_providers)
+    test = providers_sub.add_parser("test", help="Test Connection for platform models")
+    test.add_argument("--include-paid", action="store_true", help="also test models with a cost")
+    test.add_argument("--model", action="append", help="test only this model (repeatable)")
+    test.set_defaults(func=_test_providers)
 
     migrate = sub.add_parser("migrate", help="apply database migrations")
     migrate.add_argument("revision", nargs="?", default="head")

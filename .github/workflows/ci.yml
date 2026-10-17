@@ -35,6 +35,8 @@ jobs:
         run: uv run pytest -m "not integration"
       - name: Dependency audit
         run: uv export --frozen --no-dev --no-hashes --no-emit-project -o /tmp/req.txt && uv run pip-audit -r /tmp/req.txt --strict
+      - name: Licence check (scripts/license-policy.json)
+        run: python3 ../scripts/check-licenses.py --backend
 
   backend-integration:
     runs-on: ubuntu-latest
@@ -67,6 +69,10 @@ jobs:
       - run: npm run build
       - name: Dependency audit
         run: npm audit --omit=dev --audit-level=high
+      - name: Licence check (scripts/license-policy.json)
+        run: python3 ../scripts/check-licenses.py --frontend
+      - name: Italian translations complete (US-1.4.3)
+        run: FORGE_NATIVE_NODE=1 ../scripts/check-i18n.sh
 
   images:
     runs-on: ubuntu-latest

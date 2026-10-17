@@ -30,6 +30,7 @@ type Notice = { severity: 'success' | 'error' | 'info'; text: string } | null;
     @if (session.project(); as p) {
       <nav class="tabs">
         <a routerLink="info" routerLinkActive="active" i18n>Project Info</a>
+        <a routerLink="models" routerLinkActive="active" i18n>Models</a>
         @if (session.can('project.manage')) {
           <a routerLink="users" routerLinkActive="active" i18n>Users</a>
           <a routerLink="roles" routerLinkActive="active" i18n>Roles</a>

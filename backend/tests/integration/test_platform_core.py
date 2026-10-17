@@ -310,6 +310,7 @@ def test_project_isolation_and_api_keys(client: TestClient) -> None:
     detail = as_key.get(f"/api/v1/projects/{a['project']['id']}")
     assert detail.status_code == 200
     assert set(detail.json()["permissions"]) == {
+        "llm.invoke",
         "usecase.run",
         "run.read",
     }

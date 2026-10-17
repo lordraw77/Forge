@@ -598,6 +598,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "langgraph" },
     { name = "langgraph-checkpoint-postgres" },
+    { name = "litellm" },
     { name = "psycopg", extra = ["binary"] },
     { name = "psycopg-pool" },
     { name = "pydantic" },
@@ -616,13 +617,11 @@ dev = [
     { name = "httpx" },
     { name = "import-linter" },
     { name = "mypy" },
+    { name = "openai" },
     { name = "pip-audit" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
-]
-spikes = [
-    { name = "litellm" },
 ]
 
 [package.metadata]
@@ -635,6 +634,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.143" },
     { name = "langgraph", specifier = ">=1.2.15" },
     { name = "langgraph-checkpoint-postgres", specifier = ">=3.2.0" },
+    { name = "litellm", specifier = "==1.105.1" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.6" },
     { name = "psycopg-pool", specifier = ">=3.3.3" },
     { name = "pydantic", specifier = ">=2.14" },
@@ -653,12 +653,13 @@ dev = [
     { name = "httpx", specifier = ">=0.28" },
     { name = "import-linter", specifier = ">=2.15" },
     { name = "mypy", specifier = ">=2.4" },
+    { name = "openai", specifier = ">=2" },
     { name = "pip-audit", specifier = ">=2.9" },
     { name = "pytest", specifier = ">=9.1" },
     { name = "pytest-asyncio", specifier = ">=1.2" },
     { name = "ruff", specifier = ">=0.17" },
 ]
-spikes = [{ name = "litellm", specifier = ">=1.105.1" }]
+spikes = []
 
 [[package]]
 name = "frozenlist"

@@ -27,10 +27,17 @@ TEMPORAL_DB_PASSWORD=$(rand)
 VALKEY_PASSWORD=$(rand)
 S3_ACCESS_KEY=forge$(rand 6)
 S3_SECRET_KEY=$(rand)
+GRAFANA_ADMIN_PASSWORD=$(rand 12)
 EOF
   echo "create  ${infra_file#"$root"/}"
   # shellcheck disable=SC1090
   source "$infra_file"
+fi
+
+# Keys added after a file was generated are appended, never rewritten.
+if ! grep -q '^GRAFANA_ADMIN_PASSWORD=' "$infra_file"; then
+  echo "GRAFANA_ADMIN_PASSWORD=$(rand 12)" >> "$infra_file"
+  echo "update  ${infra_file#"$root"/} (GRAFANA_ADMIN_PASSWORD)"
 fi
 
 if [[ -e "$env_file" ]]; then

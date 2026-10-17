@@ -30,6 +30,14 @@ Every model is external (F1). All LLM, embedding and rerank calls must be traced
 - Air-gapped: `LITELLM_LOCAL_MODEL_COST_MAP=True`, telemetry off; costs come only from Forge's model registry. Validated by spike E0.5d inside a network namespace with loopback only: 35/36 provider checks, overhead 4 ms p95 ([report](../spikes/e05d-litellm-providers.md)).
 - LiteLLM pinned to an exact version with hash-locked dependencies; upgrades go through the provider contract test suite (mock servers for each provider type).
 
+## Notes from M1.2 (2026-10-17)
+
+These notes clarify the decision; they do not change it ([design](../architecture/m1.2-llm-gateway.md)).
+
+- **Stream usage.** LiteLLM 1.105.1 already fills missing stream usage with its own tokenizer, and the result cannot be told apart from provider usage. Forge records LiteLLM-reported stream usage as `provider`, and records `estimated` only when no usage arrives at all. Quotas and cost are correct either way.
+- **More error kinds.** Billing errors (402) and retired models (410) go to the next model in the chain, like credential errors (401/403).
+- **Secret scrubbing.** Provider error text is scrubbed of the provider's key and of key-shaped strings before it is returned, logged or stored.
+
 ## Consequences
 
 - One place for limits, costs and tracing.

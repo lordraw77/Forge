@@ -68,9 +68,11 @@ Status: **P1** = control delivered in Phase 1, **P2** / **P3** later phases.
 | STRIDE | Threat | Control | Phase |
 | --- | --- | --- | --- |
 | I | Sensitive data to cloud models | Per-project model enablement; PII masking guardrail before cloud models (AC7) | P2 |
-| S | MITM to model endpoint | TLS verification on by default; custom CA bundle from GUI; plain HTTP allowed only with explicit per-provider flag (on-prem) | P1 |
-| E | SSRF via user-configured base URL | Only SA/PA can configure providers; URL validation; optional block of link-local/metadata ranges (169.254.0.0/16 etc.) | P1 |
-| I | Provider error messages leak keys | Error text scrubbed with secret regex before returning/logging | P1 |
+| S | MITM to model endpoint | TLS verification on by default ✅; plain HTTP only with the explicit per-provider flag `allow_http` (on-prem) ✅ M1.2; custom CA bundle from GUI (open, system trust store until then) | P1 |
+| E | SSRF via user-configured base URL | Only SA/PA can configure providers; http(s) only; link-local, multicast, unspecified and cloud metadata hosts refused ✅ M1.2; egress allowlist (Security settings) | P1 / P2 |
+| I | Provider error messages leak keys | Error text scrubbed of the provider key and key-shaped strings before returning, logging or storing ✅ M1.2 | P1 |
+
+| D | Cost exhaustion through the gateway | Tokens/day and requests/minute per project and per user, per-model rpm, max_tokens ceiling, enforced before the provider call ✅ M1.2 (AC10) | P1 |
 
 ### TB4 – Tools and identity providers
 

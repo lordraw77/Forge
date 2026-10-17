@@ -4,6 +4,7 @@ from forge.admin import audit, secrets
 from forge.admin.settings_store import (
     REGISTRY,
     Eula,
+    GatewayLimits,
     LockoutPolicy,
     PasswordPolicy,
     SessionPolicy,
@@ -11,11 +12,13 @@ from forge.admin.settings_store import (
     TotpPolicy,
     UnknownSettingError,
     listen_dsn,
+    notify,
 )
 
 __all__ = [
     "REGISTRY",
     "Eula",
+    "GatewayLimits",
     "LockoutPolicy",
     "PasswordPolicy",
     "SessionPolicy",
@@ -24,5 +27,6 @@ __all__ = [
     "UnknownSettingError",
     "audit",
     "listen_dsn",
+    "notify",
     "secrets",
 ]

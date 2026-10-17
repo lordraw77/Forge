@@ -25,13 +25,16 @@ install: ## Install backend and frontend dependencies
 	$(NPM) ci
 
 ## ---- Quality
-.PHONY: lint fmt typecheck test test/unit test/integration test/e2e
+.PHONY: lint fmt typecheck licenses test test/unit test/integration test/e2e
 lint: ## Lint backend (ruff, import contracts) and frontend
 	cd backend && uv run ruff check . && uv run ruff format --check . && uv run lint-imports
 	$(NPM) run lint
 
 fmt: ## Format backend code
 	cd backend && uv run ruff check --fix . && uv run ruff format .
+
+licenses: ## Licence gate for backend runtime and frontend production dependencies
+	@python3 scripts/check-licenses.py
 
 typecheck: ## Static type check of the backend
 	cd backend && uv run mypy
@@ -76,6 +79,10 @@ admin/reset: ## Reset (or create) a Super Admin and unlock it; prompts for a tem
 	  printf '%s\n' "$$pw" | $(COMPOSE) exec -T api forge users ensure-superuser \
 	    --username "$(ADMIN_USER)" --email "$(or $(ADMIN_EMAIL),$(ADMIN_USER)@localhost)" --password-stdin
 
+.PHONY: providers/import
+providers/import: ## Register lab model providers from the API keys in .env (idempotent)
+	$(COMPOSE) exec -T api forge providers import-env
+
 migrate: ## Apply database migrations
 	$(COMPOSE) run --rm migrate
 
@@ -96,6 +103,18 @@ docker/down: ## Remove containers and volumes (destroys local data)
 
 docker/smoke: ## End-to-end smoke test against the running stack
 	@scripts/smoke.sh
+
+## ---- Observability profile (ADR-009)
+.PHONY: obs/up obs/down obs/smoke
+obs/up: env ## Start Collector, Prometheus, Loki and Grafana (http://localhost:3000)
+	$(COMPOSE) --profile observability up -d --wait otel-collector prometheus loki grafana
+	@echo "Grafana: http://localhost:3000 (admin / GRAFANA_ADMIN_PASSWORD in deploy/compose/infra.env)"
+
+obs/smoke: ## OTLP metric and log reach Prometheus and Loki
+	@scripts/smoke-observability.sh
+
+obs/down: ## Stop the observability profile, keep its volumes
+	$(COMPOSE) --profile observability stop otel-collector prometheus loki grafana
 
 ## ---- Spikes (Phase 0)
 .PHONY: spike/e05a

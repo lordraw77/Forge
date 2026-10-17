@@ -1,0 +1,720 @@
+@if (notice(); as n) {
+  <p-message [severity]="n.severity" [text]="n.text" data-testid="registry-notice" />
+}
+
+@if (canEdit()) {
+  <section class="block" data-testid="providers">
+    <header class="head">
+      <h2 i18n>Providers</h2>
+      <span class="spacer"></span>
+      <p-button
+        label="New provider"
+        i18n-label
+        icon="pi pi-plus"
+        (onClick)="openProvider()"
+        data-testid="new-provider"
+      />
+    </header>
+    <p-table [value]="providers()" dataKey="id" styleClass="p-datatable-sm">
+      <ng-template #header>
+        <tr>
+          <th i18n>Name</th>
+          <th i18n>Type</th>
+          <th i18n>Base URL</th>
+          <th i18n>Credentials</th>
+          <th i18n>Models</th>
+          <th i18n>Status</th>
+          <th></th>
+        </tr>
+      </ng-template>
+      <ng-template #body let-p>
+        <tr [attr.data-provider]="p.name">
+          <td>{{ p.name }}</td>
+          <td>{{ providerLabel(p.provider_type) }}</td>
+          <td class="mono">{{ p.base_url || '—' }}</td>
+          <td>
+            @if (p.has_credentials) {
+              <p-tag severity="success" value="Stored" i18n-value />
+            } @else {
+              <p-tag severity="secondary" value="None" i18n-value />
+            }
+          </td>
+          <td>{{ p.model_count }}</td>
+          <td>
+            <p-tag
+              [value]="p.status"
+              [severity]="p.status === 'active' ? 'success' : 'secondary'"
+            />
+          </td>
+          <td class="actions">
+            <p-button
+              size="small"
+              [text]="true"
+              label="Edit"
+              i18n-label
+              (onClick)="openProvider(p)"
+            />
+            <p-button
+              size="small"
+              [text]="true"
+              severity="danger"
+              label="Delete"
+              i18n-label
+              (onClick)="deleteProvider(p)"
+            />
+          </td>
+        </tr>
+      </ng-template>
+      <ng-template #emptymessage>
+        <tr>
+          <td colspan="7" i18n>No providers yet.</td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </section>
+}
+
+<section class="block" data-testid="models">
+  <header class="head">
+    <h2 i18n>Models</h2>
+    <p-selectbutton
+      [options]="typeTabs"
+      optionLabel="label"
+      optionValue="value"
+      [allowEmpty]="false"
+      [ngModel]="tab()"
+      (ngModelChange)="tab.set($event)"
+      aria-label="Model type"
+      i18n-aria-label
+    />
+    <span class="spacer"></span>
+    @if (canEdit()) {
+      <p-button
+        label="New model"
+        i18n-label
+        icon="pi pi-plus"
+        [disabled]="providers().length === 0"
+        (onClick)="openModel()"
+        data-testid="new-model"
+      />
+    }
+  </header>
+  <p-table [value]="visibleModels()" dataKey="id" styleClass="p-datatable-sm">
+    <ng-template #header>
+      <tr>
+        <th i18n>Name</th>
+        <th i18n>Provider</th>
+        <th i18n>Model ID</th>
+        <th i18n>Capabilities</th>
+        <th i18n>Context</th>
+        <th i18n>Cost in / out (1M)</th>
+        @if (scope() === 'project') {
+          <th i18n>Scope</th>
+        } @else {
+          <th i18n>Projects</th>
+        }
+        <th i18n>Status</th>
+        <th></th>
+      </tr>
+    </ng-template>
+    <ng-template #body let-m>
+      <tr [attr.data-model]="m.name">
+        <td>
+          <strong>{{ m.name }}</strong>
+          <div class="muted">{{ m.display_name }}</div>
+        </td>
+        <td>{{ m.provider_name }}</td>
+        <td class="mono">{{ m.model_id }}</td>
+        <td>
+          @if (m.model_type === 'embedding') {
+            <span class="chip">{{ m.embedding_dims }} d · {{ m.vector_storage }}</span>
+          }
+          @if (m.model_type === 'guard') {
+            <span class="chip" i18n>guard</span>
+          }
+          @for (c of m.capabilities; track c) {
+            <span class="chip">{{ c }}</span>
+          }
+        </td>
+        <td>{{ m.context_window ?? '—' }}</td>
+        <td>{{ m.cost_input }} / {{ m.cost_output }}</td>
+        @if (scope() === 'project') {
+          <td>
+            @if (m.scope === 'platform') {
+              <p-tag severity="info" value="Platform" i18n-value />
+            } @else {
+              <p-tag severity="secondary" value="Project" i18n-value />
+            }
+          </td>
+        } @else {
+          <td>
+            @if (m.all_projects) {
+              <span i18n>All</span>
+            } @else {
+              {{ m.enabled_project_ids.length }}
+            }
+          </td>
+        }
+        <td>
+          <p-tag [value]="m.status" [severity]="m.status === 'active' ? 'success' : 'secondary'" />
+        </td>
+        <td class="actions">
+          @if (canEdit()) {
+            <p-button
+              size="small"
+              [text]="true"
+              label="Test"
+              i18n-label
+              [loading]="testing() === m.id"
+              (onClick)="testSaved(m)"
+            />
+          }
+          @if (modelEditable(m)) {
+            <p-button size="small" [text]="true" label="Edit" i18n-label (onClick)="openModel(m)" />
+            <p-button
+              size="small"
+              [text]="true"
+              severity="danger"
+              label="Delete"
+              i18n-label
+              (onClick)="deleteModel(m)"
+            />
+          }
+        </td>
+      </tr>
+    </ng-template>
+    <ng-template #emptymessage>
+      <tr>
+        <td colspan="9" i18n>No models of this type.</td>
+      </tr>
+    </ng-template>
+  </p-table>
+</section>
+
+<section class="block" data-testid="aliases">
+  <header class="head">
+    <h2 i18n>Aliases</h2>
+    <span class="spacer"></span>
+    @if (canEdit()) {
+      <p-button
+        label="New alias"
+        i18n-label
+        icon="pi pi-plus"
+        [outlined]="true"
+        (onClick)="openAlias()"
+        data-testid="new-alias"
+      />
+    }
+  </header>
+  <p class="muted" i18n>
+    Prompts, agents and RAG pipelines call an alias. The chain is tried in order: on error or
+    timeout the next model answers.
+  </p>
+  <p-table [value]="aliases()" dataKey="name" styleClass="p-datatable-sm">
+    <ng-template #header>
+      <tr>
+        <th i18n>Alias</th>
+        <th i18n>Fallback chain</th>
+        <th i18n>Defined by</th>
+        <th></th>
+      </tr>
+    </ng-template>
+    <ng-template #body let-a>
+      <tr [attr.data-alias]="a.name">
+        <td class="mono">{{ a.name }}</td>
+        <td>
+          @if (a.model_names.length) {
+            {{ a.model_names.join(' → ') }}
+          } @else {
+            <span class="muted" i18n>not set</span>
+          }
+        </td>
+        <td>
+          @if (a.model_ids.length === 0) {
+            —
+          } @else if (a.scope === 'platform') {
+            <span i18n>Platform default</span>
+          } @else if (a.overrides_platform) {
+            <span i18n>Project (overrides the platform)</span>
+          } @else {
+            <span i18n>Project</span>
+          }
+        </td>
+        <td class="actions">
+          @if (canEdit()) {
+            <p-button size="small" [text]="true" label="Edit" i18n-label (onClick)="openAlias(a)" />
+          }
+          @if (aliasRemovable(a)) {
+            <p-button
+              size="small"
+              [text]="true"
+              severity="danger"
+              [label]="scope() === 'project' ? resetLabel : deleteLabel"
+              (onClick)="deleteAlias(a)"
+            />
+          }
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+</section>
+
+<!-- Provider dialog -->
+<p-dialog
+  [header]="providerDraft.id ? editProviderTitle : newProviderTitle"
+  [modal]="true"
+  [(visible)]="providerOpen"
+  [style]="{ width: '34rem' }"
+>
+  <form class="form" (ngSubmit)="saveProvider()">
+    <label for="pv-name" i18n>Name</label>
+    <input pInputText id="pv-name" name="name" [(ngModel)]="providerDraft.name" required />
+    <label for="pv-type" i18n>Provider type</label>
+    <p-select
+      inputId="pv-type"
+      name="type"
+      [options]="providerTypes"
+      optionLabel="label"
+      optionValue="value"
+      [disabled]="!!providerDraft.id"
+      [(ngModel)]="providerDraft.provider_type"
+      appendTo="body"
+    />
+    @if (providerDraft.provider_type !== 'bedrock' && providerDraft.provider_type !== 'vertex') {
+      <label for="pv-url">
+        <span i18n>Base URL</span>
+        @if (!baseUrlRequired(providerDraft.provider_type)) {
+          <span class="muted" i18n> (optional)</span>
+        }
+      </label>
+      <input
+        pInputText
+        id="pv-url"
+        name="base_url"
+        [placeholder]="baseUrlHint(providerDraft.provider_type)"
+        [(ngModel)]="providerDraft.base_url"
+      />
+      @if (providerDraft.base_url.startsWith('http://')) {
+        <div class="check">
+          <p-checkbox
+            inputId="pv-http"
+            name="allow_http"
+            [binary]="true"
+            [(ngModel)]="providerDraft.allow_http"
+          />
+          <label for="pv-http" i18n>Allow plain HTTP (on-prem endpoint on a trusted network)</label>
+        </div>
+      }
+    }
+    <label for="pv-key">
+      @switch (providerDraft.provider_type) {
+        @case ('bedrock') {
+          <span i18n>AWS credentials (JSON)</span>
+        }
+        @case ('vertex') {
+          <span i18n>Service account (JSON)</span>
+        }
+        @default {
+          <span i18n>API key</span>
+        }
+      }
+    </label>
+    <input
+      pInputText
+      type="password"
+      autocomplete="new-password"
+      id="pv-key"
+      name="api_key"
+      [placeholder]="providerDraft.has_credentials ? keepKeyHint : ''"
+      [disabled]="providerDraft.clear_key"
+      [(ngModel)]="providerDraft.api_key"
+    />
+    <small class="muted" i18n>Stored encrypted; never shown again.</small>
+    @if (providerDraft.has_credentials) {
+      <div class="check">
+        <p-checkbox
+          inputId="pv-clear"
+          name="clear"
+          [binary]="true"
+          [(ngModel)]="providerDraft.clear_key"
+        />
+        <label for="pv-clear" i18n>Remove the stored credentials</label>
+      </div>
+    }
+    @if (providerDraft.provider_type === 'azure') {
+      <label for="pv-ver" i18n>API version</label>
+      <input
+        pInputText
+        id="pv-ver"
+        name="api_version"
+        placeholder="2024-10-21"
+        [(ngModel)]="providerDraft.api_version"
+      />
+    }
+    @if (providerDraft.provider_type === 'bedrock') {
+      <label for="pv-region" i18n>Region</label>
+      <input
+        pInputText
+        id="pv-region"
+        name="region"
+        placeholder="eu-central-1"
+        [(ngModel)]="providerDraft.region"
+      />
+    }
+    @if (providerDraft.provider_type === 'vertex') {
+      <label for="pv-vp" i18n>Google Cloud project</label>
+      <input
+        pInputText
+        id="pv-vp"
+        name="vertex_project"
+        [(ngModel)]="providerDraft.vertex_project"
+      />
+      <label for="pv-vl" i18n>Location</label>
+      <input
+        pInputText
+        id="pv-vl"
+        name="vertex_location"
+        placeholder="europe-west4"
+        [(ngModel)]="providerDraft.vertex_location"
+      />
+    }
+    <label for="pv-headers" i18n>Extra headers (one "Name: value" per line)</label>
+    <textarea
+      pTextarea
+      id="pv-headers"
+      name="headers"
+      rows="2"
+      [(ngModel)]="providerDraft.headers"
+    ></textarea>
+    <div class="check">
+      <p-checkbox
+        inputId="pv-active"
+        name="active"
+        [binary]="true"
+        [(ngModel)]="providerDraft.active"
+      />
+      <label for="pv-active" i18n>Active</label>
+    </div>
+    @if (dialogError(); as e) {
+      <p-message severity="error" [text]="e" />
+    }
+    <div class="dialog-actions">
+      <p-button type="submit" label="Save" i18n-label data-testid="save-provider" />
+    </div>
+  </form>
+</p-dialog>
+
+<!-- Model dialog -->
+<p-dialog
+  [header]="modelDraft.id ? editModelTitle : newModelTitle"
+  [modal]="true"
+  [(visible)]="modelOpen"
+  [style]="{ width: '44rem' }"
+>
+  <form class="form" (ngSubmit)="saveModel()">
+    <div class="grid">
+      <div class="field">
+        <label for="md-provider" i18n>Provider</label>
+        <p-select
+          inputId="md-provider"
+          name="provider"
+          [options]="providers()"
+          optionLabel="name"
+          optionValue="id"
+          [(ngModel)]="modelDraft.provider_id"
+          appendTo="body"
+        />
+      </div>
+      <div class="field">
+        <label for="md-type" i18n>Type</label>
+        <p-select
+          inputId="md-type"
+          name="type"
+          [options]="modelTypes"
+          optionLabel="label"
+          optionValue="value"
+          [(ngModel)]="modelDraft.model_type"
+          appendTo="body"
+        />
+      </div>
+      <div class="field">
+        <label for="md-name" i18n>Name (used as model in API calls)</label>
+        <input pInputText id="md-name" name="name" [(ngModel)]="modelDraft.name" required />
+      </div>
+      <div class="field">
+        <label for="md-display" i18n>Display name</label>
+        <input pInputText id="md-display" name="display" [(ngModel)]="modelDraft.display_name" />
+      </div>
+      <div class="field">
+        <label for="md-mid" i18n>Model ID at the provider</label>
+        <input pInputText id="md-mid" name="model_id" [(ngModel)]="modelDraft.model_id" required />
+      </div>
+      @if (modelDraft.model_type === 'embedding') {
+        <div class="field">
+          <label for="md-dims" i18n>Embedding dimensions</label>
+          <p-inputnumber
+            inputId="md-dims"
+            name="dims"
+            [min]="1"
+            [max]="4000"
+            [(ngModel)]="modelDraft.embedding_dims"
+          />
+        </div>
+      }
+      <div class="field">
+        <label for="md-ctx" i18n>Context window</label>
+        <p-inputnumber
+          inputId="md-ctx"
+          name="ctx"
+          [min]="1"
+          [(ngModel)]="modelDraft.context_window"
+        />
+      </div>
+      <div class="field">
+        <label for="md-out" i18n>Max output tokens</label>
+        <p-inputnumber
+          inputId="md-out"
+          name="out"
+          [min]="1"
+          [(ngModel)]="modelDraft.max_output_tokens"
+        />
+      </div>
+      <div class="field">
+        <label for="md-cin" i18n>Input cost per 1M tokens</label>
+        <p-inputnumber
+          inputId="md-cin"
+          name="cin"
+          [min]="0"
+          [minFractionDigits]="0"
+          [maxFractionDigits]="6"
+          [(ngModel)]="modelDraft.cost_input"
+        />
+      </div>
+      <div class="field">
+        <label for="md-cout" i18n>Output cost per 1M tokens</label>
+        <p-inputnumber
+          inputId="md-cout"
+          name="cout"
+          [min]="0"
+          [minFractionDigits]="0"
+          [maxFractionDigits]="6"
+          [(ngModel)]="modelDraft.cost_output"
+        />
+      </div>
+      <div class="field">
+        <label for="md-timeout" i18n>Timeout (s)</label>
+        <p-inputnumber
+          inputId="md-timeout"
+          name="timeout"
+          [min]="1"
+          [max]="3600"
+          [(ngModel)]="modelDraft.timeout_s"
+        />
+      </div>
+      <div class="field">
+        <label for="md-retries" i18n>Retries</label>
+        <p-inputnumber
+          inputId="md-retries"
+          name="retries"
+          [min]="0"
+          [max]="10"
+          [(ngModel)]="modelDraft.max_retries"
+        />
+      </div>
+      <div class="field">
+        <label for="md-rpm" i18n>Rate limit (requests/min)</label>
+        <p-inputnumber inputId="md-rpm" name="rpm" [min]="1" [(ngModel)]="modelDraft.rpm_limit" />
+      </div>
+      <div class="field">
+        <label for="md-caps" i18n>Capabilities</label>
+        <p-multiselect
+          inputId="md-caps"
+          name="caps"
+          [options]="capabilityOptions"
+          optionLabel="label"
+          optionValue="value"
+          [(ngModel)]="modelDraft.capabilities"
+          display="chip"
+          appendTo="body"
+        />
+      </div>
+    </div>
+    <label for="md-params" i18n>Extra parameters (JSON, sent with every call)</label>
+    <textarea
+      pTextarea
+      id="md-params"
+      name="params"
+      rows="2"
+      class="mono"
+      placeholder='{"extra_body": {"input_type": "query"}}'
+      [(ngModel)]="modelDraft.params"
+    ></textarea>
+    @if (scope() === 'platform') {
+      <div class="check">
+        <p-checkbox
+          inputId="md-all"
+          name="all"
+          [binary]="true"
+          [(ngModel)]="modelDraft.all_projects"
+        />
+        <label for="md-all" i18n>Enabled for all projects</label>
+      </div>
+      @if (!modelDraft.all_projects) {
+        <label for="md-projects" i18n>Enabled projects</label>
+        <p-multiselect
+          inputId="md-projects"
+          name="projects"
+          [options]="projects()"
+          optionLabel="name"
+          optionValue="id"
+          [filter]="true"
+          display="chip"
+          [(ngModel)]="modelDraft.enabled_project_ids"
+          appendTo="body"
+        />
+      }
+    }
+    <div class="check">
+      <p-checkbox
+        inputId="md-active"
+        name="active"
+        [binary]="true"
+        [(ngModel)]="modelDraft.active"
+      />
+      <label for="md-active" i18n>Active</label>
+    </div>
+    @if (testResult(); as t) {
+      <p-message
+        [severity]="t.ok ? 'success' : 'error'"
+        [text]="t.ok ? okText(t) : t.detail"
+        data-testid="test-result"
+      />
+    }
+    @if (dialogError(); as e) {
+      <p-message severity="error" [text]="e" />
+    }
+    <div class="dialog-actions">
+      <p-button
+        label="Test Connection"
+        i18n-label
+        [outlined]="true"
+        icon="pi pi-bolt"
+        [loading]="testing() === 'draft'"
+        [disabled]="!modelDraft.provider_id || !modelDraft.model_id"
+        (onClick)="testDraft()"
+        data-testid="test-connection"
+      />
+      <p-button type="submit" label="Save" i18n-label data-testid="save-model" />
+    </div>
+  </form>
+</p-dialog>
+
+<!-- Alias dialog -->
+<p-dialog
+  [header]="aliasIsNew ? newAliasTitle : aliasName"
+  [modal]="true"
+  [(visible)]="aliasOpen"
+  [style]="{ width: '32rem' }"
+>
+  <form class="form" (ngSubmit)="saveAlias()">
+    @if (aliasIsNew) {
+      <label for="al-name" i18n>Alias name</label>
+      <input
+        pInputText
+        id="al-name"
+        name="name"
+        placeholder="default-chat"
+        [(ngModel)]="aliasName"
+        required
+      />
+    }
+    <span class="label" i18n>Fallback chain (first answers, the others on error)</span>
+    <ol class="chain">
+      @for (id of aliasChain; track id; let i = $index; let last = $last) {
+        <li>
+          <span class="mono">{{ modelName(id) }}</span>
+          <span class="spacer"></span>
+          <p-button
+            size="small"
+            [text]="true"
+            icon="pi pi-arrow-up"
+            [disabled]="i === 0"
+            (onClick)="move(i, -1)"
+            ariaLabel="Up"
+          />
+          <p-button
+            size="small"
+            [text]="true"
+            icon="pi pi-arrow-down"
+            [disabled]="last"
+            (onClick)="move(i, 1)"
+            ariaLabel="Down"
+          />
+          <p-button
+            size="small"
+            [text]="true"
+            severity="danger"
+            icon="pi pi-times"
+            (onClick)="removeFromChain(i)"
+            ariaLabel="Remove"
+          />
+        </li>
+      }
+    </ol>
+    <div class="row">
+      <p-select
+        name="pick"
+        [options]="chainOptions()"
+        optionLabel="label"
+        optionValue="id"
+        [filter]="true"
+        placeholder="Add a model"
+        i18n-placeholder
+        [(ngModel)]="aliasPick"
+        appendTo="body"
+        inputId="al-pick"
+      />
+      <p-button
+        label="Add"
+        i18n-label
+        [outlined]="true"
+        [disabled]="!aliasPick"
+        (onClick)="addToChain()"
+      />
+    </div>
+    @if (dialogError(); as e) {
+      <p-message severity="error" [text]="e" />
+    }
+    <div class="dialog-actions">
+      <p-button
+        type="submit"
+        label="Save"
+        i18n-label
+        [disabled]="!aliasName || aliasChain.length === 0"
+        data-testid="save-alias"
+      />
+    </div>
+  </form>
+</p-dialog>
+
+<!-- Delete confirmation -->
+<p-dialog
+  header="Confirm"
+  i18n-header
+  [modal]="true"
+  [visible]="!!pendingDelete()"
+  (visibleChange)="!$event && pendingDelete.set(null)"
+  [style]="{ width: '26rem' }"
+>
+  <p>{{ pendingDelete()?.question }}</p>
+  <div class="dialog-actions">
+    <p-button label="Cancel" i18n-label [text]="true" (onClick)="pendingDelete.set(null)" />
+    <p-button
+      label="Delete"
+      i18n-label
+      severity="danger"
+      (onClick)="confirmDelete()"
+      data-testid="confirm-delete"
+    />
+  </div>
+</p-dialog>

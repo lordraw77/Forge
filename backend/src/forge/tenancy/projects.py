@@ -24,7 +24,7 @@ DEFAULT_ROLE_NAMES = {
     "end_user": "User",
     "viewer": "Viewer",
 }
-DEFAULT_KEY_SCOPES = ["usecase.run", "run.read"]
+DEFAULT_KEY_SCOPES = ["llm.invoke", "usecase.run", "run.read"]
 KEY_PREFIX = "fk"
 MAX_INVITES = 500
 
