@@ -124,7 +124,7 @@ Conventions:
 1. Aliases `default-chat`, `fast`, `embedding`, `rerank` plus custom ones, per project, with platform defaults.
 2. A disabled model returns `403 model_not_enabled` for the project.
 3. Changing an alias takes effect on the next request, without restart.
-4. _Interpretation (M1.2):_ the Super Admin enables platform models per project (F1.2 "Enabled projects"); the Project Admin maps aliases to the models available to the project and may register project-only providers and models.
+4. _Confirmed by PO (2026-10-17):_ the Super Admin enables platform models per project (F1.2 "Enabled projects"); the Project Admin maps aliases to the models available to the project and may register project-only providers and models.
 
 ### E1.6 OpenAI-compatible API
 

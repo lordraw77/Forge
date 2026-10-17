@@ -61,7 +61,7 @@ Goal: decisions taken, skeleton running end to end, risky assumptions tested.
 
 | Epic | Content | Owner roles |
 | --- | --- | --- |
-| E0.1 Requirements | ✅ PO answers analysis §6 (2026-10-16); user stories for Phase 1 ✅ ([phase-1.md](../requirements/phase-1.md)). Stories for the studios not specified in Part 2 (G2: Tools, MCP, Governance) move to the start of Phase 2, where those studios are built | PO |
+| E0.1 Requirements | ✅ PO answers analysis §6 (2026-10-16); user stories for Phase 1 ✅ ([phase-1.md](../requirements/phase-1.md)). Stories for the studios not specified in Part 2 (G2: Tools, MCP, Governance) move to the start of Phase 2, where those studios are built (PO confirmed 2026-10-17) | PO |
 | E0.2 ADRs | ✅ ADR 001–013 written and accepted (2026-10-16); spec text updated for ADR-007 (infrastructure wiring) and ADR-013 (guard models) on 2026-10-17 | Architect, Docs |
 | E0.3 Threat model | ✅ STRIDE over the logical architecture; security baseline (headers, CSRF, rate limits, dependency audit policy) ([threat-model.md](../security/threat-model.md)) | Security |
 | E0.4 Skeleton | ✅ (2026-10-16) Monorepo, FastAPI health/readiness/version, Angular shell, Alembic baseline + RLS guard, Compose (ParadeDB, Valkey, SeaweedFS, Temporal), Makefile, CI (lint, types, tests, audits, image build, smoke, Trivy). Closed 2026-10-17: Compose profile `observability` (OTel Collector, Prometheus, Loki, Grafana; `make obs/up obs/smoke`) and licence gate in CI (`scripts/check-licenses.py`, policy `scripts/license-policy.json`) | DevOps, Engineer |
