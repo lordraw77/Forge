@@ -12,7 +12,7 @@ from forge.core.crypto import Envelope
 from forge.gateway.adapter import LiteLLMAdapter, ProviderAdapter, UpstreamError, warm_up
 from forge.gateway.catalog import Catalog
 from forge.gateway.limits import Limiter, ResponseCache
-from forge.gateway.pipeline import Caller, GatewayResponse, GatewayService
+from forge.gateway.pipeline import Caller, CallInfo, GatewayResponse, GatewayService
 from forge.gateway.registry import STANDARD_ALIASES, ModelConfig, Registry
 from forge.gateway.schemas import (
     AliasIn,
@@ -78,6 +78,7 @@ __all__ = [
     "STANDARD_ALIASES",
     "AliasIn",
     "AliasOut",
+    "CallInfo",
     "Caller",
     "Gateway",
     "GatewayResponse",

@@ -14,6 +14,7 @@ from forge.core.errors import ProblemError
 from forge.core.settings import Settings
 from forge.gateway.service import Gateway
 from forge.iam.service import AuthService, Flags, TokenError, User, actor_for
+from forge.prompts.service import PromptStudio
 from forge.tenancy.service import ProjectAccess, TenancyService
 
 ACCESS_COOKIE = "forge_access"
@@ -32,6 +33,7 @@ class Services:
     auth: AuthService
     tenancy: TenancyService
     gateway: Gateway
+    prompts: PromptStudio
 
 
 @dataclass

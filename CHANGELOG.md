@@ -4,9 +4,18 @@ All notable changes to Forge are recorded here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
-Phase 1 milestone M1.2 (LLM gateway), the closing items of Phase 0, and two PO decisions of 2026-10-18: NG-ZORRO on Angular 22 instead of PrimeNG (ADR-017), and OpenSearch for BM25 instead of pg_search (ADR-016).
+Phase 1 milestones M1.2 (LLM gateway) and M1.3 (Prompt Studio), the closing items of Phase 0, and two PO decisions of 2026-10-18: NG-ZORRO on Angular 22 instead of PrimeNG (ADR-017), and OpenSearch for BM25 instead of pg_search (ADR-016).
 
 ### Added
+
+**Prompt Studio**
+- New Prompt editor: inline name, model (alias or model), System and User Prompt, variables (Name, Value, Is File Input, Is Required) created inline by typing `{name}`, few-shot examples, temperature and max tokens. The description is asked on first save; template errors show their line.
+- Every save is an immutable version (`draft`, `staging` and `prod` tags); older versions are viewable and can be loaded into the editor.
+- Test page: Proceed is enabled when the required variables are filled; file inputs take a text file. The result shows output, latency, cost and total usage, with a call trace (input messages, output, metadata).
+- Compare models: the same version and input on 2 to 4 models in parallel; a failing model does not hide the others.
+- Help Me Write: System and User Prompt from a description on the project's `default-chat` alias, with the CO-STAR, RISEN, RTF and CRISPE frameworks or Free Form (the model picks and names the framework).
+- Prompt Library: Published and Draft prompts with status, time range and name filters; Try, Edit, Duplicate and Delete.
+- REST API under `/api/v1/projects/{id}/prompts` (versions, tags, publish, test, playground, runs, parse, assist).
 
 **Model registry**
 - Admin Console → Model providers: providers of every F1 type (vLLM, llama.cpp, NVIDIA NIM, Ollama, OpenAI, Azure OpenAI, Anthropic, Bedrock, Gemini, Vertex AI, Mistral, generic OpenAI-compatible), models with all F1.2 fields (type chat, embedding, reranker, speech or guard; context window; costs per 1M tokens; capabilities; timeout, retries and rate limit), and per-project enablement.
@@ -29,12 +38,14 @@ Phase 1 milestone M1.2 (LLM gateway), the closing items of Phase 0, and two PO d
 
 ### Changed
 - **Web UI on Angular 22 and NG-ZORRO 22** (MIT) instead of Angular 21 and PrimeNG 21: every screen was ported, with the brand theme, Italian component texts and the same workflows. No commercial licence is needed now or for later Angular versions.
-- **Full-text search moves to OpenSearch 3.9** (Apache-2.0), a new Compose service `search` with TLS and a least-privilege `forge` user. PostgreSQL now runs on the plain `pgvector/pgvector` image; pg_search (AGPL) is gone. `/readyz` checks the search engine too.
+- **Full-text search moves to OpenSearch 3.9** (Apache-2.0), a new Compose service `search` with TLS and a least-privilege `forge` user. PostgreSQL now runs on the plain `pgvector/pgvector` image; pg_search (AGPL) is gone. `/readyz` checks the search engine too. Spike E0.5e measured hybrid retrieval at 159 ms p95 on 1M chunks, with no cross-project leaks.
 - LiteLLM 1.105.1 is a runtime dependency of the backend image (only the gateway imports it).
 - The project token created with a project now includes the `llm.invoke` scope; Project Admin and Builder roles gain the `llm.invoke` permission.
 - Validation errors in the UI now show why a value was refused.
 
 ### Security
+- Prompt templates render in a Jinja2 sandbox: no imports, includes or macros; allowlisted filters, globals and methods; capped `range`, repetition, concatenation and powers; a step, time and size budget per render. A suite of known injection and exhaustion payloads runs in CI.
+- Prompt versions cannot be changed or deleted by the application's database roles.
 - Provider base URLs: http(s) only; link-local, multicast and cloud metadata addresses refused; plain HTTP only with the explicit per-provider option (on-prem endpoints).
 - Provider error messages are scrubbed of API keys before they are shown, logged or stored.
 

@@ -95,7 +95,7 @@ Status: **P1** = control delivered in Phase 1, **P2** / **P3** later phases.
 | I | Exfiltration via rendered links/images in answers | No remote image loading in chat; URL guardrail; CSP `img-src` self + data | P1 (CSP) / P2 |
 | I | Data from restricted documents | ACL filter at retrieval (AC4), chunks never cross projects | P1 |
 | T | Malicious files (parser exploits, zip bombs) | MIME sniffing, size and page limits, Docling in worker with resource limits, decompression ratio checks | P1 |
-| E | Jinja2 template injection in prompts | `SandboxedEnvironment`, no custom globals, render timeout | P1 |
+| E | Jinja2 template injection in prompts | `ImmutableSandboxedEnvironment` without loader; allowlisted filters, globals, methods and statements; capped operators and `range`; step/time/size budget per render; payload suite in CI ([M1.3 design](../architecture/m1.3-prompt-studio.md#3-templates-and-the-sandbox)) | P1 ✅ M1.3 |
 
 ## 4. Security requirements for every epic
 

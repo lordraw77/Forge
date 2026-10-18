@@ -84,4 +84,22 @@ describe('HTTP interceptors (ADR-011)', () => {
         'String should have at least 2 characters',
     );
   });
+
+  it('lists string and message details of Forge 422 problems', () => {
+    const missing = new HttpErrorResponse({
+      status: 422,
+      error: { title: 'Required variables are missing', detail: ['customer', 'topic'] },
+    });
+    expect(problemMessage(missing)).toBe('Required variables are missing: customer; topic');
+    const template = new HttpErrorResponse({
+      status: 422,
+      error: {
+        title: 'The prompt template is invalid',
+        detail: [{ field: 'user_template', line: 2, message: 'Unexpected end of template' }],
+      },
+    });
+    expect(problemMessage(template)).toBe(
+      'The prompt template is invalid: Unexpected end of template',
+    );
+  });
 });

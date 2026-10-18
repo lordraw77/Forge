@@ -12,7 +12,15 @@ from fastapi import FastAPI
 
 from forge import __version__
 from forge.admin.service import SettingsStore, listen_dsn
-from forge.api import health, routes_admin, routes_auth, routes_models, routes_projects, routes_v1
+from forge.api import (
+    health,
+    routes_admin,
+    routes_auth,
+    routes_models,
+    routes_projects,
+    routes_prompts,
+    routes_v1,
+)
 from forge.api.deps import Services
 from forge.core.crypto import Envelope, derive_key
 from forge.core.db import create_engine, session_factory
@@ -21,6 +29,7 @@ from forge.core.logging import configure_logging, get_logger
 from forge.core.settings import Settings, get_settings
 from forge.gateway.service import Gateway
 from forge.iam.service import AuthService, TokenCodec
+from forge.prompts.service import PromptStudio
 from forge.rag.service import SearchClient
 from forge.tenancy.service import TenancyService
 
@@ -66,6 +75,13 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
             app.state.sessions, listen_dsn(settings.database_url.get_secret_value())
         )
         envelope = Envelope.from_master_key(master)
+        gateway = Gateway.build(
+            app.state.sessions,
+            envelope,
+            store,
+            app.state.redis,
+            backoff_base_s=gateway_backoff_s,
+        )
         svc = Services(
             settings=settings,
             store=store,
@@ -77,13 +93,8 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
                 app.state.redis,
             ),
             tenancy=TenancyService(app.state.sessions),
-            gateway=Gateway.build(
-                app.state.sessions,
-                envelope,
-                store,
-                app.state.redis,
-                backoff_base_s=gateway_backoff_s,
-            ),
+            gateway=gateway,
+            prompts=PromptStudio(app.state.sessions, gateway),
         )
         app.state.services = svc
         init = asyncio.create_task(_initialise(app, svc))
@@ -118,5 +129,6 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
     app.include_router(routes_admin.router)
     app.include_router(routes_models.admin_router)
     app.include_router(routes_models.project_router)
+    app.include_router(routes_prompts.router)
     app.include_router(routes_v1.router)
     return app

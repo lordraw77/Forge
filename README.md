@@ -9,7 +9,7 @@
 
 Self-hosted, LLM-agnostic platform to build and run agents, RAG pipelines and governed prompts, with multi-tenancy and observability. All models are external endpoints; Forge never hosts a model.
 
-**Status:** Phase 1, milestone M1.2 (LLM gateway) done; next is M1.3 (Prompt Studio). Phase 0 delivered the specification, the plan, the architecture decisions, the spikes, a running skeleton, the observability profile and the licence gate. M1.1 added tenant isolation, local authentication, secrets, runtime settings, the Super Admin console and the Projects Studio. M1.2 adds the model registry (providers, models, aliases with fallback chains, per-project enablement), Test Connection, the OpenAI-compatible `/v1` API with streaming, quotas and rate limits, and an optional response cache.
+**Status:** Phase 1, milestone M1.3 (Prompt Studio) done; next is M1.4 (RAG on upload). Phase 0 delivered the specification, the plan, the architecture decisions, the spikes, a running skeleton, the observability profile and the licence gate. M1.1 added tenant isolation, local authentication, secrets, runtime settings, the Super Admin console and the Projects Studio. M1.2 adds the model registry (providers, models, aliases with fallback chains, per-project enablement), Test Connection, the OpenAI-compatible `/v1` API with streaming, quotas and rate limits, and an optional response cache. M1.3 adds Prompt Studio: versioned prompts with variables and few-shot examples in a sandboxed template engine, a test page with call traces, side-by-side model comparison, Help Me Write and the Prompt Library.
 
 | Document | Content |
 | --- | --- |
@@ -92,6 +92,16 @@ client.chat.completions.create(model="default-chat", messages=[{"role": "user", 
 ```
 
 For a lab, `make providers/import` registers the providers whose keys are present in `.env` (`OLLAMA_HOST`, `GROQ_API_KEY`, `MISTRAL_API_KEY`, `CEREBRAS_API_KEY`, `OPENROUTER_API_KEY`, `NVIDIA_API_KEY`, `CLOUDFLARE_API_KEY` + `CLOUDFLARE_ACCOUNT_ID`, `GEMINI_API_KEY`). It is idempotent and keeps whatever already exists. Paid models (cost > 0) are in no alias. `docker compose … exec api forge providers test [--include-paid]` runs Test Connection on every platform model. The running platform never reads these variables; they only feed the import.
+
+### Prompts
+
+**Prompt Studio** (Builder or Project Admin) keeps a project's prompts:
+
+- Write the System and User Prompt. Type `{name}` to create a variable; Jinja2 syntax (`{{ name|upper }}`, `{% if %}`, `{% for %}`) also works, inside a sandbox.
+- Add few-shot examples, or let **Help Me Write** draft the prompt on the project's `default-chat` alias.
+- Every save is an immutable version. **Save & Test Prompt** opens the test page: fill the variables, **Proceed**, and see the output with latency, cost, tokens and the call trace. Compare 2–4 models side by side, then **Publish** a version to the **Prompt Library**.
+
+The same operations are available under `/api/v1/projects/{id}/prompts` (OpenAPI at `/api/docs`).
 
 **Back up `FORGE_MASTER_KEY` separately.** It encrypts every secret stored in the database, and if it is lost those secrets cannot be recovered.
 

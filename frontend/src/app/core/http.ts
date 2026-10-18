@@ -93,8 +93,11 @@ export function problemMessage(error: unknown, fallback = $localize`Something we
     let detail = typeof p.detail === 'string' ? p.detail : '';
     if (Array.isArray(p.detail)) {
       // 422 validation errors: show why, without Pydantic's "Value error, " prefix.
+      // Forge's own 422s list strings (e.g. missing variables) or {message} objects.
       detail = p.detail
-        .map((d: { msg?: string }) => (d.msg ?? '').replace(/^Value error, /, ''))
+        .map((d: string | { msg?: string; message?: string }) =>
+          typeof d === 'string' ? d : (d.msg ?? d.message ?? '').replace(/^Value error, /, ''),
+        )
         .filter(Boolean)
         .join('; ');
     }

@@ -240,36 +240,40 @@ def bench(
         run_query(conn, vector_sql, q)
         run_bm25(es, q)
 
-    lat, rows = [], []
-    for q in queries[warmup:]:
-        ms, ids = run_query(conn, vector_sql, q)
-        lat.append(ms)
-        rows.append(len(ids))
-    out["vector_top40"] = summary(lat, rows)
-    log(f"  vector_top40: {out['vector_top40']}")
-
-    lat, rows, server = [], [], []
-    for q in queries[warmup:]:
-        ms, ids = run_bm25(es, q)
-        lat.append(ms)
-        rows.append(len(ids))
-    for q in queries[warmup : warmup + 100]:
-        resp = es.post(f"/{INDEX}/_search", params={"routing": PROJECT}, json=bm25_body(q, PROJECT))
-        server.append(float(resp.json()["took"]))
-    out["bm25_top40_opensearch"] = summary(lat, rows) | {"server_took_p95_ms": pct(server, 0.95)}
-    log(f"  bm25_top40_opensearch: {out['bm25_top40_opensearch']}")
-
-    lat, rows = [], []
+    # Rotate the three methods over distinct queries so they share the same cache state and no
+    # method re-runs a query another one just warmed; measuring them one after the other
+    # favoured whichever ran last on this memory-tight host.
+    lat: dict[str, list[float]] = {"vector_top40": [], "bm25_top40_opensearch": [], "hybrid": []}
+    rows: dict[str, list[int]] = {k: [] for k in lat}
+    server: list[float] = []
+    methods = list(lat)
     with ThreadPoolExecutor(max_workers=2) as pool:
-        for q in queries[warmup:]:
+        for i, q in enumerate(queries[warmup:]):
+            method = methods[i % 3]
             t0 = time.perf_counter()
-            fv = pool.submit(run_query, vconn, vector_sql, q)
-            fb = pool.submit(run_bm25, es, q)
-            fused = rrf(fv.result()[1], fb.result()[1])
-            lat.append((time.perf_counter() - t0) * 1000)
-            rows.append(len(fused))
-    out["hybrid_rrf_concurrent"] = summary(lat, rows)
-    log(f"  hybrid_rrf_concurrent: {out['hybrid_rrf_concurrent']}")
+            if method == "vector_top40":
+                ids = run_query(conn, vector_sql, q)[1]
+            elif method == "bm25_top40_opensearch":
+                resp = es.post(
+                    f"/{INDEX}/_search", params={"routing": PROJECT}, json=bm25_body(q, PROJECT)
+                )
+                resp.raise_for_status()
+                body = resp.json()
+                server.append(float(body["took"]))
+                ids = [h["_id"] for h in body["hits"]["hits"]]
+            else:
+                fv = pool.submit(run_query, vconn, vector_sql, q)
+                fb = pool.submit(run_bm25, es, q)
+                ids = rrf(fv.result()[1], fb.result()[1])
+            lat[method].append((time.perf_counter() - t0) * 1000)
+            rows[method].append(len(ids))
+    out["vector_top40"] = summary(lat["vector_top40"], rows["vector_top40"])
+    out["bm25_top40_opensearch"] = summary(
+        lat["bm25_top40_opensearch"], rows["bm25_top40_opensearch"]
+    ) | {"server_took_p95_ms": pct(server, 0.95)}
+    out["hybrid_rrf_concurrent"] = summary(lat["hybrid"], rows["hybrid"])
+    for key in ("vector_top40", "bm25_top40_opensearch", "hybrid_rrf_concurrent"):
+        log(f"  {key}: {out[key]}")
 
     # Isolation: the same queries for another project never return this project's chunks.
     mine = set()
@@ -290,7 +294,7 @@ def main() -> None:
     ap.add_argument("--rows", type=int, required=True)
     ap.add_argument("--other-rows", type=int, default=100_000)
     ap.add_argument("--dims", type=int, required=True)
-    ap.add_argument("--queries", type=int, default=600)
+    ap.add_argument("--queries", type=int, default=1600)  # 100 warm-up + 500 per method
     ap.add_argument("--warmup", type=int, default=100)
     ap.add_argument("--out", type=Path, required=True)
     args = ap.parse_args()

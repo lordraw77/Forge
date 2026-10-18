@@ -86,13 +86,40 @@ export const routes: Routes = [
         ],
       },
       {
+        path: 'prompts',
+        title: 'Prompt Studio · Forge',
+        loadComponent: () => import('./pages/prompts/prompt-studio').then((m) => m.PromptStudio),
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'library' },
+          {
+            path: 'library',
+            loadComponent: () =>
+              import('./pages/prompts/prompt-library').then((m) => m.PromptLibrary),
+          },
+          {
+            path: 'new',
+            loadComponent: () =>
+              import('./pages/prompts/prompt-editor').then((m) => m.PromptEditor),
+          },
+          {
+            path: ':id/edit',
+            loadComponent: () =>
+              import('./pages/prompts/prompt-editor').then((m) => m.PromptEditor),
+          },
+          {
+            path: ':id/test',
+            loadComponent: () => import('./pages/prompts/prompt-test').then((m) => m.PromptTest),
+          },
+        ],
+      },
+      {
         // Phase 0 spike E0.5c, not in the menu: graph use-case editor on Foblex Flow.
         path: 'spikes/graph-editor',
         title: 'Graph editor spike · Forge',
         loadComponent: () =>
           import('./spikes/graph-editor/graph-editor').then((m) => m.GraphEditor),
       },
-      ...MENU.filter((entry) => entry.path !== 'projects').map((entry) => ({
+      ...MENU.filter((entry) => !['projects', 'prompts'].includes(entry.path)).map((entry) => ({
         path: entry.path,
         component: Placeholder,
         title: `${entry.label} · Forge`,

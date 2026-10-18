@@ -69,11 +69,25 @@ class Caller:
     trace_id: str | None = None
 
 
+@dataclass(frozen=True)
+class CallInfo:
+    """The recorded `llm_call` of a non-streaming chat, for internal callers' traces."""
+
+    call_id: uuid.UUID
+    model_name: str | None
+    tokens_in: int
+    tokens_out: int
+    cost: Decimal
+    latency_ms: int
+    cache_hit: bool
+
+
 @dataclass
 class GatewayResponse:
     headers: dict[str, str]
     body: dict[str, Any] | None = None
     stream: AsyncIterator[bytes] | None = None
+    info: CallInfo | None = None
 
 
 @dataclass
@@ -168,10 +182,12 @@ class GatewayService:
             call.model = model
             body = cached["response"]
             headers |= {"x-forge-cache": "hit", "x-forge-model": body.get("model", "")}
-            self._record(call, "ok", 200, tokens=(0, 0), usage_source="cache", cache_hit=True)
+            info = self._record(
+                call, "ok", 200, tokens=(0, 0), usage_source="cache", cache_hit=True
+            )
             if stream:
                 return GatewayResponse(headers, stream=self._replay(body, client_usage))
-            return GatewayResponse(headers, body=body)
+            return GatewayResponse(headers, body=body, info=info)
         if cache_key:
             headers["x-forge-cache"] = "miss"
 
@@ -200,13 +216,13 @@ class GatewayService:
         tokens = (int(usage.get("prompt_tokens") or 0), int(usage.get("completion_tokens") or 0))
         body = self._chat_body(response, model, tokens)
         await self._limiter.reconcile(reservation, sum(tokens))
-        self._record(call, "ok", 200, tokens=tokens, usage_source=source)
+        info = self._record(call, "ok", 200, tokens=tokens, usage_source=source)
         if cache_key:
             await self._cache.put(
                 cache_key, {"forge_model_id": str(model.id), "response": body}, limits.cache_ttl_s
             )
         headers["x-forge-model"] = model.name
-        return GatewayResponse(headers, body=body)
+        return GatewayResponse(headers, body=body, info=info)
 
     def _capable(self, resolution: Resolution, params: dict[str, Any]) -> list[ModelConfig]:
         needs = _needed_capabilities(params)
@@ -702,7 +718,7 @@ class GatewayService:
         usage_source: str,
         cache_hit: bool = False,
         error_code: str | None = None,
-    ) -> None:
+    ) -> CallInfo:
         model = call.model
         row = LlmCall(
             id=uuid7(),
@@ -728,6 +744,15 @@ class GatewayService:
             trace_id=call.caller.trace_id,
         )
         self._spawn(self._insert(row))
+        return CallInfo(
+            call_id=row.id,
+            model_name=row.model_name,
+            tokens_in=row.tokens_in,
+            tokens_out=row.tokens_out,
+            cost=row.cost,
+            latency_ms=row.latency_ms,
+            cache_hit=cache_hit,
+        )
 
     async def _insert(self, row: LlmCall) -> None:
         try:

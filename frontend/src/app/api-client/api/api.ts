@@ -14,6 +14,8 @@ export * from './projectModels.service';
 import { ProjectModelsService } from './projectModels.service';
 export * from './projects.service';
 import { ProjectsService } from './projects.service';
+export * from './prompts.service';
+import { PromptsService } from './prompts.service';
 export * from './system.service';
 import { SystemService } from './system.service';
 export const APIS = [
@@ -25,5 +27,6 @@ export const APIS = [
   OpenaiService,
   ProjectModelsService,
   ProjectsService,
+  PromptsService,
   SystemService,
 ];

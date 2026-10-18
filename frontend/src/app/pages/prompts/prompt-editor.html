@@ -1,0 +1,598 @@
+<div class="editor">
+  <div class="title-row">
+    @if (editingName) {
+      <input
+        nz-input
+        class="name-input"
+        aria-label="Prompt name"
+        i18n-aria-label
+        data-testid="prompt-name-input"
+        maxlength="120"
+        cdkFocusInitial
+        [(ngModel)]="name"
+        (blur)="commitName()"
+        (keydown.enter)="commitName()"
+      />
+    } @else {
+      <h2
+        tabindex="0"
+        role="button"
+        data-testid="prompt-name"
+        title="Click to rename"
+        i18n-title
+        (click)="editingName = true"
+        (keydown.enter)="editingName = true"
+      >
+        {{ name }}
+      </h2>
+    }
+    @if (prompt(); as p) {
+      <nz-tag [nzColor]="p.status === 'published' ? 'success' : 'default'">
+        @if (p.status === 'published') {
+          <span i18n>Published v{{ p.published_version }}</span>
+        } @else {
+          <span i18n>Draft</span>
+        }
+      </nz-tag>
+      <span class="muted" i18n>Latest: v{{ p.latest_version }}</span>
+    }
+    <span class="spacer"></span>
+    @if (prompt()) {
+      <button nz-button (click)="openVersions()" data-testid="open-versions">
+        <nz-icon nzType="history" /><span i18n>Versions</span>
+      </button>
+      <button nz-button (click)="test()" data-testid="open-test">
+        <nz-icon nzType="play-circle" /><span i18n>Test</span>
+      </button>
+    }
+  </div>
+
+  @if (message(); as m) {
+    <nz-alert
+      [nzType]="m.ok ? 'success' : 'error'"
+      [nzMessage]="m.text"
+      nzShowIcon
+      data-testid="editor-message"
+    />
+  }
+
+  <div class="field">
+    <label for="pe-model">
+      <span i18n>LLM Model</span>
+      <nz-icon
+        nzType="info-circle"
+        class="info"
+        nz-tooltip
+        nzTooltipTitle="An alias follows the project's model configuration; a model name pins one model."
+        i18n-nzTooltipTitle
+      />
+    </label>
+    <nz-select
+      nzId="pe-model"
+      nzShowSearch
+      data-testid="prompt-model"
+      [(ngModel)]="draft.model"
+      [nzNotFoundContent]="noModels"
+    >
+      @if (aliasOptions().length) {
+        <nz-option-group nzLabel="Aliases" i18n-nzLabel>
+          @for (o of aliasOptions(); track o.value) {
+            <nz-option [nzValue]="o.value" [nzLabel]="o.label" />
+          }
+        </nz-option-group>
+      }
+      @if (modelOnlyOptions().length) {
+        <nz-option-group nzLabel="Models" i18n-nzLabel>
+          @for (o of modelOnlyOptions(); track o.value) {
+            <nz-option [nzValue]="o.value" [nzLabel]="o.label" />
+          }
+        </nz-option-group>
+      }
+    </nz-select>
+    <ng-template #noModels>
+      <span i18n>No chat model is available to this project.</span>
+    </ng-template>
+  </div>
+
+  <div class="field">
+    <label for="pe-system">
+      <span i18n>System Prompt</span>
+      <nz-icon
+        nzType="info-circle"
+        class="info"
+        nz-tooltip
+        nzTooltipTitle="Role, rules and output format. Sent first, before the examples."
+        i18n-nzTooltipTitle
+      />
+    </label>
+    <textarea
+      nz-input
+      id="pe-system"
+      class="template"
+      data-testid="prompt-system"
+      cdkTextareaAutosize
+      cdkAutosizeMinRows="4"
+      cdkAutosizeMaxRows="18"
+      [(ngModel)]="draft.system_template"
+      (ngModelChange)="syncVariables()"
+    ></textarea>
+    @if (issueFor('system_template'); as i) {
+      <nz-alert nzType="error" [nzMessage]="issueText" />
+      <ng-template #issueText
+        ><span i18n>Line {{ i.line ?? '?' }}: {{ i.message }}</span></ng-template
+      >
+    }
+  </div>
+
+  <div class="field">
+    <div class="field-head">
+      <label for="pe-user">
+        <span i18n>User Prompt</span>
+        <nz-icon
+          nzType="info-circle"
+          class="info"
+          nz-tooltip
+          nzTooltipTitle="The request sent each time. Type {name} to create a variable; Jinja2 syntax also works."
+          i18n-nzTooltipTitle
+        />
+      </label>
+      <span class="spacer"></span>
+      <button nz-button nzSize="small" (click)="openAssist()" data-testid="help-me-write">
+        <nz-icon nzType="bulb" /><span i18n>Help Me Write</span>
+      </button>
+    </div>
+    <textarea
+      nz-input
+      id="pe-user"
+      class="template"
+      data-testid="prompt-user"
+      cdkTextareaAutosize
+      cdkAutosizeMinRows="4"
+      cdkAutosizeMaxRows="18"
+      [(ngModel)]="draft.user_template"
+      (ngModelChange)="syncVariables()"
+    ></textarea>
+    @if (issueFor('user_template'); as i) {
+      <nz-alert nzType="error" [nzMessage]="issueText" />
+      <ng-template #issueText
+        ><span i18n>Line {{ i.line ?? '?' }}: {{ i.message }}</span></ng-template
+      >
+    }
+  </div>
+
+  <nz-card nzSize="small" [nzTitle]="variablesTitle" [nzExtra]="addVar" data-testid="variables">
+    <ng-template #variablesTitle>
+      <span i18n>Variables</span>
+      <nz-icon
+        nzType="info-circle"
+        class="info"
+        nz-tooltip
+        nzTooltipTitle="Value is the default used when testing. File inputs take the content of a text file."
+        i18n-nzTooltipTitle
+      />
+    </ng-template>
+    <ng-template #addVar>
+      <button nz-button nzSize="small" (click)="addVariable()" data-testid="add-variable">
+        <nz-icon nzType="plus" /><span i18n>Add Variables</span>
+      </button>
+    </ng-template>
+    @if (draft.variables.length) {
+      <nz-table
+        [nzData]="draft.variables"
+        nzSize="small"
+        [nzShowPagination]="false"
+        [nzPageSize]="1000"
+      >
+        <thead>
+          <tr>
+            <th i18n>Name</th>
+            <th i18n>Value</th>
+            <th i18n>Is File Input</th>
+            <th i18n>Is Required</th>
+            <th class="actions"><span class="sr-only" i18n>Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (v of draft.variables; track $index; let i = $index) {
+            <tr [attr.data-testid]="'variable-' + v.name">
+              <td>
+                <input
+                  nz-input
+                  nzSize="small"
+                  [attr.aria-label]="nameLabel"
+                  [(ngModel)]="v.name"
+                  (ngModelChange)="touched(v)"
+                />
+                @if (unused(v)) {
+                  <nz-tag nzColor="warning" i18n>not in the prompt</nz-tag>
+                }
+              </td>
+              <td>
+                <input
+                  nz-input
+                  nzSize="small"
+                  [attr.aria-label]="valueLabel"
+                  [disabled]="!!v.is_file"
+                  [(ngModel)]="v.value"
+                  (ngModelChange)="touched(v)"
+                />
+              </td>
+              <td>
+                <label
+                  nz-checkbox
+                  [nzId]="'var-file-' + i"
+                  [(ngModel)]="v.is_file"
+                  (ngModelChange)="touched(v)"
+                >
+                  <span class="sr-only" i18n>Is File Input</span>
+                </label>
+              </td>
+              <td>
+                <label
+                  nz-checkbox
+                  [nzId]="'var-req-' + i"
+                  [(ngModel)]="v.required"
+                  (ngModelChange)="touched(v)"
+                >
+                  <span class="sr-only" i18n>Is Required</span>
+                </label>
+              </td>
+              <td class="actions">
+                <button
+                  nz-button
+                  nzType="text"
+                  nzSize="small"
+                  [attr.aria-label]="removeLabel"
+                  (click)="removeVariable(i)"
+                >
+                  <nz-icon nzType="delete" />
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </nz-table>
+    } @else {
+      <p class="muted" i18n>Type {{ '{' }}name{{ '}' }} in the User Prompt to add a variable.</p>
+    }
+  </nz-card>
+
+  <nz-card nzSize="small" [nzTitle]="examplesTitle" [nzExtra]="addEx" data-testid="examples">
+    <ng-template #examplesTitle>
+      <span i18n>Examples</span>
+      <nz-icon
+        nzType="info-circle"
+        class="info"
+        nz-tooltip
+        nzTooltipTitle="Few-shot input/output pairs, sent between the system prompt and the user prompt."
+        i18n-nzTooltipTitle
+      />
+    </ng-template>
+    <ng-template #addEx>
+      <button nz-button nzSize="small" (click)="addExample()" data-testid="add-example">
+        <nz-icon nzType="plus" /><span i18n>Add example</span>
+      </button>
+    </ng-template>
+    <div class="examples">
+      @for (e of draft.examples; track $index; let i = $index) {
+        <div class="example">
+          <textarea
+            nz-input
+            [attr.aria-label]="inputLabel"
+            [placeholder]="inputLabel"
+            cdkTextareaAutosize
+            cdkAutosizeMinRows="2"
+            cdkAutosizeMaxRows="8"
+            [(ngModel)]="e.input"
+          ></textarea>
+          <textarea
+            nz-input
+            [attr.aria-label]="outputLabel"
+            [placeholder]="outputLabel"
+            cdkTextareaAutosize
+            cdkAutosizeMinRows="2"
+            cdkAutosizeMaxRows="8"
+            [(ngModel)]="e.output"
+          ></textarea>
+          <button
+            nz-button
+            nzType="text"
+            [attr.aria-label]="removeLabel"
+            (click)="removeExample(i)"
+          >
+            <nz-icon nzType="delete" />
+          </button>
+        </div>
+      } @empty {
+        <p class="muted" i18n>No examples.</p>
+      }
+    </div>
+  </nz-card>
+
+  <nz-card nzSize="small" nzTitle="Parameters" i18n-nzTitle>
+    <div class="params">
+      <div class="field">
+        <label for="pe-temp" i18n>Temperature</label>
+        <nz-input-number
+          nzId="pe-temp"
+          [nzMin]="0"
+          [nzMax]="2"
+          [nzStep]="0.1"
+          [nzPlaceHolder]="modelDefault"
+          [(ngModel)]="draft.temperature"
+        />
+      </div>
+      <div class="field">
+        <label for="pe-max" i18n>Max output tokens</label>
+        <nz-input-number
+          nzId="pe-max"
+          [nzMin]="1"
+          [nzMax]="200000"
+          [nzPlaceHolder]="modelDefault"
+          [(ngModel)]="draft.max_tokens"
+        />
+      </div>
+      <div class="field grow">
+        <label for="pe-note" i18n>Version note</label>
+        <input nz-input id="pe-note" maxlength="500" [(ngModel)]="draft.note" />
+      </div>
+    </div>
+  </nz-card>
+
+  <div class="bar">
+    <button
+      nz-button
+      [disabled]="!canSave()"
+      [nzLoading]="saving()"
+      (click)="save('stay')"
+      data-testid="save-draft"
+      i18n
+    >
+      Save
+    </button>
+    <button
+      nz-button
+      nzType="primary"
+      [disabled]="!canSave()"
+      [nzLoading]="saving()"
+      (click)="save('test')"
+      data-testid="save-test"
+      i18n
+    >
+      Save &amp; Test Prompt
+    </button>
+  </div>
+</div>
+
+<!-- First save: description -->
+<nz-modal [(nzVisible)]="describeOpen" nzTitle="Describe the prompt" i18n-nzTitle [nzFooter]="null">
+  <ng-container *nzModalContent>
+    <form class="form" (ngSubmit)="confirmDescription()">
+      <label for="pe-desc" i18n>Write a few lines about the prompt</label>
+      <textarea
+        nz-input
+        id="pe-desc"
+        name="description"
+        cdkFocusInitial
+        required
+        maxlength="2000"
+        data-testid="prompt-description"
+        cdkTextareaAutosize
+        cdkAutosizeMinRows="3"
+        cdkAutosizeMaxRows="8"
+        [(ngModel)]="description"
+      ></textarea>
+      <div class="dialog-actions">
+        <button nz-button type="button" (click)="describeOpen = false" i18n>Cancel</button>
+        <button
+          nz-button
+          nzType="primary"
+          type="submit"
+          [disabled]="!description.trim()"
+          data-testid="description-save"
+          i18n
+        >
+          Save
+        </button>
+      </div>
+    </form>
+  </ng-container>
+</nz-modal>
+
+<!-- Help Me Write -->
+<nz-modal
+  [(nzVisible)]="assistOpen"
+  nzTitle="Help Me Write"
+  i18n-nzTitle
+  [nzFooter]="null"
+  [nzWidth]="720"
+>
+  <ng-container *nzModalContent>
+    <div class="form">
+      <label for="hw-desc" i18n>Describe what the prompt should do</label>
+      <textarea
+        nz-input
+        id="hw-desc"
+        cdkFocusInitial
+        maxlength="4000"
+        data-testid="assist-description"
+        cdkTextareaAutosize
+        cdkAutosizeMinRows="3"
+        cdkAutosizeMaxRows="10"
+        [(ngModel)]="assistIn.description"
+      ></textarea>
+      <label for="hw-framework">
+        <span i18n>Prompt Framework</span>
+        <nz-icon
+          nzType="info-circle"
+          class="info"
+          nz-tooltip
+          [nzTooltipTitle]="frameworkHint(assistIn.framework)"
+        />
+      </label>
+      <nz-select
+        nzId="hw-framework"
+        data-testid="assist-framework"
+        [(ngModel)]="assistIn.framework"
+      >
+        @for (f of frameworks; track f.label) {
+          <nz-option nzCustomContent [nzValue]="f.value" [nzLabel]="f.label">
+            <span [title]="f.hint">{{ f.label }}</span>
+          </nz-option>
+        }
+      </nz-select>
+      <small class="muted">{{ frameworkHint(assistIn.framework) }}</small>
+
+      @if (assistError(); as err) {
+        <nz-alert nzType="error" [nzMessage]="err" nzShowIcon />
+      }
+      @if (assistResult(); as r) {
+        <nz-alert
+          nzType="info"
+          [nzMessage]="frameworkUsed"
+          nzShowIcon
+          data-testid="assist-framework-used"
+        />
+        <ng-template #frameworkUsed>
+          @if (r.recommended) {
+            <span i18n>Recommended framework used: {{ frameworkLabel(r.framework) }}</span>
+          } @else {
+            <span i18n>Framework: {{ frameworkLabel(r.framework) }}</span>
+          }
+        </ng-template>
+        <label for="hw-sys" i18n>System Prompt</label>
+        <textarea
+          nz-input
+          id="hw-sys"
+          class="template"
+          readonly
+          cdkTextareaAutosize
+          cdkAutosizeMinRows="3"
+          cdkAutosizeMaxRows="10"
+          [ngModel]="r.system_template"
+        ></textarea>
+        <label for="hw-user" i18n>User Prompt</label>
+        <textarea
+          nz-input
+          id="hw-user"
+          class="template"
+          readonly
+          cdkTextareaAutosize
+          cdkAutosizeMinRows="2"
+          cdkAutosizeMaxRows="8"
+          [ngModel]="r.user_template"
+        ></textarea>
+      }
+      <div class="dialog-actions">
+        <button nz-button (click)="assistOpen = false" i18n>Cancel</button>
+        @if (assistResult()) {
+          <button
+            nz-button
+            [nzLoading]="assistBusy()"
+            (click)="generate()"
+            data-testid="assist-regenerate"
+            i18n
+          >
+            Re-generate
+          </button>
+          <button
+            nz-button
+            nzType="primary"
+            (click)="insertAssist()"
+            data-testid="assist-insert"
+            i18n
+          >
+            Insert
+          </button>
+        } @else {
+          <button
+            nz-button
+            nzType="primary"
+            [nzLoading]="assistBusy()"
+            [disabled]="assistIn.description.trim().length < 10"
+            (click)="generate()"
+            data-testid="assist-generate"
+            i18n
+          >
+            Generate Prompt
+          </button>
+        }
+      </div>
+    </div>
+  </ng-container>
+</nz-modal>
+
+<!-- Versions -->
+<nz-drawer
+  [(nzVisible)]="versionsOpen"
+  nzTitle="Versions"
+  i18n-nzTitle
+  [nzWidth]="560"
+  (nzOnClose)="versionsOpen = false"
+>
+  <ng-container *nzDrawerContent>
+    @if (viewing(); as v) {
+      <div class="form" data-testid="version-view">
+        <div class="field-head">
+          <strong i18n>Version {{ v.version }} (read-only)</strong>
+          @for (t of v.tags; track t) {
+            <nz-tag>{{ t }}</nz-tag>
+          }
+          <span class="spacer"></span>
+          <button nz-button nzSize="small" (click)="viewing.set(null)" i18n>Back</button>
+        </div>
+        <span class="muted">{{ v.created_at | date: 'medium' }} · {{ v.model }}</span>
+        <strong i18n>System Prompt</strong>
+        <pre class="output">{{ v.system_template }}</pre>
+        <strong i18n>User Prompt</strong>
+        <pre class="output">{{ v.user_template }}</pre>
+        <div class="dialog-actions">
+          <button
+            nz-button
+            nzType="primary"
+            (click)="restore(v)"
+            data-testid="version-restore"
+            i18n
+          >
+            Load into editor
+          </button>
+        </div>
+      </div>
+    } @else {
+      <nz-table [nzData]="versions()" nzSize="small" [nzShowPagination]="false" [nzPageSize]="1000">
+        <thead>
+          <tr>
+            <th i18n>Version</th>
+            <th i18n>Tags</th>
+            <th i18n>Model</th>
+            <th i18n>Saved</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (v of versions(); track v.version) {
+            <tr>
+              <td>
+                <a (click)="view(v)" (keydown.enter)="view(v)" tabindex="0" role="button"
+                  >v{{ v.version }}</a
+                >
+                @if (v.note) {
+                  <div class="muted small">{{ v.note }}</div>
+                }
+              </td>
+              <td>
+                @for (t of v.tags; track t) {
+                  <nz-tag
+                    [nzColor]="t === 'prod' ? 'success' : t === 'staging' ? 'blue' : 'default'"
+                    >{{ t }}</nz-tag
+                  >
+                }
+              </td>
+              <td>{{ v.model }}</td>
+              <td>{{ v.created_at | date: 'short' }}</td>
+            </tr>
+          }
+        </tbody>
+      </nz-table>
+    }
+  </ng-container>
+</nz-drawer>

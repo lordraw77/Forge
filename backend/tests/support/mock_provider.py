@@ -6,6 +6,8 @@ Behaviour comes from the requested model name (suffixes can be combined, e.g. `a
   -auth     401                      -bad      400
   -fail402  402 (billing)
   -tools    answers with a tool call -nousage  never reports usage
+  -echo     answers with the received messages as JSON
+  -assist   answers like Help Me Write (JSON with framework and prompts)
 Embedding models named `emb-<n>` return n dimensions (default 8).
 """
 
@@ -46,7 +48,19 @@ async def _failure(model: str) -> JSONResponse | None:
     return None
 
 
-def _message(model: str) -> dict[str, Any]:
+def _message(model: str, body: dict[str, Any]) -> dict[str, Any]:
+    if "-echo" in model:
+        return {"role": "assistant", "content": json.dumps(body["messages"])}
+    if "-assist" in model:
+        reply = {
+            "framework": "rtf",
+            "system_prompt": "You are a support agent.",
+            "user_prompt": "Answer {customer_name}: {question}",
+        }
+        return {
+            "role": "assistant",
+            "content": "Here it is:\n```json\n" + json.dumps(reply) + "\n```",
+        }
     if "-tools" in model:
         call = {
             "id": "call_1",
@@ -66,7 +80,7 @@ async def chat(request: Request) -> Any:
     model = body["model"]
     if err := await _failure(model):
         return err
-    msg = _message(model)
+    msg = _message(model, body)
     finish = "tool_calls" if msg.get("tool_calls") else "stop"
     base = {"id": "mock-1", "created": int(time.time()), "model": model}
     if body.get("stream"):

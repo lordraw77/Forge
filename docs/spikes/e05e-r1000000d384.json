@@ -1,0 +1,43 @@
+{
+  "label": "r1000000d384",
+  "rows_in_kb": 1000000,
+  "rows_total": 1100000,
+  "dims": 384,
+  "opensearch_version": "3.9.0",
+  "hnsw_build_s": 437.6,
+  "indexing": {
+    "documents": 1100000,
+    "index_s": 203.6,
+    "docs_per_s": 5402,
+    "store_mb": 699,
+    "segments": 6
+  },
+  "latency": {
+    "vector_top40": {
+      "p50_ms": 36.3,
+      "p95_ms": 169.5,
+      "p99_ms": 204.7,
+      "mean_ms": 56.0,
+      "min_rows": 40,
+      "queries": 500
+    },
+    "bm25_top40_opensearch": {
+      "p50_ms": 32.2,
+      "p95_ms": 47.7,
+      "p99_ms": 74.3,
+      "mean_ms": 32.4,
+      "min_rows": 40,
+      "queries": 500,
+      "server_took_p95_ms": 44.0
+    },
+    "hybrid_rrf_concurrent": {
+      "p50_ms": 42.4,
+      "p95_ms": 159.4,
+      "p99_ms": 211.2,
+      "mean_ms": 61.5,
+      "min_rows": 40,
+      "queries": 500
+    },
+    "isolation_leaked_ids": 0
+  }
+}
