@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto';
 
-import { APIRequestContext, expect, Page, request } from '@playwright/test';
+import { APIRequestContext, expect, Locator, Page, request } from '@playwright/test';
 
 export const ADMIN = {
   username: process.env['FORGE_E2E_ADMIN_USER'] ?? 'e2e-admin',
@@ -56,4 +56,24 @@ export function totp(secretBase32: string, offsetSteps = 0): string {
   const offset = hmac[hmac.length - 1] & 0xf;
   const code = (hmac.readUInt32BE(offset) & 0x7fffffff) % 1_000_000;
   return code.toString().padStart(6, '0');
+}
+
+/**
+ * Open an NG-ZORRO select (by its nzId), type `search` to filter it (its list is virtual-scrolled,
+ * so far options are not in the DOM) and pick the option whose label matches `label`.
+ */
+export async function pickOption(
+  page: Page,
+  selectId: string,
+  label: string | RegExp,
+  search = typeof label === 'string' ? label : '',
+): Promise<void> {
+  await page.locator('nz-select', { has: page.locator(`#${selectId}`) }).click();
+  if (search) await page.locator(`#${selectId}`).pressSequentially(search);
+  // Option items carry their label in `title`; a regex is matched against the visible text.
+  const option: Locator =
+    typeof label === 'string'
+      ? page.locator(`nz-option-item[title="${label.replace(/"/g, '\\"')}"]`)
+      : page.locator('nz-option-item').filter({ hasText: label });
+  await option.first().click();
 }

@@ -1,12 +1,12 @@
 import { DecimalPipe } from '@angular/common';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ButtonModule } from 'primeng/button';
-import { CardModule } from 'primeng/card';
-import { CheckboxModule } from 'primeng/checkbox';
-import { InputNumberModule } from 'primeng/inputnumber';
-import { MessageModule } from 'primeng/message';
-import { SelectModule } from 'primeng/select';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
+import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
+import { NzSelectModule } from 'ng-zorro-antd/select';
 import { firstValueFrom } from 'rxjs';
 
 import {
@@ -32,12 +32,12 @@ type LimitKey =
   imports: [
     DecimalPipe,
     FormsModule,
-    ButtonModule,
-    CardModule,
-    CheckboxModule,
-    InputNumberModule,
-    MessageModule,
-    SelectModule,
+    NzAlertModule,
+    NzButtonModule,
+    NzCardModule,
+    NzCheckboxModule,
+    NzInputNumberModule,
+    NzSelectModule,
     ModelRegistry,
   ],
   template: `
@@ -70,7 +70,7 @@ type LimitKey =
       <forge-model-registry [projectId]="id" [canEdit]="manage()" />
 
       @if (manage() && config(); as c) {
-        <p-card header="Limits and cache" i18n-header data-testid="limits">
+        <nz-card nzTitle="Limits and cache" i18n-nzTitle data-testid="limits">
           <form class="form" (ngSubmit)="save()">
             <p class="muted" i18n>
               Empty fields inherit the platform value. Limits cannot exceed the platform ceiling.
@@ -79,70 +79,59 @@ type LimitKey =
               @for (f of limitFields; track f.key) {
                 <div class="field">
                   <label [for]="'lim-' + f.key">{{ f.label }}</label>
-                  <p-inputnumber
-                    [inputId]="'lim-' + f.key"
+                  <nz-input-number
+                    [nzId]="'lim-' + f.key"
                     [name]="f.key"
-                    [min]="0"
-                    [placeholder]="platformHint(f.key)"
+                    [nzMin]="0"
+                    [nzPlaceHolder]="platformHint(f.key)"
                     [(ngModel)]="draft[f.key]"
                   />
                 </div>
               }
               <div class="field">
                 <label for="lim-policy" i18n>Above the max tokens per call</label>
-                <p-select
-                  inputId="lim-policy"
-                  name="policy"
-                  [options]="policies"
-                  optionLabel="label"
-                  optionValue="value"
-                  [(ngModel)]="draft.max_tokens_policy"
-                  appendTo="body"
-                />
+                <nz-select nzId="lim-policy" name="policy" [(ngModel)]="draft.max_tokens_policy">
+                  @for (o of policies; track o.label) {
+                    <nz-option [nzValue]="o.value" [nzLabel]="o.label" />
+                  }
+                </nz-select>
               </div>
               <div class="field">
                 <label for="lim-ttl" i18n>Cache TTL (s)</label>
-                <p-inputnumber
-                  inputId="lim-ttl"
+                <nz-input-number
+                  nzId="lim-ttl"
                   name="ttl"
-                  [min]="1"
+                  [nzMin]="1"
                   [(ngModel)]="draft.cache_ttl_s"
                 />
               </div>
             </div>
-            <div class="check">
-              <p-checkbox
-                inputId="lim-cache"
-                name="cache"
-                [binary]="true"
-                [(ngModel)]="draft.cache_enabled"
-              />
-              <label for="lim-cache" i18n
-                >Cache identical requests (temperature 0 only, unless allowed below)</label
-              >
-            </div>
-            <div class="check">
-              <p-checkbox
-                inputId="lim-temp"
-                name="temp"
-                [binary]="true"
-                [(ngModel)]="draft.cache_nonzero_temperature"
-              />
-              <label for="lim-temp" i18n>Also cache requests with temperature above 0</label>
-            </div>
+            <label nz-checkbox nzId="lim-cache" name="cache" [(ngModel)]="draft.cache_enabled">
+              <span i18n>Cache identical requests (temperature 0 only, unless allowed below)</span>
+            </label>
+            <label
+              nz-checkbox
+              nzId="lim-temp"
+              name="temp"
+              [(ngModel)]="draft.cache_nonzero_temperature"
+            >
+              <span i18n>Also cache requests with temperature above 0</span>
+            </label>
             <small class="muted" i18n
               >Effective now: {{ c.effective.tokens_per_day || unlimited }} tokens/day,
               {{ c.effective.requests_per_minute || unlimited }} requests/min,
               {{ c.effective.max_tokens_per_call || unlimited }} max tokens/call</small
             >
             @if (message(); as m) {
-              <p-message [severity]="m.ok ? 'success' : 'error'" [text]="m.text" />
+              <nz-alert [nzType]="m.ok ? 'success' : 'error'" [nzMessage]="m.text" />
             }
             <div class="dialog-actions">
-              <p-button type="submit" label="Save" i18n-label data-testid="save-limits" />
+              <button nz-button nzType="primary" type="submit" data-testid="save-limits" i18n>
+                Save
+              </button>
             </div>
           </form>
-        </p-card>
+        </nz-card>
       }
     }
   `,

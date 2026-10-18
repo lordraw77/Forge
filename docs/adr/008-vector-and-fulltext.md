@@ -1,6 +1,6 @@
 # ADR-008 – Vector and full-text search on PostgreSQL
 
-- Status: Accepted
+- Status: Accepted; **BM25 part superseded by [ADR-016](016-external-bm25-opensearch.md) (2026-10-18)**
 - Date: 2026-10-16
 
 ## Context
@@ -29,7 +29,7 @@ The spec's RAG design uses one `rag_chunk` table with pgvector HNSW and ParadeDB
 - Parallel index builds need shared memory: the database container gets `shm_size: 2gb` (Compose) or a memory-backed `/dev/shm` volume (Helm); builds use `maintenance_work_mem` ≈ 1.5 GB and 3 workers.
 - Changing a KB's embedding model creates a new index generation and re-embeds; the switch is atomic after completion.
 - Scale-out path: `PARTITION BY LIST (project_id)` for large projects, or pgvectorscale.
-- **Open**: pg_search is AGPL-3.0; acceptability for Forge's distribution model awaits the PO (analysis question 8). Native FTS remains available behind the same interface if it is rejected.
+- **Resolved (2026-10-18):** the PO rejected AGPL; BM25 moves to OpenSearch ([ADR-016](016-external-bm25-opensearch.md)). The pg_search notes below are kept for history; vector search is unchanged.
 
 ## Consequences
 

@@ -1,32 +1,26 @@
 <div class="editor" tabindex="0" (keydown)="onKeydown($event)">
   <header class="toolbar">
     <strong>Graph editor</strong>
-    <p-tag severity="warn" value="Spike E0.5c" />
+    <nz-tag nzColor="warning">Spike E0.5c</nz-tag>
     <span class="spacer"></span>
     @for (type of palette; track type) {
-      <p-button
-        size="small"
-        [outlined]="true"
-        [label]="'+ ' + type"
-        [attr.data-testid]="'add-' + type"
-        (onClick)="add(type)"
-      />
+      <button nz-button nzSize="small" [attr.data-testid]="'add-' + type" (click)="add(type)">
+        + {{ type }}
+      </button>
     }
-    <p-button
-      size="small"
-      severity="danger"
-      icon="pi pi-trash"
-      ariaLabel="Delete selection"
-      (onClick)="deleteSelection()"
-    />
-    <p-button size="small" severity="secondary" label="PRD sample" (onClick)="loadSample()" />
-    <p-button
-      size="small"
-      severity="secondary"
-      label="200 nodes"
-      data-testid="load-200"
-      (onClick)="loadSynthetic(200)"
-    />
+    <button
+      nz-button
+      nzSize="small"
+      nzDanger
+      aria-label="Delete selection"
+      (click)="deleteSelection()"
+    >
+      <span nz-icon nzType="delete"></span>
+    </button>
+    <button nz-button nzSize="small" (click)="loadSample()">PRD sample</button>
+    <button nz-button nzSize="small" data-testid="load-200" (click)="loadSynthetic(200)">
+      200 nodes
+    </button>
     @if (metrics()['last_render_ms'] !== undefined) {
       <span class="metric" data-testid="render-ms">
         {{ metrics()['nodes'] }} nodes rendered in {{ metrics()['last_render_ms'] }} ms
@@ -81,7 +75,7 @@
               <span class="type">{{ node.type }}</span>
               <span class="name">{{ node.id }}</span>
               @if (node.hitl) {
-                <i class="pi pi-user" title="Human in the loop"></i>
+                <span nz-icon nzType="user" title="Human in the loop"></span>
               }
             </div>
             <div class="detail">
@@ -113,13 +107,12 @@
     <aside class="side">
       <h3>Validation</h3>
       @if (issues().length === 0) {
-        <p-message severity="success" text="Graph is valid" data-testid="valid" />
+        <nz-alert nzType="success" nzMessage="Graph is valid" data-testid="valid" />
       }
       @for (issue of issues(); track $index) {
-        <p-message
-          [severity]="issue.severity === 'error' ? 'error' : 'warn'"
-          [text]="(issue.node ? issue.node + ': ' : '') + issue.message"
-          size="small"
+        <nz-alert
+          [nzType]="issue.severity === 'error' ? 'error' : 'warning'"
+          [nzMessage]="(issue.node ? issue.node + ': ' : '') + issue.message"
           [attr.data-testid]="'issue-' + issue.code"
         />
       }
@@ -129,42 +122,47 @@
   </div>
 </div>
 
-<p-drawer
-  [visible]="drawerOpen()"
-  (visibleChange)="drawerOpen.set($event)"
-  position="right"
-  header="Node configuration"
+<nz-drawer
+  [nzVisible]="drawerOpen()"
+  (nzOnClose)="drawerOpen.set(false)"
+  nzPlacement="right"
+  nzTitle="Node configuration"
+  [nzWidth]="360"
 >
-  @if (selected(); as node) {
-    <div class="form">
-      <label for="node-name">Node Name</label>
-      <div class="row">
-        <input pInputText id="node-name" [(ngModel)]="renameTo" />
-        <p-button size="small" label="Rename" (onClick)="rename()" />
+  <ng-container *nzDrawerContent>
+    @if (selected(); as node) {
+      <div class="form">
+        <label for="node-name">Node Name</label>
+        <div class="row">
+          <input nz-input id="node-name" [(ngModel)]="renameTo" />
+          <button nz-button nzSize="small" (click)="rename()">Rename</button>
+        </div>
+        <label for="node-type">Node Type</label>
+        <input nz-input id="node-type" [value]="node.type" disabled />
+        @if (node.type === 'agent') {
+          <label for="agent-ref">Agent (name&#64;version)</label>
+          <input
+            nz-input
+            id="agent-ref"
+            [ngModel]="node.agent_ref"
+            (ngModelChange)="patch('agent_ref', $event)"
+          />
+          <label for="task">Task</label>
+          <input nz-input id="task" [ngModel]="node.task" (ngModelChange)="patch('task', $event)" />
+        }
+        @if (node.type !== 'start') {
+          <label for="after-mode">Execute After mode</label>
+          <nz-select
+            nzId="after-mode"
+            [ngModel]="node.after_mode ?? 'all'"
+            (ngModelChange)="patch('after_mode', $event === 'all' ? undefined : $event)"
+          >
+            <nz-option nzValue="all" nzLabel="all" />
+            <nz-option nzValue="any" nzLabel="any" />
+          </nz-select>
+          <small>Depends on: {{ node.after ?? [] | json }}</small>
+        }
       </div>
-      <label for="node-type">Node Type</label>
-      <input pInputText id="node-type" [value]="node.type" disabled />
-      @if (node.type === 'agent') {
-        <label for="agent-ref">Agent (name&#64;version)</label>
-        <input
-          pInputText
-          id="agent-ref"
-          [ngModel]="node.agent_ref"
-          (ngModelChange)="patch('agent_ref', $event)"
-        />
-        <label for="task">Task</label>
-        <input pInputText id="task" [ngModel]="node.task" (ngModelChange)="patch('task', $event)" />
-      }
-      @if (node.type !== 'start') {
-        <label for="after-mode">Execute After mode</label>
-        <p-select
-          inputId="after-mode"
-          [options]="['all', 'any']"
-          [ngModel]="node.after_mode ?? 'all'"
-          (ngModelChange)="patch('after_mode', $event === 'all' ? undefined : $event)"
-        />
-        <small>Depends on: {{ node.after ?? [] | json }}</small>
-      }
-    </div>
-  }
-</p-drawer>
+    }
+  </ng-container>
+</nz-drawer>

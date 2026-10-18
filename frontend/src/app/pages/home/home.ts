@@ -1,37 +1,31 @@
 import { Component, computed, inject } from '@angular/core';
-import { ButtonModule } from 'primeng/button';
-import { CardModule } from 'primeng/card';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzIconModule } from 'ng-zorro-antd/icon';
 
 import { Session } from '../../core/session';
 
 /** Home (spec Part 2): greeting, two main actions, recent activity of the last 15 days. */
 @Component({
   selector: 'forge-home',
-  imports: [ButtonModule, CardModule],
+  imports: [NzButtonModule, NzCardModule, NzIconModule],
   template: `
     <section class="hero">
       <h1 i18n>Welcome, {{ userName() }}</h1>
       <p i18n>Build, publish and run generative and agentic AI solutions.</p>
       <div class="actions">
-        <p-button
-          label="Explore Use Cases Catalog"
-          i18n-label
-          icon="pi pi-th-large"
-          [disabled]="true"
-        />
-        <p-button
-          label="Build Your Own Use Case"
-          i18n-label
-          icon="pi pi-sitemap"
-          severity="secondary"
-          [disabled]="true"
-        />
+        <button nz-button nzType="primary" [disabled]="true">
+          <span nz-icon nzType="appstore"></span><span i18n>Explore Use Cases Catalog</span>
+        </button>
+        <button nz-button [disabled]="true">
+          <span nz-icon nzType="apartment"></span><span i18n>Build Your Own Use Case</span>
+        </button>
       </div>
     </section>
 
-    <p-card header="Recent activity" i18n-header>
+    <nz-card nzTitle="Recent activity" i18n-nzTitle>
       <p class="empty" i18n>No Recent Activity</p>
-    </p-card>
+    </nz-card>
   `,
   styles: `
     .hero {
@@ -43,7 +37,7 @@ import { Session } from '../../core/session';
       gap: 0.75rem;
     }
     .empty {
-      color: var(--p-text-muted-color);
+      color: var(--forge-text-muted-color);
     }
   `,
 })

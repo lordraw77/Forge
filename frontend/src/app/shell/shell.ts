@@ -1,17 +1,26 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { MenuItem } from 'primeng/api';
-import { AvatarModule } from 'primeng/avatar';
-import { ButtonModule } from 'primeng/button';
-import { MenuModule } from 'primeng/menu';
-import { SelectModule } from 'primeng/select';
-import { TagModule } from 'primeng/tag';
+import { NzAvatarModule } from 'ng-zorro-antd/avatar';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzDropdownModule } from 'ng-zorro-antd/dropdown';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzMenuModule } from 'ng-zorro-antd/menu';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzTagModule } from 'ng-zorro-antd/tag';
 
 import { currentLocale, setLocale } from '../core/locale';
 import { Session } from '../core/session';
 import { SystemService } from '../core/system.service';
 import { MENU } from './menu';
+
+interface ProfileItem {
+  label: string;
+  icon: string;
+  run: () => void;
+  disabled?: boolean;
+  divider?: boolean;
+}
 
 @Component({
   selector: 'forge-shell',
@@ -20,11 +29,13 @@ import { MENU } from './menu';
     RouterLink,
     RouterLinkActive,
     FormsModule,
-    AvatarModule,
-    ButtonModule,
-    MenuModule,
-    SelectModule,
-    TagModule,
+    NzAvatarModule,
+    NzButtonModule,
+    NzDropdownModule,
+    NzIconModule,
+    NzMenuModule,
+    NzSelectModule,
+    NzTagModule,
   ],
   templateUrl: './shell.html',
   styleUrl: './shell.scss',
@@ -52,39 +63,39 @@ export class Shell {
       : (this.session.project()?.role_name ?? $localize`User`),
   );
 
-  protected readonly profileItems = computed<MenuItem[]>(() => {
+  protected readonly profileItems = computed<ProfileItem[]>(() => {
     const user = this.session.user();
-    const items: MenuItem[] = [];
+    const items: ProfileItem[] = [];
     if (user?.auth_source === 'local') {
       items.push({
         label: $localize`Change password`,
-        icon: 'pi pi-lock',
-        command: () => this.go('/account/password'),
+        icon: 'lock',
+        run: () => this.go('/account/password'),
       });
     }
     items.push({
       label: $localize`Two-factor authentication`,
-      icon: 'pi pi-shield',
-      command: () => this.go('/account/totp'),
+      icon: 'safety-certificate',
+      run: () => this.go('/account/totp'),
       disabled: user?.totp_enabled ?? false,
     });
     items.push({
       label: currentLocale() === 'it' ? 'English' : 'Italiano',
-      icon: 'pi pi-globe',
-      command: () => setLocale(currentLocale() === 'it' ? 'en' : 'it'),
+      icon: 'global',
+      run: () => setLocale(currentLocale() === 'it' ? 'en' : 'it'),
     });
     if (user?.is_super_admin) {
       items.push({
         label: $localize`Super Admin Console`,
-        icon: 'pi pi-cog',
-        command: () => this.go('/admin'),
+        icon: 'setting',
+        run: () => this.go('/admin'),
       });
     }
-    items.push({ separator: true });
     items.push({
       label: $localize`Log out`,
-      icon: 'pi pi-sign-out',
-      command: () => void this.session.logout(),
+      icon: 'logout',
+      run: () => void this.session.logout(),
+      divider: true,
     });
     return items;
   });

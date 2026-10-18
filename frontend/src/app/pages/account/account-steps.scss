@@ -4,10 +4,14 @@
   display: grid;
   place-items: center;
   padding: 1rem;
-  background: var(--p-surface-100);
+  background: var(--forge-surface-100);
 }
-:host ::ng-deep .card {
+.card {
   width: min(30rem, 100%);
+}
+nz-alert {
+  display: block;
+  margin-bottom: 0.75rem;
 }
 .form {
   display: flex;
@@ -23,8 +27,8 @@ label {
   max-height: 40vh;
   overflow: auto;
   padding: 0.75rem;
-  background: var(--p-surface-50);
-  border-radius: var(--p-border-radius-md);
+  background: var(--forge-surface-50);
+  border-radius: var(--forge-border-radius-md);
 }
 .qr {
   display: block;

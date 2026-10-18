@@ -21,6 +21,7 @@ from forge.core.logging import configure_logging, get_logger
 from forge.core.settings import Settings, get_settings
 from forge.gateway.service import Gateway
 from forge.iam.service import AuthService, TokenCodec
+from forge.rag.service import SearchClient
 from forge.tenancy.service import TenancyService
 
 log = get_logger(__name__)
@@ -59,6 +60,7 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
         app.state.engine = create_engine(settings)
         app.state.sessions = session_factory(app.state.engine)
         app.state.redis = redis.from_url(settings.redis_url)
+        app.state.search = SearchClient(settings)
         app.state.initialised = False
         store = SettingsStore(
             app.state.sessions, listen_dsn(settings.database_url.get_secret_value())
@@ -95,6 +97,7 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
             await store.stop()
             await svc.gateway.stop()
             await app.state.redis.aclose()
+            await app.state.search.aclose()
             await app.state.engine.dispose()
             log.info("api.stopped")
 

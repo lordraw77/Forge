@@ -3,7 +3,7 @@
 Only two kinds of values come from the environment:
 
 * bootstrap values from `.env` (`FORGE_ADMIN_*`, database URL, master key, public URL);
-* infrastructure wiring injected by Compose/Helm (Redis, S3, Temporal), with defaults
+* infrastructure wiring injected by Compose/Helm (Redis, S3, Temporal, OpenSearch), with defaults
   that match the shipped deployment files.
 
 Everything else is an application setting stored in PostgreSQL and edited from the GUI.
@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     s3_bucket: str = "forge"
     temporal_address: str = "localhost:7233"
     temporal_namespace: str = "default"
+    # BM25 full-text engine (ADR-016); the CA file verifies its TLS certificate.
+    search_url: str = "https://localhost:9200"
+    search_username: str = "forge"
+    search_password: SecretStr | None = None
+    search_ca_file: str | None = None
 
     # Boot-time log level, used until the GUI setting is loaded from the database.
     log_level: str = "INFO"

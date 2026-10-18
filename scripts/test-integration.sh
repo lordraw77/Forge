@@ -21,7 +21,7 @@ SELECT 'CREATE DATABASE ${test_db} OWNER ${FORGE_DB_USER}'
 WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '${test_db}')\gexec
 SQL
 "${compose[@]}" exec -T db psql -v ON_ERROR_STOP=1 -U postgres -d "${test_db}" -q \
-  -c "CREATE EXTENSION IF NOT EXISTS vector" -c "CREATE EXTENSION IF NOT EXISTS pg_search" \
+  -c "CREATE EXTENSION IF NOT EXISTS vector" \
   -c "REVOKE CREATE ON SCHEMA public FROM PUBLIC"
 
 url="postgresql+asyncpg://${FORGE_DB_USER}:${FORGE_DB_PASSWORD}@127.0.0.1:${port}/${test_db}"

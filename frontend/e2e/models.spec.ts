@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { adminApi, login, loginAsAdmin, uniqueName } from './support';
+import { adminApi, login, loginAsAdmin, pickOption, uniqueName } from './support';
 
 /** M1.2 model screens in a real browser (US-1.9.1, US-1.5.2, US-1.5.3). No provider is
  * reachable from the stack in CI, so Test Connection is checked on its failure path. */
@@ -44,21 +44,19 @@ test.describe('model registry (M1.2)', () => {
     await expect(page.getByText('sk-e2e-secret')).toHaveCount(0);
 
     await page.getByTestId('new-model').click();
-    await page.locator('#md-provider').click();
-    await page.getByRole('option', { name: provider, exact: true }).click();
+    await pickOption(page, 'md-provider', provider);
     await page.locator('#md-name').fill(model);
     await page.locator('#md-mid').fill('tiny-model');
     await page.getByTestId('test-connection').click();
     // Nothing listens on port 9: the provider error is shown, the draft stays open.
     await expect(page.getByTestId('test-result')).toBeVisible();
-    await expect(page.getByTestId('test-result')).toHaveClass(/error/);
+    await expect(page.getByTestId('test-result').locator('.ant-alert-error')).toBeVisible();
     await page.getByTestId('save-model').click();
     await expect(page.locator(`[data-model="${model}"]`)).toContainText('tiny-model');
 
     await page.getByTestId('new-alias').click();
     await page.locator('#al-name').fill(alias);
-    await page.locator('#al-pick').click();
-    await page.getByRole('option', { name: new RegExp(`^${model} `) }).click();
+    await pickOption(page, 'al-pick', new RegExp(`${model} \\(chat\\)`), model);
     await page.getByRole('button', { name: 'Add', exact: true }).click();
     await page.getByTestId('save-alias').click();
     await expect(page.locator(`[data-alias="${alias}"]`)).toContainText(model);

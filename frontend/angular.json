@@ -33,6 +33,7 @@
               }
             ],
             "styles": [
+              "node_modules/ng-zorro-antd/ng-zorro-antd.variable.min.css",
               "node_modules/@foblex/flow/styles/default.scss",
               "src/styles.scss"
             ],

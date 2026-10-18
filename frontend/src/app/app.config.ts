@@ -1,12 +1,14 @@
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
-import { providePrimeNG } from 'primeng/config';
+import { en_US, it_IT, provideNzI18n } from 'ng-zorro-antd/i18n';
+import { provideNzIcons } from 'ng-zorro-antd/icon';
 
 import { provideApi } from './api-client';
 import { routes } from './app.routes';
 import { csrfInterceptor, refreshInterceptor } from './core/http';
-import { ForgePreset } from './core/theme';
+import { currentLocale } from './core/locale';
+import { FORGE_ICONS } from './core/theme';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -14,8 +16,8 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes, withComponentInputBinding()),
     provideHttpClient(withFetch(), withInterceptors([csrfInterceptor, refreshInterceptor])),
     provideApi(''),
-    providePrimeNG({
-      theme: { preset: ForgePreset, options: { darkModeSelector: '.forge-dark', cssLayer: false } },
-    }),
+    provideNzIcons(FORGE_ICONS),
+    // Texts inside NG-ZORRO components (empty tables, modal buttons) follow the UI language.
+    provideNzI18n(currentLocale() === 'it' ? it_IT : en_US),
   ],
 };

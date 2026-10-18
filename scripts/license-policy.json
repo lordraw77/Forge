@@ -46,11 +46,5 @@
     "LGPL": "LGPL-2.1-or-later",
     "Modified BSD License": "BSD-3-Clause"
   },
-  "exceptions": {
-    "npm:primeng": {
-      "version_prefix": "21.",
-      "license": "MIT (Community versions section of LICENSE.md)",
-      "reason": "ADR-014: PrimeNG 21.x community releases are MIT; 22+ is commercial and needs a PO decision"
-    }
-  }
+  "exceptions": {}
 }

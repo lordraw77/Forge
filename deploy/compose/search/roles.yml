@@ -1,0 +1,19 @@
+_meta:
+  type: "roles"
+  config_version: 2
+
+# The application user: Forge's own indices only, no cluster administration (threat model TB2).
+forge_app:
+  reserved: true
+  cluster_permissions:
+    - "cluster_monitor"
+    - "indices:data/read/msearch"
+    - "indices:data/write/bulk"
+  index_permissions:
+    - index_patterns:
+        - "forge-*"
+      allowed_actions:
+        - "crud"
+        - "create_index"
+        - "manage"
+        - "indices:admin/aliases*"

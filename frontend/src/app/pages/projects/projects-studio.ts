@@ -2,15 +2,15 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { ButtonModule } from 'primeng/button';
-import { DialogModule } from 'primeng/dialog';
-import { InputTextModule } from 'primeng/inputtext';
-import { MessageModule } from 'primeng/message';
-import { MultiSelectModule } from 'primeng/multiselect';
-import { SelectModule } from 'primeng/select';
-import { TableModule } from 'primeng/table';
-import { TagModule } from 'primeng/tag';
-import { TextareaModule } from 'primeng/textarea';
+import { A11yModule } from '@angular/cdk/a11y';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzModalModule } from 'ng-zorro-antd/modal';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzTagModule } from 'ng-zorro-antd/tag';
 import { firstValueFrom } from 'rxjs';
 
 import { ApiKeyOut, MemberOut, ProjectsService, RoleOut } from '../../api-client';
@@ -22,7 +22,7 @@ type Notice = { severity: 'success' | 'error' | 'info'; text: string } | null;
 /** Projects Studio shell: sub-pages; administration pages only for the Project Admin (Part 2). */
 @Component({
   selector: 'forge-projects-studio',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, MessageModule],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, NzAlertModule],
   template: `
     <header class="head">
       <h1 i18n>Projects Studio</h1>
@@ -38,9 +38,11 @@ type Notice = { severity: 'success' | 'error' | 'info'; text: string } | null;
       </nav>
       <router-outlet />
     } @else {
-      <p-message severity="info" i18n
-        >You are not a member of any project yet. Ask a Super Admin to add you.</p-message
-      >
+      <nz-alert
+        nzType="info"
+        nzMessage="You are not a member of any project yet. Ask a Super Admin to add you."
+        i18n-nzMessage
+      />
     }
   `,
   styleUrl: '../admin/admin.scss',
@@ -53,18 +55,21 @@ export class ProjectsStudio {
 @Component({
   selector: 'forge-project-users',
   imports: [
+    A11yModule,
     DatePipe,
     FormsModule,
-    ButtonModule,
-    DialogModule,
-    MessageModule,
-    SelectModule,
-    TableModule,
-    TextareaModule,
+    NzAlertModule,
+    NzButtonModule,
+    NzIconModule,
+    NzInputModule,
+    NzModalModule,
+    NzSelectModule,
+    NzTableModule,
   ],
   template: `
     <div class="head">
       <input
+        nz-input
         class="search"
         placeholder="Search by name"
         i18n-placeholder
@@ -72,19 +77,15 @@ export class ProjectsStudio {
         (ngModelChange)="load()"
       />
       <span class="spacer"></span>
-      <p-button
-        label="Invite users"
-        i18n-label
-        icon="pi pi-user-plus"
-        (onClick)="inviteOpen = true"
-        data-testid="invite"
-      />
+      <button nz-button nzType="primary" (click)="inviteOpen = true" data-testid="invite">
+        <span nz-icon nzType="user-add"></span><span i18n>Invite users</span>
+      </button>
     </div>
     @if (notice(); as n) {
-      <p-message [severity]="n.severity" [text]="n.text" data-testid="notice" />
+      <nz-alert [nzType]="n.severity" [nzMessage]="n.text" nzShowIcon data-testid="notice" />
     }
-    <p-table [value]="members()" dataKey="user_id" styleClass="p-datatable-sm">
-      <ng-template #header>
+    <nz-table [nzData]="members()" nzSize="small" [nzShowPagination]="false" [nzPageSize]="1000">
+      <thead>
         <tr>
           <th i18n>Full Name</th>
           <th i18n>Username</th>
@@ -93,62 +94,67 @@ export class ProjectsStudio {
           <th i18n>Last Active</th>
           <th></th>
         </tr>
-      </ng-template>
-      <ng-template #body let-m>
-        <tr [attr.data-member]="m.username">
-          <td>{{ m.full_name }}</td>
-          <td>{{ m.username }}</td>
-          <td>{{ m.email }}</td>
-          <td>
-            <p-select
-              [options]="roles()"
-              optionLabel="name"
-              optionValue="id"
-              [ngModel]="m.role_name_id"
-              (ngModelChange)="changeRole(m, $event)"
-              appendTo="body"
-            />
-          </td>
-          <td>{{ m.last_active_at | date: 'short' }}</td>
-          <td class="actions">
-            <p-button
-              size="small"
-              [text]="true"
-              severity="danger"
-              label="Remove"
-              i18n-label
-              (onClick)="remove(m)"
-            />
-          </td>
-        </tr>
-      </ng-template>
-    </p-table>
+      </thead>
+      <tbody>
+        @for (m of members(); track m.user_id) {
+          <tr [attr.data-member]="m.username">
+            <td>{{ m.full_name }}</td>
+            <td>{{ m.username }}</td>
+            <td>{{ m.email }}</td>
+            <td>
+              <nz-select
+                class="role"
+                [ngModel]="m.role_name_id"
+                (ngModelChange)="changeRole(m, $event)"
+              >
+                @for (r of roles(); track r.id) {
+                  <nz-option [nzValue]="r.id" [nzLabel]="r.name" />
+                }
+              </nz-select>
+            </td>
+            <td>{{ m.last_active_at | date: 'short' }}</td>
+            <td class="actions">
+              <button nz-button nzType="link" nzDanger nzSize="small" (click)="remove(m)" i18n>
+                Remove
+              </button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </nz-table>
 
-    <p-dialog
-      header="Invite users"
-      i18n-header
-      [modal]="true"
-      [(visible)]="inviteOpen"
-      [style]="{ width: '30rem' }"
+    <nz-modal
+      [(nzVisible)]="inviteOpen"
+      nzTitle="Invite users"
+      i18n-nzTitle
+      [nzFooter]="null"
+      [nzWidth]="480"
     >
-      <form class="form" (ngSubmit)="invite()">
-        <label for="inv-ids" i18n>Usernames or emails (one per line, up to 500)</label>
-        <textarea pTextarea id="inv-ids" name="ids" rows="5" [(ngModel)]="identifiers"></textarea>
-        <label for="inv-role" i18n>Role Name</label>
-        <p-select
-          inputId="inv-role"
-          name="role"
-          [options]="roles()"
-          optionLabel="name"
-          optionValue="id"
-          [(ngModel)]="inviteRole"
-          appendTo="body"
-        />
-        <div class="dialog-actions">
-          <p-button type="submit" label="Invite" i18n-label data-testid="send-invite" />
-        </div>
-      </form>
-    </p-dialog>
+      <ng-container *nzModalContent>
+        <form class="form" (ngSubmit)="invite()">
+          <label for="inv-ids" i18n>Usernames or emails (one per line, up to 500)</label>
+          <textarea
+            nz-input
+            id="inv-ids"
+            name="ids"
+            rows="5"
+            cdkFocusInitial
+            [(ngModel)]="identifiers"
+          ></textarea>
+          <label for="inv-role" i18n>Role Name</label>
+          <nz-select nzId="inv-role" name="role" [(ngModel)]="inviteRole">
+            @for (r of roles(); track r.id) {
+              <nz-option [nzValue]="r.id" [nzLabel]="r.name" />
+            }
+          </nz-select>
+          <div class="dialog-actions">
+            <button nz-button nzType="primary" type="submit" data-testid="send-invite" i18n>
+              Invite
+            </button>
+          </div>
+        </form>
+      </ng-container>
+    </nz-modal>
   `,
   styleUrl: '../admin/admin.scss',
 })
@@ -255,64 +261,64 @@ export class ProjectUsers {
   selector: 'forge-project-roles',
   imports: [
     FormsModule,
-    ButtonModule,
-    InputTextModule,
-    MessageModule,
-    SelectModule,
-    TableModule,
-    TagModule,
+    NzAlertModule,
+    NzButtonModule,
+    NzIconModule,
+    NzInputModule,
+    NzSelectModule,
+    NzTableModule,
+    NzTagModule,
   ],
   template: `
     @if (notice(); as n) {
-      <p-message [severity]="n.severity" [text]="n.text" />
+      <nz-alert [nzType]="n.severity" [nzMessage]="n.text" />
     }
     <form class="head" (ngSubmit)="create()">
       <input
-        pInputText
+        nz-input
+        class="search"
         name="name"
         placeholder="New role name"
         i18n-placeholder
         [(ngModel)]="name"
       />
-      <p-select
-        name="type"
-        [options]="types"
-        optionLabel="label"
-        optionValue="key"
-        [(ngModel)]="type"
-      />
-      <p-button type="submit" label="Add role" i18n-label icon="pi pi-plus" />
+      <nz-select class="range" name="type" [(ngModel)]="type">
+        @for (t of types; track t.key) {
+          <nz-option [nzValue]="t.key" [nzLabel]="t.label" />
+        }
+      </nz-select>
+      <button nz-button nzType="primary" type="submit">
+        <span nz-icon nzType="plus"></span><span i18n>Add role</span>
+      </button>
     </form>
-    <p-table [value]="roles()" dataKey="id" styleClass="p-datatable-sm">
-      <ng-template #header>
+    <nz-table [nzData]="roles()" nzSize="small" [nzShowPagination]="false" [nzPageSize]="1000">
+      <thead>
         <tr>
           <th i18n>Role Name</th>
           <th i18n>Role Type</th>
           <th i18n>Status</th>
           <th></th>
         </tr>
-      </ng-template>
-      <ng-template #body let-r>
-        <tr>
-          <td>{{ r.name }}</td>
-          <td>{{ typeLabel(r.role_type) }}</td>
-          <td>
-            <p-tag
-              [value]="r.status"
-              [severity]="r.status === 'active' ? 'success' : 'secondary'"
-            />
-          </td>
-          <td class="actions">
-            <p-button
-              size="small"
-              [text]="true"
-              [label]="r.status === 'active' ? deactivate : activate"
-              (onClick)="toggle(r)"
-            />
-          </td>
-        </tr>
-      </ng-template>
-    </p-table>
+      </thead>
+      <tbody>
+        @for (r of roles(); track r.id) {
+          <tr>
+            <td>{{ r.name }}</td>
+            <td>{{ typeLabel(r.role_type) }}</td>
+            <td>
+              <nz-tag [nzColor]="r.status === 'active' ? 'success' : 'default'">{{
+                r.status
+              }}</nz-tag>
+            </td>
+            <td class="actions">
+              <button nz-button nzType="link" nzSize="small" (click)="toggle(r)">
+                {{ r.status === 'active' ? deactivate : activate }}
+              </button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </nz-table>
   `,
   styleUrl: '../admin/admin.scss',
 })
@@ -379,12 +385,13 @@ export class ProjectRoles {
   imports: [
     DatePipe,
     FormsModule,
-    ButtonModule,
-    InputTextModule,
-    MessageModule,
-    MultiSelectModule,
-    TableModule,
-    TagModule,
+    NzAlertModule,
+    NzButtonModule,
+    NzIconModule,
+    NzInputModule,
+    NzSelectModule,
+    NzTableModule,
+    NzTagModule,
   ],
   template: `
     @if (session.project(); as p) {
@@ -398,34 +405,43 @@ export class ProjectRoles {
       @if (session.can('project.manage')) {
         <h3 i18n>API tokens</h3>
         @if (created(); as token) {
-          <p-message severity="success" data-testid="new-token">
+          <nz-alert nzType="success" [nzMessage]="tokenMessage" data-testid="new-token" />
+          <ng-template #tokenMessage>
             <span i18n>Copy this token now; it will not be shown again:</span>&nbsp;<code>{{
               token
             }}</code>
-          </p-message>
+          </ng-template>
         }
         @if (error(); as e) {
-          <p-message severity="error" [text]="e" />
+          <nz-alert nzType="error" [nzMessage]="e" />
         }
         <form class="head" (ngSubmit)="create()">
           <input
-            pInputText
+            nz-input
+            class="search"
             name="name"
             placeholder="Token name"
             i18n-placeholder
             [(ngModel)]="name"
           />
-          <p-multiselect
+          <nz-select
+            class="scopes"
             name="scopes"
-            [options]="p.permissions"
+            nzMode="multiple"
             [(ngModel)]="scopes"
-            placeholder="Scopes"
-            i18n-placeholder
-          />
-          <p-button type="submit" label="Create token" i18n-label icon="pi pi-key" />
+            nzPlaceHolder="Scopes"
+            i18n-nzPlaceHolder
+          >
+            @for (perm of p.permissions; track perm) {
+              <nz-option [nzValue]="perm" [nzLabel]="perm" />
+            }
+          </nz-select>
+          <button nz-button nzType="primary" type="submit">
+            <span nz-icon nzType="key"></span><span i18n>Create token</span>
+          </button>
         </form>
-        <p-table [value]="keys()" dataKey="id" styleClass="p-datatable-sm">
-          <ng-template #header>
+        <nz-table [nzData]="keys()" nzSize="small" [nzShowPagination]="false" [nzPageSize]="1000">
+          <thead>
             <tr>
               <th i18n>Name</th>
               <th i18n>Prefix</th>
@@ -434,37 +450,41 @@ export class ProjectRoles {
               <th i18n>Status</th>
               <th></th>
             </tr>
-          </ng-template>
-          <ng-template #body let-k>
-            <tr>
-              <td>{{ k.name }}</td>
-              <td>
-                <code>fk_{{ k.prefix }}_…</code>
-              </td>
-              <td>{{ k.scopes.join(', ') }}</td>
-              <td>{{ k.last_used_at | date: 'short' }}</td>
-              <td>
-                @if (k.revoked_at) {
-                  <p-tag value="Revoked" i18n-value severity="secondary" />
-                } @else {
-                  <p-tag value="Active" i18n-value severity="success" />
-                }
-              </td>
-              <td class="actions">
-                @if (!k.revoked_at) {
-                  <p-button
-                    size="small"
-                    [text]="true"
-                    severity="danger"
-                    label="Revoke"
-                    i18n-label
-                    (onClick)="revoke(k)"
-                  />
-                }
-              </td>
-            </tr>
-          </ng-template>
-        </p-table>
+          </thead>
+          <tbody>
+            @for (k of keys(); track k.id) {
+              <tr>
+                <td>{{ k.name }}</td>
+                <td>
+                  <code>fk_{{ k.prefix }}_…</code>
+                </td>
+                <td>{{ k.scopes.join(', ') }}</td>
+                <td>{{ k.last_used_at | date: 'short' }}</td>
+                <td>
+                  @if (k.revoked_at) {
+                    <nz-tag i18n>Revoked</nz-tag>
+                  } @else {
+                    <nz-tag nzColor="success" i18n>Active</nz-tag>
+                  }
+                </td>
+                <td class="actions">
+                  @if (!k.revoked_at) {
+                    <button
+                      nz-button
+                      nzType="link"
+                      nzDanger
+                      nzSize="small"
+                      (click)="revoke(k)"
+                      i18n
+                    >
+                      Revoke
+                    </button>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </nz-table>
       }
     }
   `,

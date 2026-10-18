@@ -1,61 +1,50 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { ButtonModule } from 'primeng/button';
-import { CardModule } from 'primeng/card';
-import { InputTextModule } from 'primeng/inputtext';
-import { MessageModule } from 'primeng/message';
-import { PasswordModule } from 'primeng/password';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzInputModule } from 'ng-zorro-antd/input';
 import { toDataURL } from 'qrcode';
 import { firstValueFrom } from 'rxjs';
 
 import { AuthService, EulaOut } from '../../api-client';
 import { problemMessage } from '../../core/http';
 import { Session } from '../../core/session';
+import { PasswordInput } from '../../shared/password-input';
 
 /** US-1.2.2/5 and US-1.2.4: forced password change on first login (also from the profile). */
 @Component({
   selector: 'forge-change-password',
-  imports: [FormsModule, ButtonModule, CardModule, MessageModule, PasswordModule, RouterLink],
+  imports: [FormsModule, NzAlertModule, NzButtonModule, NzCardModule, PasswordInput, RouterLink],
   template: `
     <main class="page">
-      <p-card styleClass="card" header="Change password" i18n-header>
+      <nz-card class="card" nzTitle="Change password" i18n-nzTitle>
         @if (forced()) {
-          <p-message severity="info" i18n>You must set a new password before continuing.</p-message>
+          <nz-alert
+            nzType="info"
+            nzMessage="You must set a new password before continuing."
+            i18n-nzMessage
+          />
         }
         @if (error(); as message) {
-          <p-message severity="error" [text]="message" data-testid="step-error" />
+          <nz-alert nzType="error" [nzMessage]="message" data-testid="step-error" />
         }
         <form class="form" (ngSubmit)="save()">
           <label for="current" i18n>Current password</label>
-          <p-password
-            inputId="current"
-            name="current"
-            [(ngModel)]="current"
-            [feedback]="false"
-            [toggleMask]="true"
-            autocomplete="current-password"
-            [fluid]="true"
-          />
+          <forge-password inputId="current" autocomplete="current-password" [(value)]="current" />
           <label for="next" i18n>New password</label>
-          <p-password
-            inputId="next"
-            name="next"
-            [(ngModel)]="next"
-            [feedback]="false"
-            [toggleMask]="true"
-            autocomplete="new-password"
-            [fluid]="true"
-          />
+          <forge-password inputId="next" autocomplete="new-password" [(value)]="next" />
           <small i18n>At least 12 characters; not a common password; not reused.</small>
           <div class="actions">
             @if (!forced()) {
-              <a routerLink="/" class="p-button p-button-text" i18n>Cancel</a>
+              <a nz-button nzType="text" routerLink="/" i18n>Cancel</a>
             }
-            <p-button type="submit" label="Save" i18n-label [loading]="busy()" />
+            <button nz-button nzType="primary" type="submit" [nzLoading]="busy()" i18n>Save</button>
           </div>
         </form>
-      </p-card>
+      </nz-card>
     </main>
   `,
   styleUrl: './account-steps.scss',
@@ -90,27 +79,29 @@ export class ChangePassword {
 /** Part 2, Authentication: EULA acceptance on first login. */
 @Component({
   selector: 'forge-eula',
-  imports: [ButtonModule, CardModule, MessageModule],
+  imports: [NzAlertModule, NzButtonModule, NzCardModule],
   template: `
     <main class="page">
-      <p-card styleClass="card" header="Terms of use" i18n-header>
+      <nz-card class="card" nzTitle="Terms of use" i18n-nzTitle>
         @if (eula(); as e) {
           <div class="eula" data-testid="eula-text">{{ e.text }}</div>
           @if (error(); as message) {
-            <p-message severity="error" [text]="message" />
+            <nz-alert nzType="error" [nzMessage]="message" />
           }
           <div class="actions">
-            <p-button
-              label="Sign out"
-              i18n-label
-              severity="secondary"
-              [text]="true"
-              (onClick)="session.logout()"
-            />
-            <p-button label="Accept" i18n-label [loading]="busy()" (onClick)="accept(e.version)" />
+            <button nz-button nzType="text" (click)="session.logout()" i18n>Sign out</button>
+            <button
+              nz-button
+              nzType="primary"
+              [nzLoading]="busy()"
+              (click)="accept(e.version)"
+              i18n
+            >
+              Accept
+            </button>
           </div>
         }
-      </p-card>
+      </nz-card>
     </main>
   `,
   styleUrl: './account-steps.scss',
@@ -142,31 +133,39 @@ export class Eula implements OnInit {
 /** US-1.2.3: TOTP enrolment (forced by policy, or optional from the profile). */
 @Component({
   selector: 'forge-totp-enroll',
-  imports: [FormsModule, ButtonModule, CardModule, InputTextModule, MessageModule, RouterLink],
+  imports: [
+    FormsModule,
+    NzAlertModule,
+    NzButtonModule,
+    NzCardModule,
+    NzIconModule,
+    NzInputModule,
+    RouterLink,
+  ],
   template: `
     <main class="page">
-      <p-card styleClass="card" header="Two-factor authentication" i18n-header>
+      <nz-card class="card" nzTitle="Two-factor authentication" i18n-nzTitle>
         @if (error(); as message) {
-          <p-message severity="error" [text]="message" data-testid="step-error" />
+          <nz-alert nzType="error" [nzMessage]="message" data-testid="step-error" />
         }
         @if (codes(); as list) {
-          <p-message severity="success" i18n
-            >Two-factor authentication is on. Save these recovery codes; each works once.</p-message
-          >
+          <nz-alert
+            nzType="success"
+            nzMessage="Two-factor authentication is on. Save these recovery codes; each works once."
+            i18n-nzMessage
+          />
           <ol class="codes" data-testid="recovery-codes">
             @for (c of list; track c) {
               <li>{{ c }}</li>
             }
           </ol>
           <div class="actions">
-            <p-button
-              label="Download"
-              i18n-label
-              severity="secondary"
-              icon="pi pi-download"
-              (onClick)="download(list)"
-            />
-            <p-button label="Continue" i18n-label (onClick)="session.continueAfterStep()" />
+            <button nz-button (click)="download(list)">
+              <span nz-icon nzType="download"></span><span i18n>Download</span>
+            </button>
+            <button nz-button nzType="primary" (click)="session.continueAfterStep()" i18n>
+              Continue
+            </button>
           </div>
         } @else if (secret(); as s) {
           <p i18n>Scan the QR code with an authenticator app, then enter the 6-digit code.</p>
@@ -180,7 +179,7 @@ export class Eula implements OnInit {
           <form class="form" (ngSubmit)="confirm()">
             <label for="code" i18n>Authentication code</label>
             <input
-              pInputText
+              nz-input
               id="code"
               name="code"
               inputmode="numeric"
@@ -189,18 +188,22 @@ export class Eula implements OnInit {
             />
             <div class="actions">
               @if (!required()) {
-                <a routerLink="/" class="p-button p-button-text" i18n>Cancel</a>
+                <a nz-button nzType="text" routerLink="/" i18n>Cancel</a>
               }
-              <p-button type="submit" label="Enable" i18n-label [loading]="busy()" />
+              <button nz-button nzType="primary" type="submit" [nzLoading]="busy()" i18n>
+                Enable
+              </button>
             </div>
           </form>
         } @else {
           <p i18n>Protect your account with a code from an authenticator app at every sign-in.</p>
           <div class="actions">
-            <p-button label="Set up" i18n-label [loading]="busy()" (onClick)="start()" />
+            <button nz-button nzType="primary" [nzLoading]="busy()" (click)="start()" i18n>
+              Set up
+            </button>
           </div>
         }
-      </p-card>
+      </nz-card>
     </main>
   `,
   styleUrl: './account-steps.scss',

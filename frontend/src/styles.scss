@@ -1,4 +1,49 @@
-@use 'primeicons/primeicons.css';
+// Design tokens (docs/brand) on top of NG-ZORRO's CSS-variable theme.
+// White text on --ant-primary-color (#C2410C) is 5.2:1; the pure brand orange (#F25C05) is only
+// 3.3:1, so it is used for the mark and accents, never behind white text (WCAG 1.4.3).
+html {
+  --ant-primary-color: #c2410c;
+  --ant-primary-color-hover: #a8370a;
+  --ant-primary-color-active: #9a3412;
+  --ant-primary-color-outline: rgba(194, 65, 12, 0.2);
+  --ant-primary-1: #fff4ed;
+  --ant-primary-2: #ffe4d1;
+  --ant-primary-3: #ffc9a6;
+  --ant-primary-4: #ffa26b;
+  --ant-primary-5: #f57c33;
+  --ant-primary-6: #c2410c;
+  --ant-primary-7: #9a3412;
+  --ant-primary-color-deprecated-l-35: #ffd9c2;
+  --ant-primary-color-deprecated-l-20: #ffa26b;
+  --ant-primary-color-deprecated-t-20: #ce672f;
+  --ant-primary-color-deprecated-t-50: #e0a085;
+  --ant-primary-color-deprecated-f-12: rgba(194, 65, 12, 0.12);
+  --ant-primary-color-active-deprecated-f-30: rgba(255, 244, 237, 0.3);
+  --ant-primary-color-active-deprecated-d-02: #ffefe4;
+
+  --forge-brand-orange: #f25c05;
+  --forge-navy: #0b1220;
+  --forge-primary-color: var(--ant-primary-color);
+  --forge-primary-contrast-color: #ffffff;
+  --forge-text-color: rgba(0, 0, 0, 0.88);
+  --forge-text-muted-color: #5c6370; // 6.0:1 on white
+  --forge-surface-0: #ffffff;
+  --forge-surface-50: #f8fafc;
+  --forge-surface-100: #f1f5f9;
+  --forge-surface-200: #e2e8f0;
+  --forge-surface-300: #cbd5e1;
+  --forge-surface-400: #94a3b8;
+  --forge-surface-500: #64748b;
+  --forge-surface-700: #334155;
+  --forge-surface-800: #1e293b;
+  --forge-border-radius-sm: 4px;
+  --forge-border-radius-md: 6px;
+  --forge-red-500: #ef4444;
+  --forge-orange-500: #f97316;
+  --forge-green-500: #22c55e;
+  --forge-cyan-500: #06b6d4;
+  --forge-purple-500: #a855f7;
+}
 
 html,
 body {
@@ -14,11 +59,17 @@ body {
     'Segoe UI',
     Roboto,
     sans-serif;
-  color: var(--p-text-color);
-  background: var(--p-surface-50);
+  color: var(--forge-text-color);
+  background: var(--forge-surface-50);
 }
 
 h1 {
   margin: 0 0 0.5rem;
   font-size: 1.75rem;
+}
+
+nz-select,
+nz-input-number,
+.ant-input-number {
+  width: 100%;
 }

@@ -1,10 +1,10 @@
 import { DatePipe, JsonPipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ButtonModule } from 'primeng/button';
-import { InputTextModule } from 'primeng/inputtext';
-import { SelectModule } from 'primeng/select';
-import { TableModule } from 'primeng/table';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzTableModule } from 'ng-zorro-antd/table';
 import { firstValueFrom } from 'rxjs';
 
 import { AdminService, AuditOut } from '../../api-client';
@@ -16,32 +16,36 @@ import { AdminService, AuditOut } from '../../api-client';
     DatePipe,
     JsonPipe,
     FormsModule,
-    ButtonModule,
-    InputTextModule,
-    SelectModule,
-    TableModule,
+    NzButtonModule,
+    NzInputModule,
+    NzSelectModule,
+    NzTableModule,
   ],
   template: `
     <header class="head">
       <h1 i18n>Audit log</h1>
       <span class="spacer"></span>
       <input
-        pInputText
+        nz-input
+        class="filter"
         placeholder="Action, e.g. project.create"
         i18n-placeholder
         [(ngModel)]="action"
       />
-      <p-select [options]="ranges" optionLabel="label" optionValue="hours" [(ngModel)]="hours" />
-      <p-button label="Apply" i18n-label (onClick)="load()" />
+      <nz-select class="range" [(ngModel)]="hours">
+        @for (r of ranges; track r.hours) {
+          <nz-option [nzValue]="r.hours" [nzLabel]="r.label" />
+        }
+      </nz-select>
+      <button nz-button nzType="primary" (click)="load()" i18n>Apply</button>
     </header>
-    <p-table
-      [value]="events()"
-      dataKey="id"
-      styleClass="p-datatable-sm"
-      [paginator]="true"
-      [rows]="25"
+    <nz-table
+      [nzData]="events()"
+      nzSize="small"
+      [nzPageSize]="25"
+      (nzCurrentPageDataChange)="page.set($event)"
     >
-      <ng-template #header>
+      <thead>
         <tr>
           <th i18n>Time</th>
           <th i18n>Actor</th>
@@ -50,28 +54,31 @@ import { AdminService, AuditOut } from '../../api-client';
           <th i18n>Details</th>
           <th i18n>IP</th>
         </tr>
-      </ng-template>
-      <ng-template #body let-e>
-        <tr>
-          <td>{{ e.created_at | date: 'medium' }}</td>
-          <td>{{ e.actor_label }}</td>
-          <td>
-            <code>{{ e.action }}</code>
-          </td>
-          <td>{{ e.target_type }} {{ e.target_id }}</td>
-          <td>
-            <code class="diff">{{ e.diff | json }}</code>
-          </td>
-          <td>{{ e.ip }}</td>
-        </tr>
-      </ng-template>
-    </p-table>
+      </thead>
+      <tbody>
+        @for (e of page(); track e.id) {
+          <tr>
+            <td>{{ e.created_at | date: 'medium' }}</td>
+            <td>{{ e.actor_label }}</td>
+            <td>
+              <code>{{ e.action }}</code>
+            </td>
+            <td>{{ e.target_type }} {{ e.target_id }}</td>
+            <td>
+              <code class="diff">{{ e.diff | json }}</code>
+            </td>
+            <td>{{ e.ip }}</td>
+          </tr>
+        }
+      </tbody>
+    </nz-table>
   `,
   styleUrl: './admin.scss',
 })
 export class AdminAudit implements OnInit {
   private readonly admin = inject(AdminService);
   protected readonly events = signal<AuditOut[]>([]);
+  protected readonly page = signal<readonly AuditOut[]>([]);
   protected action = '';
   protected hours = 24;
   protected readonly ranges = [

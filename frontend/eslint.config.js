@@ -38,6 +38,16 @@ module.exports = defineConfig([
   {
     files: ['**/*.html'],
     extends: [angular.configs.templateRecommended, angular.configs.templateAccessibility],
-    rules: {},
+    rules: {
+      // `<label nz-checkbox nzId="…">` renders its own <input id="…"> inside the label; NG-ZORRO
+      // form controls carry the id through `nzId`.
+      '@angular-eslint/template/label-has-associated-control': [
+        'error',
+        {
+          labelComponents: [{ selector: 'label', inputs: ['for', 'htmlFor', 'nzId'] }],
+          controlComponents: ['nz-select', 'nz-input-number', 'forge-password'],
+        },
+      ],
+    },
   },
 ]);

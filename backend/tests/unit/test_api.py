@@ -13,6 +13,7 @@ from forge.core.settings import Settings
 UNREACHABLE = Settings(
     database_url="postgresql+asyncpg://forge:x@127.0.0.1:1/forge",
     redis_url="redis://127.0.0.1:1/0",
+    search_url="https://127.0.0.1:1",
     master_key="a2V5a2V5a2V5a2V5a2V5a2V5a2V5a2V5a2V5a2V5a2U=",
 )
 
@@ -34,7 +35,7 @@ def test_readiness_reports_unreachable_dependencies(client: TestClient) -> None:
     assert resp.status_code == 503
     assert resp.json() == {
         "status": "fail",
-        "checks": {"database": "fail", "redis": "fail", "initialised": "fail"},
+        "checks": {"database": "fail", "redis": "fail", "search": "fail", "initialised": "fail"},
     }
 
 

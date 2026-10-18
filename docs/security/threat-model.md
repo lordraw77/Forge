@@ -62,6 +62,8 @@ Status: **P1** = control delivered in Phase 1, **P2** / **P3** later phases.
 | T | Audit log tampering | No UPDATE/DELETE grants for `forge_app`; periodic hash chain checkpoint | P1 (grants) / P2 (hash chain) |
 | I | Object storage access across projects | Server-side access only, per-project key prefix, presigned URLs ≤ 5 min after authorization check | P1 |
 | S | Infra credentials default | Compose/Helm generate random credentials; no default passwords in images | P1 |
+| I | Cross-tenant read through the search engine (no RLS in OpenSearch) | One query builder in `forge.rag` always adds project, KB and ACL filters plus project routing; no caller-supplied query DSL; CI isolation test (spike E0.5e: 0 leaks) | P1 (M1.4) |
+| S/I | Access to the search engine from the network | Security plugin on, TLS (deployment CA), user `forge` limited to `forge-*` indices without cluster admin; port bound to localhost in Compose (ADR-016) | P1 ✅ |
 
 ### TB3 – Gateway → external model endpoints
 
@@ -113,4 +115,3 @@ Status: **P1** = control delivered in Phase 1, **P2** / **P3** later phases.
 | Prompt injection cannot be fully prevented | Mitigated by HITL on side-effecting tools and least-privilege credentials; AC8 targets ≥ 90% on the known set only |
 | `forge_admin` BYPASSRLS path | Kept to named jobs, audited, code-owner review required |
 | Loss of `FORGE_MASTER_KEY` | Secrets unrecoverable; operator must back it up separately (runbook) |
-| pg_search AGPL | Licensing, not security; pending PO |

@@ -4,7 +4,7 @@ All notable changes to Forge are recorded here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
-Phase 1 milestone M1.2 (LLM gateway) and the closing items of Phase 0.
+Phase 1 milestone M1.2 (LLM gateway), the closing items of Phase 0, and two PO decisions of 2026-10-18: NG-ZORRO on Angular 22 instead of PrimeNG (ADR-017), and OpenSearch for BM25 instead of pg_search (ADR-016).
 
 ### Added
 
@@ -28,6 +28,8 @@ Phase 1 milestone M1.2 (LLM gateway) and the closing items of Phase 0.
 - Licence gate for backend and frontend dependencies in CI (`make licenses`), and the Italian translation check in CI.
 
 ### Changed
+- **Web UI on Angular 22 and NG-ZORRO 22** (MIT) instead of Angular 21 and PrimeNG 21: every screen was ported, with the brand theme, Italian component texts and the same workflows. No commercial licence is needed now or for later Angular versions.
+- **Full-text search moves to OpenSearch 3.9** (Apache-2.0), a new Compose service `search` with TLS and a least-privilege `forge` user. PostgreSQL now runs on the plain `pgvector/pgvector` image; pg_search (AGPL) is gone. `/readyz` checks the search engine too.
 - LiteLLM 1.105.1 is a runtime dependency of the backend image (only the gateway imports it).
 - The project token created with a project now includes the `llm.invoke` scope; Project Admin and Builder roles gain the `llm.invoke` permission.
 - Validation errors in the UI now show why a value was refused.
@@ -37,6 +39,8 @@ Phase 1 milestone M1.2 (LLM gateway) and the closing items of Phase 0.
 - Provider error messages are scrubbed of API keys before they are shown, logged or stored.
 
 ### Upgrade notes
+- **Before** starting this version on a database volume created by 0.1.0-dev, run `scripts/db-from-paradedb.sh` with the old stack running. It removes the ParadeDB extensions and preloaded libraries that the new PostgreSQL image does not have.
+- `make env` generates the OpenSearch certificates (`deploy/compose/search/certs/`), the users file and the `OPENSEARCH_ADMIN_PASSWORD` and `FORGE_SEARCH_PASSWORD` entries in `infra.env`.
 - Migration `0004` runs automatically with `make docker/run`.
 - Existing project tokens keep their scopes. Create a new token with `llm.invoke` to call `/v1`.
 - `make env` adds `GRAFANA_ADMIN_PASSWORD` to an existing `deploy/compose/infra.env`.

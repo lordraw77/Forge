@@ -16,7 +16,7 @@ Build a self-hosted, LLM-agnostic platform to create and run agents, RAG pipelin
 **Fixed technology choices**
 
 - Backend: Python
-- Frontend: Angular + PrimeNG
+- Frontend: Angular + NG-ZORRO ([ADR-017](adr/017-ng-zorro-angular-22.md))
 - Database: PostgreSQL (also used for vectors and full-text search)
 - Models: all LLM, embedding, reranker and guard/classifier models are external services, configured in the platform; Forge does not host or run any of them. Small CPU models bundled as libraries (Docling layout/OCR, spaCy NER for Presidio) run in-process ([ADR-013](adr/013-guardrail-models.md))
 - Configuration: everything is configured from the GUI and stored in PostgreSQL; the `.env` file holds only the initial admin user and the minimum needed to boot (see [Configuration and bootstrap](#configuration-and-bootstrap))
@@ -55,7 +55,7 @@ All clients go through a single API gateway with IAM. The core services share on
 ```mermaid
 flowchart TB
     subgraph Clients
-        UI[Web UI and chat<br/>Angular + PrimeNG]
+        UI[Web UI and chat<br/>Angular + NG-ZORRO]
         API[REST API, SDK, CLI]
         TRG[Webhook, cron, MCP]
     end
@@ -77,7 +77,7 @@ flowchart TB
 
     CM[External LLM providers<br/>configured per project]
     LM[External embedding and<br/>reranker endpoints]
-    DATA[(Data<br/>PostgreSQL + pgvector + pg_search, Redis, MinIO, OpenBao)]
+    DATA[(Data<br/>PostgreSQL + pgvector, OpenSearch, Redis, S3, OpenBao)]
 
     UI --> GW
     API --> GW
@@ -206,7 +206,7 @@ The Agent runtime orchestrates the other core services. Long runs and ingestion 
 1. REST + OpenAPI 3.1 for all resources; OpenAI-compatible endpoints for chat and embeddings.
 2. Agent invocation: synchronous, streaming (SSE) and asynchronous (job id + completion webhook).
 3. Python SDK and CLI for importing/exporting resources (GitOps).
-4. Web UI (Angular + PrimeNG): chat, agent/workflow studio, prompt playground, RAG builder, tools, dashboards, administration.
+4. Web UI (Angular + NG-ZORRO): chat, agent/workflow studio, prompt playground, RAG builder, tools, dashboards, administration.
 5. Embeddable chat widget and an exposed MCP server to use agents from external clients.
 
 ## Data model
@@ -269,7 +269,7 @@ Every entity has `id` (UUIDv7), `project_id`, `created_at`, `created_by`. Versio
 
 ## Proposed technology stack
 
-Python backend, Angular + PrimeNG frontend, PostgreSQL as the single database. Everything is open source and self-hostable.
+Python backend, Angular + NG-ZORRO frontend, PostgreSQL as the system of record and OpenSearch for BM25 full-text search ([ADR-016](adr/016-external-bm25-opensearch.md)). Everything is open source and self-hostable.
 
 | Layer | Choice | Alternative |
 | --- | --- | --- |
@@ -279,7 +279,7 @@ Python backend, Angular + PrimeNG frontend, PostgreSQL as the single database. E
 | Durable jobs | Temporal (PostgreSQL persistence) | Celery + Redis |
 | Database | PostgreSQL 16+ with RLS for tenant isolation | — |
 | Vector search | pgvector (HNSW indexes) | pgvectorscale (DiskANN) for very large corpora |
-| Full-text search | pg_search (ParadeDB, BM25) | Native PostgreSQL FTS (`tsvector`, `ts_rank_cd`) |
+| Full-text search | OpenSearch (BM25, Apache-2.0; [ADR-016](adr/016-external-bm25-opensearch.md)) | Native PostgreSQL FTS (`tsvector`, `ts_rank_cd`) |
 | Cache and queues | Redis / Valkey | NATS |
 | Object storage | MinIO (S3) | Ceph RGW |
 | Document parsing | Docling | Unstructured |
@@ -290,7 +290,7 @@ Python backend, Angular + PrimeNG frontend, PostgreSQL as the single database. E
 | Secrets | AES-256-GCM in PostgreSQL (master key in `.env`) | OpenBao / Vault, configurable from the GUI |
 | IAM | Built-in: Argon2id passwords, TOTP (pyotp), LDAP (ldap3), OIDC (Authlib), JWT sessions | External OIDC provider (Keycloak, Entra ID) configured from the GUI |
 | Observability | OpenTelemetry → Langfuse (LLM traces) + Prometheus/Grafana + Loki | Arize Phoenix |
-| Frontend | Angular 19+ (standalone components, signals), PrimeNG, PrimeIcons | — |
+| Frontend | Angular 22+ (standalone components, signals), NG-ZORRO, Ant Design icons | — |
 | Workflow graph editor | Foblex Flow (Angular-native node editor) | ngx-vflow |
 | Code / prompt editor | ngx-monaco-editor | CodeMirror 6 |
 | API client | OpenAPI-generated TypeScript client (openapi-generator, Angular) | Hand-written services |
@@ -305,10 +305,11 @@ flowchart LR
     SRC[Sources<br/>upload, Data Collection,<br/>SMB/S3/Git/URL] --> PARSE[Docling<br/>layout-aware parsing,<br/>tables, OCR]
     PARSE --> CHUNK[Chunking<br/>structure-aware,<br/>token-bounded]
     CHUNK --> EMB[Embedding<br/>external, configured model]
-    EMB --> PG[(PostgreSQL<br/>chunks + vector + BM25 index)]
+    EMB --> PG[(PostgreSQL<br/>chunks + vector index)]
+    EMB --> OS[(OpenSearch<br/>BM25 index)]
     Q[Query] --> QE[Query embedding]
     QE --> VS[pgvector<br/>top 40]
-    Q --> BM[pg_search BM25<br/>top 40]
+    Q --> BM[OpenSearch BM25<br/>top 40]
     PG --- VS
     PG --- BM
     VS --> RRF[RRF fusion]
@@ -351,9 +352,8 @@ CREATE TABLE rag_chunk (
 CREATE INDEX rag_chunk_hnsw ON rag_chunk
     USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 128);
 
--- BM25 full-text (ParadeDB pg_search)
-CREATE INDEX rag_chunk_bm25 ON rag_chunk
-    USING bm25 (id, content, heading_path) WITH (key_field = 'id');
+-- BM25 full-text: OpenSearch index `forge-chunks` (ADR-016), fed from this table by the
+-- ingestion workflow; keyword fields project_id, kb_id, acl_groups are always query filters.
 
 -- tenant isolation
 ALTER TABLE rag_chunk ENABLE ROW LEVEL SECURITY;
@@ -476,7 +476,7 @@ A use case is a versioned, publishable workflow that combines agents, tools, pro
 | Name, description, icon | Shown in the catalog |
 | Catalog, category, tags | Where it appears and how it is found |
 | Pattern | `supervisor` (team of agents in sequence) or `graph` (nodes and edges) |
-| Input form | Typed fields (text, long text, number, select, file, data collection) with required flag and help text; generated as a PrimeNG form |
+| Input form | Typed fields (text, long text, number, select, file, data collection) with required flag and help text; generated as an NG-ZORRO form |
 | Output | Final output type: markdown, JSON (with schema), file (DOCX, XLSX, PDF), or the chat transcript |
 | Workflow | Agent team (supervisor) or graph definition (JSON, see below) |
 | Defaults | Model alias overrides, max cost per run, max duration, HITL policy |
@@ -545,18 +545,18 @@ A use case is a versioned, publishable workflow that combines agents, tools, pro
 | approval | run_step_id, assignee, decision, edited_output, comment |
 | favorite | user_id, use_case_id |
 
-### Workspace and use case screens (Angular + PrimeNG)
+### Workspace and use case screens (Angular + NG-ZORRO)
 
-| Screen | Main PrimeNG components |
+| Screen | Main NG-ZORRO components |
 | --- | --- |
-| Workspace switcher (top bar) | `p-select` with search, recent workspaces |
-| Workspace settings | `p-tabs`: General, Members, Roles, Models, Quotas, API tokens |
-| Catalog | `p-dataview` (grid/list), `p-iconfield` search, `p-chip` filters |
-| Use case detail | Description, dynamic form (`p-inputtext`, `p-select`, `p-fileupload`), run history `p-table` |
-| Use case builder – Supervisor | Planner chat on the left, agent team `p-orderlist` on the right |
-| Use case builder – Graph | Planner chat + Foblex Flow canvas, node config in `p-drawer` |
-| Session / run view | Agent panes in `p-tabs` or `p-splitter`, timeline `p-timeline`, HITL in `p-dialog` with Monaco editor |
-| Version history | `p-table` with diff view and Re-publish action |
+| Workspace switcher (top bar) | `nz-select` with search, recent workspaces |
+| Workspace settings | `nz-tabs`: General, Members, Roles, Models, Quotas, API tokens |
+| Catalog | `nz-list` / card grid, `nz-input-wrapper` search, `nz-tag` filters |
+| Use case detail | Description, dynamic form (`nz-input`, `nz-select`, `nz-upload`), run history `nz-table` |
+| Use case builder – Supervisor | Planner chat on the left, ordered agent team (CDK drag-and-drop list) on the right |
+| Use case builder – Graph | Planner chat + Foblex Flow canvas, node config in `nz-drawer` |
+| Session / run view | Agent panes in `nz-tabs` or `nz-splitter`, timeline `nz-timeline`, HITL in `nz-modal` with Monaco editor |
+| Version history | `nz-table` with diff view and Re-publish action |
 
 ## Roadmap and acceptance criteria
 

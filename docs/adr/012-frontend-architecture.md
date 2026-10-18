@@ -1,11 +1,11 @@
 # ADR-012 – Frontend architecture
 
-- Status: Accepted
+- Status: Accepted; component library amended by [ADR-017](017-ng-zorro-angular-22.md) (2026-10-18)
 - Date: 2026-10-16
 
 ## Decision
 
-- Angular 21.2 with PrimeNG 21.1 and PrimeIcons 7, the last MIT-licensed PrimeNG line (see [ADR-014](014-frontend-licensing.md)); standalone components, signals, zoneless change detection (Angular default).
+- Angular 22.2 with NG-ZORRO 22.1 and Ant Design icons, all MIT ([ADR-017](017-ng-zorro-angular-22.md), superseding ADR-014); standalone components, signals, zoneless and `OnPush` change detection (Angular defaults).
 - Workspace layout: `frontend/` single Angular workspace, one app (`forge-web`) and feature libraries per area: `shell`, `auth`, `projects`, `catalog`, `builder`, `prompt-studio`, `rag-studio`, `tools-studio`, `agent-studio`, `mcp-studio`, `governance`, `admin`, plus `shared/ui` and `shared/api` (generated client).
 - Lazy-loaded routes per feature; route guards on permissions from `/api/v1/me`.
 - State: signals + small services per feature; no global store unless a need appears.

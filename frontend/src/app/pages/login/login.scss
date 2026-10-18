@@ -3,10 +3,10 @@
   display: grid;
   place-items: center;
   padding: 1rem;
-  background: var(--p-surface-100);
+  background: var(--forge-surface-100);
 }
 
-:host ::ng-deep .card {
+.card {
   width: min(24rem, 100%);
 }
 
@@ -34,9 +34,14 @@
     font-size: 0.9rem;
   }
 
-  p-button {
+  button[nz-button] {
     margin-top: 0.75rem;
   }
+}
+
+nz-alert {
+  display: block;
+  margin-bottom: 0.75rem;
 }
 
 .links {
@@ -48,7 +53,7 @@
   background: none;
   border: none;
   padding: 0;
-  color: var(--p-primary-color);
+  color: var(--forge-primary-color);
   cursor: pointer;
   font: inherit;
   font-size: 0.85rem;

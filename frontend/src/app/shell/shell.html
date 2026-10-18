@@ -9,8 +9,8 @@
         @for (entry of menu; track entry.path) {
           <li>
             <a [routerLink]="entry.path" routerLinkActive="active" (click)="menuOpen.set(false)">
-              <i [class]="entry.icon" aria-hidden="true"></i>
-              <span>{{ entry.label }}</span>
+              <span nz-icon [nzType]="entry.icon" aria-hidden="true"></span>
+              <span class="label">{{ entry.label }}</span>
             </a>
           </li>
         }
@@ -18,62 +18,90 @@
     </nav>
 
     <div class="profile">
-      <p-avatar [label]="initials()" shape="circle" />
+      <nz-avatar [nzText]="initials()" class="avatar" />
       <div class="who">
         <strong data-testid="user-name">{{
           session.user()?.full_name || session.user()?.username
         }}</strong>
         <small>{{ roleLabel() }} · {{ session.user()?.email }}</small>
       </div>
-      <p-button
-        icon="pi pi-ellipsis-v"
-        [text]="true"
-        [rounded]="true"
-        ariaLabel="Profile menu"
-        i18n-ariaLabel
+      <button
+        nz-button
+        nzType="text"
+        nzShape="circle"
+        class="on-dark"
+        nz-dropdown
+        nzTrigger="click"
+        nzPlacement="topRight"
+        [nzDropdownMenu]="profile"
+        aria-label="Profile menu"
+        i18n-aria-label
         data-testid="profile-menu"
-        (onClick)="profile.toggle($event)"
-      />
-      <p-menu #profile [model]="profileItems()" [popup]="true" appendTo="body" />
+      >
+        <span nz-icon nzType="more"></span>
+      </button>
+      <nz-dropdown-menu #profile="nzDropdownMenu">
+        <ul nz-menu role="menu">
+          @for (item of profileItems(); track item.label) {
+            @if (item.divider) {
+              <li nz-menu-divider></li>
+            }
+            <li
+              nz-menu-item
+              role="menuitem"
+              tabindex="0"
+              [nzDisabled]="item.disabled ?? false"
+              (click)="!item.disabled && item.run()"
+              (keydown.enter)="!item.disabled && item.run()"
+            >
+              <span nz-icon [nzType]="item.icon"></span>
+              <span>{{ item.label }}</span>
+            </li>
+          }
+        </ul>
+      </nz-dropdown-menu>
     </div>
   </aside>
 
   <div class="main">
     <header class="topbar">
-      <p-button
+      <button
+        nz-button
+        nzType="text"
         class="menu-toggle"
-        icon="pi pi-bars"
-        [text]="true"
-        (onClick)="toggleMenu()"
-        ariaLabel="Toggle menu"
-        i18n-ariaLabel
-      />
+        (click)="toggleMenu()"
+        aria-label="Toggle menu"
+        i18n-aria-label
+      >
+        <span nz-icon nzType="menu"></span>
+      </button>
       <label class="project" for="project-select">
         <span i18n>Project</span>
-        <p-select
-          inputId="project-select"
-          [options]="session.projects()"
+        <nz-select
+          nzId="project-select"
+          class="project-select"
           [ngModel]="session.project()?.id"
           (ngModelChange)="session.selectProject($event)"
-          optionLabel="name"
-          optionValue="id"
-          [filter]="true"
-          filterBy="name"
-          placeholder="No project"
-          i18n-placeholder
+          [nzShowSearch]="true"
+          nzPlaceHolder="No project"
+          i18n-nzPlaceHolder
           data-testid="project-select"
-        />
+        >
+          @for (p of session.projects(); track p.id) {
+            <nz-option [nzValue]="p.id" [nzLabel]="p.name" />
+          }
+        </nz-select>
       </label>
       <span class="spacer"></span>
       @switch (system.version()) {
         @case (undefined) {
-          <p-tag severity="secondary" value="…" />
+          <nz-tag>…</nz-tag>
         }
         @case (null) {
-          <p-tag severity="danger" value="API offline" i18n-value />
+          <nz-tag nzColor="error" i18n>API offline</nz-tag>
         }
         @default {
-          <p-tag severity="success" [value]="'API ' + system.version()" />
+          <nz-tag nzColor="success">API {{ system.version() }}</nz-tag>
         }
       }
     </header>

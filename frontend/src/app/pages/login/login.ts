@@ -1,21 +1,21 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { ButtonModule } from 'primeng/button';
-import { CardModule } from 'primeng/card';
-import { InputTextModule } from 'primeng/inputtext';
-import { MessageModule } from 'primeng/message';
-import { PasswordModule } from 'primeng/password';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzInputModule } from 'ng-zorro-antd/input';
 import { firstValueFrom } from 'rxjs';
 
 import { AuthService } from '../../api-client';
 import { problemMessage } from '../../core/http';
 import { Session } from '../../core/session';
+import { PasswordInput } from '../../shared/password-input';
 
 /** US-1.2.2 / US-1.2.3: username or email + password, then TOTP or a recovery code. */
 @Component({
   selector: 'forge-login',
-  imports: [FormsModule, ButtonModule, CardModule, InputTextModule, MessageModule, PasswordModule],
+  imports: [FormsModule, NzAlertModule, NzButtonModule, NzCardModule, NzInputModule, PasswordInput],
   templateUrl: './login.html',
   styleUrl: './login.scss',
 })

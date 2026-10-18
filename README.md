@@ -25,7 +25,7 @@ Self-hosted, LLM-agnostic platform to build and run agents, RAG pipelines and go
 
 ```text
 backend/    Python 3.12, FastAPI, SQLAlchemy async, Alembic, Temporal workers (one image, several roles)
-frontend/   Angular 21 + PrimeNG 21 (MIT), served by nginx
+frontend/   Angular 22 + NG-ZORRO 22 (MIT), served by nginx
 deploy/     compose/ (single node / lab); helm/ arrives in Phase 3
 scripts/    small helpers called by the Makefile
 docs/       specification, planning, ADRs, requirements, security
@@ -76,7 +76,7 @@ Forge reads configuration from three places only (ADR-007):
 | Kind | Where | Contents |
 | --- | --- | --- |
 | Bootstrap | `.env` ([.env.example](.env.example)) | Initial admin, `FORGE_DATABASE_URL`, `FORGE_MASTER_KEY`, `FORGE_PUBLIC_URL` |
-| Infrastructure wiring | `deploy/compose/infra.env`, injected by Compose | Database role passwords, Valkey password, S3 keys; Compose derives `FORGE_REDIS_URL`, `FORGE_S3_*`, `FORGE_TEMPORAL_ADDRESS` |
+| Infrastructure wiring | `deploy/compose/infra.env` and `deploy/compose/search/` (certificates, users), injected by Compose | Database role passwords, Valkey password, S3 keys, OpenSearch passwords; Compose derives `FORGE_REDIS_URL`, `FORGE_S3_*`, `FORGE_TEMPORAL_ADDRESS`, `FORGE_SEARCH_*` |
 | Application settings | PostgreSQL, edited from the GUI | Models, authentication, SMTP, connectors, guardrails, … (from E1.3) |
 
 ### Models
@@ -102,11 +102,12 @@ Both generated files are git-ignored and created with mode `600`.
 | Service | Image | Purpose | Health |
 | --- | --- | --- | --- |
 | `web` | `forge-web` | Angular UI; proxies `/api` and `/v1` to `api` | `/nginx-health` |
-| `api` | `forge-backend` (`forge api`) | REST + OpenAI-compatible API | `/healthz` (liveness), `/readyz` (db + valkey) |
+| `api` | `forge-backend` (`forge api`) | REST + OpenAI-compatible API | `/healthz` (liveness), `/readyz` (db, valkey, search) |
 | `worker-runs` | `forge-backend` (`forge worker runs`) | Temporal worker: use case and agent runs | heartbeat file (`forge worker-health`) |
 | `worker-ingest` | `forge-backend` (`forge worker ingest`) | Temporal worker: RAG ingestion | heartbeat file |
 | `migrate` | `forge-backend` (`forge migrate`) | One-shot Alembic upgrade before api/workers start | exit code |
-| `db` | `paradedb/paradedb:0.26.2-pg17` | PostgreSQL 17 + pgvector + pg_search; databases `forge`, `temporal`, `temporal_visibility` | `pg_isready` over TCP |
+| `db` | `pgvector/pgvector:0.8.7-pg17-trixie` | PostgreSQL 17 + pgvector; databases `forge`, `temporal`, `temporal_visibility` | `pg_isready` over TCP |
+| `search` | `opensearchproject/opensearch:3.9.0` | BM25 full-text search for RAG (ADR-016); TLS and users from `make env`; Forge connects as `forge` | cluster health |
 | `temporal` | `temporalio/auto-setup:1.29.7` | Durable execution (ADR-004) | namespace describe |
 | `valkey` | `valkey/valkey:9.0.6` | Rate limits, quotas, cache, SSE fan-out | `PING` |
 | `s3` | `chrislusf/seaweedfs:4.47` | S3-compatible object storage (ADR-015) | `/healthz` |
@@ -161,6 +162,8 @@ docker run --rm -it --network host -v "$PWD/frontend:/app" -w /app node:24.22.0-
 | `temporal` keeps restarting | `make logs SERVICE=temporal`; the `temporal` and `temporal_visibility` databases are created by `deploy/compose/initdb/10-forge.sh` on first volume init only |
 | UI shows "API offline" | `curl localhost:8080/api/v1/version`; check `api` health |
 | Sign-in rejected for the admin, or account locked after failed attempts | `make admin/reset` (see [Lost admin password or locked account](#lost-admin-password-or-locked-account)) |
+| `search` unhealthy or restarting | `make logs SERVICE=search`. `AccessDeniedException` on certificates: run `make env` again as the same user (the container runs as uid 1000). Security index errors after changing passwords: the users file is loaded on first start only; recreate the `search-data` volume or use `securityadmin.sh` |
+| Upgrading a 0.1.0-dev database (ParadeDB image) | Run `scripts/db-from-paradedb.sh` with the old stack still running, then `make docker/run` |
 | Integration tests skipped | They need `FORGE_TEST_DATABASE_URL`; use `make test/integration` |
 
 ## Release

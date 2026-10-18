@@ -1,14 +1,15 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ButtonModule } from 'primeng/button';
-import { DialogModule } from 'primeng/dialog';
-import { InputTextModule } from 'primeng/inputtext';
-import { MessageModule } from 'primeng/message';
-import { SelectModule } from 'primeng/select';
-import { TableModule } from 'primeng/table';
-import { TagModule } from 'primeng/tag';
-import { TextareaModule } from 'primeng/textarea';
+import { A11yModule } from '@angular/cdk/a11y';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzModalModule } from 'ng-zorro-antd/modal';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzTagModule } from 'ng-zorro-antd/tag';
 import { firstValueFrom } from 'rxjs';
 
 import { AdminProjectOut, AdminService, UserOut } from '../../api-client';
@@ -19,36 +20,33 @@ import { Session } from '../../core/session';
 @Component({
   selector: 'forge-admin-projects',
   imports: [
+    A11yModule,
     DatePipe,
     FormsModule,
-    ButtonModule,
-    DialogModule,
-    InputTextModule,
-    MessageModule,
-    SelectModule,
-    TableModule,
-    TagModule,
-    TextareaModule,
+    NzAlertModule,
+    NzButtonModule,
+    NzIconModule,
+    NzInputModule,
+    NzModalModule,
+    NzSelectModule,
+    NzTableModule,
+    NzTagModule,
   ],
   template: `
     <header class="head">
       <h1 i18n>Projects</h1>
       <span class="spacer"></span>
-      <p-button
-        label="New project"
-        i18n-label
-        icon="pi pi-plus"
-        (onClick)="openCreate()"
-        data-testid="new-project"
-      />
+      <button nz-button nzType="primary" (click)="openCreate()" data-testid="new-project">
+        <span nz-icon nzType="plus"></span><span i18n>New project</span>
+      </button>
     </header>
 
     @if (notice(); as n) {
-      <p-message [severity]="n.severity" [text]="n.text" data-testid="notice" />
+      <nz-alert [nzType]="n.severity" [nzMessage]="n.text" nzShowIcon data-testid="notice" />
     }
 
-    <p-table [value]="projects()" dataKey="id" styleClass="p-datatable-sm">
-      <ng-template #header>
+    <nz-table [nzData]="projects()" nzSize="small" [nzShowPagination]="false" [nzPageSize]="1000">
+      <thead>
         <tr>
           <th i18n>Name</th>
           <th i18n>Description</th>
@@ -57,123 +55,146 @@ import { Session } from '../../core/session';
           <th i18n>Created</th>
           <th></th>
         </tr>
-      </ng-template>
-      <ng-template #body let-p>
-        <tr [attr.data-project]="p.name">
-          <td>{{ p.name }}</td>
-          <td>{{ p.description }}</td>
-          <td>{{ p.member_count }}</td>
-          <td>
-            <p-tag
-              [value]="p.status"
-              [severity]="p.status === 'active' ? 'success' : 'secondary'"
-            />
-          </td>
-          <td>{{ p.created_at | date: 'mediumDate' }}</td>
-          <td class="actions">
-            @if (p.status === 'active') {
-              <p-button
-                size="small"
-                [text]="true"
-                label="Archive"
-                i18n-label
-                (onClick)="setStatus(p, 'archive')"
-              />
-            } @else {
-              <p-button
-                size="small"
-                [text]="true"
-                label="Restore"
-                i18n-label
-                (onClick)="setStatus(p, 'restore')"
-              />
-            }
-            <p-button
-              size="small"
-              [text]="true"
-              severity="danger"
-              label="Delete"
-              i18n-label
-              (onClick)="openDelete(p)"
-            />
-          </td>
-        </tr>
-      </ng-template>
-    </p-table>
-
-    <p-dialog
-      header="New project"
-      i18n-header
-      [modal]="true"
-      [(visible)]="createOpen"
-      [style]="{ width: '30rem' }"
-    >
-      <form class="form" (ngSubmit)="create()">
-        <label for="p-name" i18n>Name</label>
-        <input pInputText id="p-name" name="name" [(ngModel)]="draft.name" required />
-        <label for="p-desc" i18n>Description</label>
-        <textarea
-          pTextarea
-          id="p-desc"
-          name="description"
-          rows="3"
-          [(ngModel)]="draft.description"
-        ></textarea>
-        <label for="p-admin" i18n>Project Admin</label>
-        <p-select
-          inputId="p-admin"
-          name="admin"
-          [options]="users()"
-          optionLabel="username"
-          optionValue="id"
-          [filter]="true"
-          filterBy="username,email,full_name"
-          [(ngModel)]="draft.admin_user_id"
-          placeholder="Select a user"
-          i18n-placeholder
-          appendTo="body"
-        />
-        @if (dialogError(); as e) {
-          <p-message severity="error" [text]="e" />
+      </thead>
+      <tbody>
+        @for (p of projects(); track p.id) {
+          <tr [attr.data-project]="p.name">
+            <td>{{ p.name }}</td>
+            <td>{{ p.description }}</td>
+            <td>{{ p.member_count }}</td>
+            <td>
+              <nz-tag [nzColor]="p.status === 'active' ? 'success' : 'default'">{{
+                p.status
+              }}</nz-tag>
+            </td>
+            <td>{{ p.created_at | date: 'mediumDate' }}</td>
+            <td class="actions">
+              @if (p.status === 'active') {
+                <button
+                  nz-button
+                  nzType="link"
+                  nzSize="small"
+                  (click)="setStatus(p, 'archive')"
+                  i18n
+                >
+                  Archive
+                </button>
+              } @else {
+                <button
+                  nz-button
+                  nzType="link"
+                  nzSize="small"
+                  (click)="setStatus(p, 'restore')"
+                  i18n
+                >
+                  Restore
+                </button>
+              }
+              <button nz-button nzType="link" nzDanger nzSize="small" (click)="openDelete(p)" i18n>
+                Delete
+              </button>
+            </td>
+          </tr>
         }
-        <div class="dialog-actions">
-          <p-button type="submit" label="Create" i18n-label data-testid="create-project" />
-        </div>
-      </form>
-    </p-dialog>
+      </tbody>
+    </nz-table>
 
-    <p-dialog
-      header="Delete project"
-      i18n-header
-      [modal]="true"
-      [(visible)]="deleteOpen"
-      [style]="{ width: '30rem' }"
+    <nz-modal
+      [(nzVisible)]="createOpen"
+      nzTitle="New project"
+      i18n-nzTitle
+      [nzFooter]="null"
+      [nzWidth]="480"
     >
-      @if (toDelete(); as p) {
-        <form class="form" (ngSubmit)="remove(p)">
-          <p-message severity="warn" i18n
-            >The project, its data and operations will be deleted. Members lose access
-            immediately.</p-message
+      <ng-container *nzModalContent>
+        <form class="form" (ngSubmit)="create()">
+          <label for="p-name" i18n>Name</label>
+          <input
+            nz-input
+            id="p-name"
+            name="name"
+            cdkFocusInitial
+            [(ngModel)]="draft.name"
+            required
+          />
+          <label for="p-desc" i18n>Description</label>
+          <textarea
+            nz-input
+            id="p-desc"
+            name="description"
+            rows="3"
+            [(ngModel)]="draft.description"
+          ></textarea>
+          <label for="p-admin" i18n>Project Admin</label>
+          <nz-select
+            nzId="p-admin"
+            name="admin"
+            [nzShowSearch]="true"
+            [(ngModel)]="draft.admin_user_id"
+            nzPlaceHolder="Select a user"
+            i18n-nzPlaceHolder
           >
-          <label for="d-reason" i18n>Reason</label>
-          <textarea pTextarea id="d-reason" name="reason" rows="2" [(ngModel)]="reason"></textarea>
-          <label for="d-confirm" i18n>Type "{{ p.name }}" to confirm</label>
-          <input pInputText id="d-confirm" name="confirm" [(ngModel)]="confirmName" />
+            @for (u of users(); track u.id) {
+              <nz-option [nzValue]="u.id" [nzLabel]="u.username + ' · ' + u.email" />
+            }
+          </nz-select>
           @if (dialogError(); as e) {
-            <p-message severity="error" [text]="e" />
+            <nz-alert nzType="error" [nzMessage]="e" />
           }
           <div class="dialog-actions">
-            <p-button
-              type="submit"
-              severity="danger"
-              label="Delete"
-              i18n-label
-              [disabled]="confirmName !== p.name || reason.length < 5"
-            />
+            <button nz-button nzType="primary" type="submit" data-testid="create-project" i18n>
+              Create
+            </button>
           </div>
         </form>
-      }
-    </p-dialog>
+      </ng-container>
+    </nz-modal>
+
+    <nz-modal
+      [(nzVisible)]="deleteOpen"
+      nzTitle="Delete project"
+      i18n-nzTitle
+      [nzFooter]="null"
+      [nzWidth]="480"
+    >
+      <ng-container *nzModalContent>
+        @if (toDelete(); as p) {
+          <form class="form" (ngSubmit)="remove(p)">
+            <nz-alert
+              nzType="warning"
+              nzMessage="The project, its data and operations will be deleted. Members lose access immediately."
+              i18n-nzMessage
+            />
+            <label for="d-reason" i18n>Reason</label>
+            <textarea
+              nz-input
+              id="d-reason"
+              name="reason"
+              rows="2"
+              cdkFocusInitial
+              [(ngModel)]="reason"
+            ></textarea>
+            <label for="d-confirm" i18n>Type "{{ p.name }}" to confirm</label>
+            <input nz-input id="d-confirm" name="confirm" [(ngModel)]="confirmName" />
+            @if (dialogError(); as e) {
+              <nz-alert nzType="error" [nzMessage]="e" />
+            }
+            <div class="dialog-actions">
+              <button
+                nz-button
+                nzType="primary"
+                nzDanger
+                type="submit"
+                [disabled]="confirmName !== p.name || reason.length < 5"
+                i18n
+              >
+                Delete
+              </button>
+            </div>
+          </form>
+        }
+      </ng-container>
+    </nz-modal>
   `,
   styleUrl: './admin.scss',
 })

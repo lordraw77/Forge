@@ -2,24 +2,25 @@
 export interface MenuEntry {
   path: string;
   label: string;
+  /** Ant Design icon name (registered in core/theme.ts). */
   icon: string;
   /** Phase in which the area becomes functional (plan §3). */
   phase: 1 | 2 | 3;
 }
 
 export const MENU: readonly MenuEntry[] = [
-  { path: 'projects', label: $localize`Projects Studio`, icon: 'pi pi-briefcase', phase: 1 },
-  { path: 'catalog', label: $localize`Use Cases Catalog`, icon: 'pi pi-th-large', phase: 2 },
-  { path: 'build', label: $localize`Build Your Own Use Case`, icon: 'pi pi-sitemap', phase: 2 },
-  { path: 'prompts', label: $localize`Prompt Studio`, icon: 'pi pi-pencil', phase: 1 },
-  { path: 'tools', label: $localize`Tools Studio`, icon: 'pi pi-wrench', phase: 2 },
-  { path: 'rag', label: $localize`RAG Studio`, icon: 'pi pi-book', phase: 1 },
-  { path: 'agents', label: $localize`Agentic AI Studio`, icon: 'pi pi-microchip-ai', phase: 1 },
-  { path: 'mcp', label: $localize`MCP Studio`, icon: 'pi pi-server', phase: 3 },
+  { path: 'projects', label: $localize`Projects Studio`, icon: 'project', phase: 1 },
+  { path: 'catalog', label: $localize`Use Cases Catalog`, icon: 'appstore', phase: 2 },
+  { path: 'build', label: $localize`Build Your Own Use Case`, icon: 'apartment', phase: 2 },
+  { path: 'prompts', label: $localize`Prompt Studio`, icon: 'edit', phase: 1 },
+  { path: 'tools', label: $localize`Tools Studio`, icon: 'tool', phase: 2 },
+  { path: 'rag', label: $localize`RAG Studio`, icon: 'book', phase: 1 },
+  { path: 'agents', label: $localize`Agentic AI Studio`, icon: 'robot', phase: 1 },
+  { path: 'mcp', label: $localize`MCP Studio`, icon: 'cloud-server', phase: 3 },
   {
     path: 'governance',
     label: $localize`Governance and Evaluation Studio`,
-    icon: 'pi pi-shield',
+    icon: 'safety-certificate',
     phase: 2,
   },
 ];

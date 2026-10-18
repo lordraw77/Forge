@@ -1,6 +1,6 @@
 # ADR-014 – Angular 21 + PrimeNG 21 (MIT) instead of PrimeNG 22
 
-- Status: Accepted provisionally, **pending PO confirmation**
+- Status: **Superseded by [ADR-017](017-ng-zorro-angular-22.md)** (2026-10-18)
 - Date: 2026-10-16
 - Amends: ADR-012
 

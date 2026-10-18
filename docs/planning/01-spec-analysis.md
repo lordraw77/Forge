@@ -97,7 +97,7 @@ The specification is solid on *what* (feature scope, data model sketch, RAG defa
 | 5 Langfuse | Optional sink (interpreted from "yes" as acceptance of the proposal) | ADR-009 |
 | 6 Phase 1 | 10–12 weeks (interpreted from "yes" as acceptance of the first option) | Plan §3 |
 | 7 UI languages | **Italian and English** (confirmed 2026-10-16) | ADR-012, US-1.4.3 |
-| 8 pg_search AGPL | Open | ADR-008 |
+| 8 pg_search AGPL | Resolved 2026-10-18: not accepted; BM25 in OpenSearch | ADR-016 |
 
 **Original questions**
 

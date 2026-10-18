@@ -17,12 +17,13 @@ import {
   FMoveNodesEvent,
   FSelectionChangeEvent,
 } from '@foblex/flow';
-import { ButtonModule } from 'primeng/button';
-import { DrawerModule } from 'primeng/drawer';
-import { InputTextModule } from 'primeng/inputtext';
-import { MessageModule } from 'primeng/message';
-import { SelectModule } from 'primeng/select';
-import { TagModule } from 'primeng/tag';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzDrawerModule } from 'ng-zorro-antd/drawer';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzTagModule } from 'ng-zorro-antd/tag';
 
 import {
   Edge,
@@ -72,12 +73,13 @@ const PALETTE: NodeType[] = [
     FFlowModule,
     FormsModule,
     JsonPipe,
-    ButtonModule,
-    DrawerModule,
-    InputTextModule,
-    MessageModule,
-    SelectModule,
-    TagModule,
+    NzAlertModule,
+    NzButtonModule,
+    NzDrawerModule,
+    NzIconModule,
+    NzInputModule,
+    NzSelectModule,
+    NzTagModule,
   ],
   templateUrl: './graph-editor.html',
   styleUrl: './graph-editor.scss',

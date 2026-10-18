@@ -6,7 +6,7 @@ Web UI of **Forge**, a self-hosted, LLM-agnostic platform to build and run AI ag
 
 ## What is inside
 
-- The Angular 21 single-page application, built with PrimeNG 21 (MIT). It is prepared for English and Italian; the Italian translation is in progress.
+- The Angular 22 single-page application, built with NG-ZORRO 22 (MIT). It is prepared for English and Italian; the Italian translation is in progress.
 - An unprivileged nginx server listening on port **8080**.
 - A reverse proxy that forwards `/api/` and `/v1/` to the backend at `http://api:8000`, with buffering disabled so server-sent events stream correctly.
 

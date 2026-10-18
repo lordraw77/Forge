@@ -1,12 +1,11 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ButtonModule } from 'primeng/button';
-import { CardModule } from 'primeng/card';
-import { CheckboxModule } from 'primeng/checkbox';
-import { InputNumberModule } from 'primeng/inputnumber';
-import { InputTextModule } from 'primeng/inputtext';
-import { MessageModule } from 'primeng/message';
-import { TextareaModule } from 'primeng/textarea';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
 import { firstValueFrom } from 'rxjs';
 
 import { AdminService, SettingOut } from '../../api-client';
@@ -32,41 +31,43 @@ const LABELS: Record<string, string> = {
   selector: 'forge-admin-settings',
   imports: [
     FormsModule,
-    ButtonModule,
-    CardModule,
-    CheckboxModule,
-    InputNumberModule,
-    InputTextModule,
-    MessageModule,
-    TextareaModule,
+    NzAlertModule,
+    NzButtonModule,
+    NzCardModule,
+    NzCheckboxModule,
+    NzInputModule,
+    NzInputNumberModule,
   ],
   template: `
     <header class="head"><h1 i18n>Settings</h1></header>
     <div class="settings">
       @for (s of settings(); track s.key) {
-        <p-card [header]="labels[s.key] || s.key" [attr.data-setting]="s.key">
+        <nz-card [nzTitle]="labels[s.key] || s.key" [attr.data-setting]="s.key">
           <form class="form" (ngSubmit)="save(s)">
             @for (f of fields(s); track f.key) {
-              <label [for]="s.key + f.key">{{ f.label }}</label>
               @switch (f.kind) {
                 @case ('number') {
-                  <p-inputnumber
-                    [inputId]="s.key + f.key"
+                  <label [for]="s.key + f.key">{{ f.label }}</label>
+                  <nz-input-number
+                    [nzId]="s.key + f.key"
                     [name]="f.key"
                     [(ngModel)]="s.value[f.key]"
                   />
                 }
                 @case ('boolean') {
-                  <p-checkbox
-                    [inputId]="s.key + f.key"
+                  <label
+                    nz-checkbox
+                    [nzId]="s.key + f.key"
                     [name]="f.key"
-                    [binary]="true"
                     [(ngModel)]="s.value[f.key]"
-                  />
+                  >
+                    {{ f.label }}
+                  </label>
                 }
                 @case ('longtext') {
+                  <label [for]="s.key + f.key">{{ f.label }}</label>
                   <textarea
-                    pTextarea
+                    nz-input
                     [id]="s.key + f.key"
                     [name]="f.key"
                     rows="4"
@@ -74,8 +75,9 @@ const LABELS: Record<string, string> = {
                   ></textarea>
                 }
                 @default {
+                  <label [for]="s.key + f.key">{{ f.label }}</label>
                   <input
-                    pInputText
+                    nz-input
                     [id]="s.key + f.key"
                     [name]="f.key"
                     [(ngModel)]="s.value[f.key]"
@@ -85,11 +87,13 @@ const LABELS: Record<string, string> = {
             }
             <small i18n>Version {{ s.version }}</small>
             @if (messages()[s.key]; as m) {
-              <p-message [severity]="m.ok ? 'success' : 'error'" [text]="m.text" />
+              <nz-alert [nzType]="m.ok ? 'success' : 'error'" [nzMessage]="m.text" />
             }
-            <div class="dialog-actions"><p-button type="submit" label="Save" i18n-label /></div>
+            <div class="dialog-actions">
+              <button nz-button nzType="primary" type="submit" i18n>Save</button>
+            </div>
           </form>
-        </p-card>
+        </nz-card>
       }
     </div>
   `,

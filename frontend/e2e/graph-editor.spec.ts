@@ -12,9 +12,24 @@ async function definition(page: Page): Promise<Definition> {
   return JSON.parse(await page.evaluate(() => window.__forgeGraph!.json())) as Definition;
 }
 
+/** Bounding box once the element stops moving (a node added just now is still being laid out). */
+async function stableBox(
+  page: Page,
+  selector: string,
+): Promise<{ x: number; y: number; width: number; height: number }> {
+  let last = await page.locator(selector).boundingBox();
+  for (let i = 0; i < 20; i++) {
+    await page.waitForTimeout(50);
+    const next = await page.locator(selector).boundingBox();
+    if (last && next && last.x === next.x && last.y === next.y) return next;
+    last = next;
+  }
+  return last!;
+}
+
 async function dragBetween(page: Page, from: string, to: string): Promise<void> {
-  const a = (await page.locator(from).boundingBox())!;
-  const b = (await page.locator(to).boundingBox())!;
+  const a = await stableBox(page, from);
+  const b = await stableBox(page, to);
   await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
   await page.mouse.down();
   await page.mouse.move((a.x + b.x) / 2, (a.y + b.y) / 2, { steps: 8 });

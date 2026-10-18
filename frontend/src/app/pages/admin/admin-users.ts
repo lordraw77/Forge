@@ -1,15 +1,15 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ButtonModule } from 'primeng/button';
-import { CheckboxModule } from 'primeng/checkbox';
-import { DialogModule } from 'primeng/dialog';
-import { IconFieldModule } from 'primeng/iconfield';
-import { InputIconModule } from 'primeng/inputicon';
-import { InputTextModule } from 'primeng/inputtext';
-import { MessageModule } from 'primeng/message';
-import { TableModule } from 'primeng/table';
-import { TagModule } from 'primeng/tag';
+import { A11yModule } from '@angular/cdk/a11y';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzModalModule } from 'ng-zorro-antd/modal';
+import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzTagModule } from 'ng-zorro-antd/tag';
 import { firstValueFrom } from 'rxjs';
 
 import { AdminService, UserOut } from '../../api-client';
@@ -22,44 +22,40 @@ import { Session } from '../../core/session';
   imports: [
     DatePipe,
     FormsModule,
-    ButtonModule,
-    CheckboxModule,
-    DialogModule,
-    IconFieldModule,
-    InputIconModule,
-    InputTextModule,
-    MessageModule,
-    TableModule,
-    TagModule,
+    A11yModule,
+    NzAlertModule,
+    NzButtonModule,
+    NzCheckboxModule,
+    NzIconModule,
+    NzInputModule,
+    NzModalModule,
+    NzTableModule,
+    NzTagModule,
   ],
   template: `
     <header class="head">
       <h1 i18n>Users</h1>
-      <p-iconfield>
-        <p-inputicon styleClass="pi pi-search" />
+      <nz-input-wrapper class="search">
+        <span nzInputPrefix nz-icon nzType="search"></span>
         <input
-          pInputText
+          nz-input
           placeholder="Search"
           i18n-placeholder
           [(ngModel)]="query"
           (ngModelChange)="load()"
         />
-      </p-iconfield>
-      <p-button
-        label="New user"
-        i18n-label
-        icon="pi pi-plus"
-        (onClick)="openCreate()"
-        data-testid="new-user"
-      />
+      </nz-input-wrapper>
+      <button nz-button nzType="primary" (click)="openCreate()" data-testid="new-user">
+        <span nz-icon nzType="plus"></span><span i18n>New user</span>
+      </button>
     </header>
 
     @if (notice(); as n) {
-      <p-message [severity]="n.severity" [text]="n.text" data-testid="notice" />
+      <nz-alert [nzType]="n.severity" [nzMessage]="n.text" nzShowIcon data-testid="notice" />
     }
 
-    <p-table [value]="users()" [rowHover]="true" dataKey="id" styleClass="p-datatable-sm">
-      <ng-template #header>
+    <nz-table [nzData]="users()" nzSize="small" [nzShowPagination]="false" [nzPageSize]="1000">
+      <thead>
         <tr>
           <th i18n>Username</th>
           <th i18n>Full name</th>
@@ -68,99 +64,94 @@ import { Session } from '../../core/session';
           <th i18n>Last active</th>
           <th></th>
         </tr>
-      </ng-template>
-      <ng-template #body let-u>
-        <tr [attr.data-user]="u.username">
-          <td>
-            {{ u.username }}
-            @if (u.is_super_admin) {
-              <p-tag value="Super Admin" severity="warn" />
-            }
-          </td>
-          <td>{{ u.full_name }}</td>
-          <td>{{ u.email }}</td>
-          <td>
-            @if (isLocked(u)) {
-              <p-tag value="Locked" i18n-value severity="danger" />
-            } @else {
-              <p-tag
-                [value]="u.status"
-                [severity]="u.status === 'active' ? 'success' : 'secondary'"
-              />
-            }
-          </td>
-          <td>{{ u.last_active_at | date: 'short' }}</td>
-          <td class="actions">
-            @if (isLocked(u)) {
-              <p-button
-                size="small"
-                [text]="true"
-                label="Unlock"
-                i18n-label
-                (onClick)="unlock(u)"
-              />
-            }
-            <p-button
-              size="small"
-              [text]="true"
-              label="Reset password"
-              i18n-label
-              (onClick)="reset(u)"
-            />
-            @if (u.id !== session.user()?.id) {
-              <p-button
-                size="small"
-                [text]="true"
-                [label]="u.status === 'active' ? disableLabel : enableLabel"
-                (onClick)="toggle(u)"
-              />
-            }
-          </td>
-        </tr>
-      </ng-template>
-    </p-table>
-
-    <p-dialog
-      header="New user"
-      i18n-header
-      [modal]="true"
-      [(visible)]="createOpen"
-      [style]="{ width: '28rem' }"
-    >
-      <form class="form" (ngSubmit)="create()">
-        <label for="u-username" i18n>Username</label>
-        <input pInputText id="u-username" name="username" [(ngModel)]="draft.username" required />
-        <label for="u-email" i18n>Email</label>
-        <input
-          pInputText
-          id="u-email"
-          name="email"
-          type="email"
-          [(ngModel)]="draft.email"
-          required
-        />
-        <label for="u-name" i18n>Full name</label>
-        <input pInputText id="u-name" name="full_name" [(ngModel)]="draft.full_name" />
-        <div class="check">
-          <p-checkbox
-            inputId="u-super"
-            name="super"
-            [binary]="true"
-            [(ngModel)]="draft.is_super_admin"
-          />
-          <label for="u-super" i18n>Super Admin</label>
-        </div>
-        <small i18n
-          >A temporary password is generated; the user must change it at first sign-in.</small
-        >
-        @if (dialogError(); as e) {
-          <p-message severity="error" [text]="e" />
+      </thead>
+      <tbody>
+        @for (u of users(); track u.id) {
+          <tr [attr.data-user]="u.username">
+            <td>
+              {{ u.username }}
+              @if (u.is_super_admin) {
+                <nz-tag nzColor="warning">Super Admin</nz-tag>
+              }
+            </td>
+            <td>{{ u.full_name }}</td>
+            <td>{{ u.email }}</td>
+            <td>
+              @if (isLocked(u)) {
+                <nz-tag nzColor="error" i18n>Locked</nz-tag>
+              } @else {
+                <nz-tag [nzColor]="u.status === 'active' ? 'success' : 'default'">{{
+                  u.status
+                }}</nz-tag>
+              }
+            </td>
+            <td>{{ u.last_active_at | date: 'short' }}</td>
+            <td class="actions">
+              @if (isLocked(u)) {
+                <button nz-button nzType="link" nzSize="small" (click)="unlock(u)" i18n>
+                  Unlock
+                </button>
+              }
+              <button nz-button nzType="link" nzSize="small" (click)="reset(u)" i18n>
+                Reset password
+              </button>
+              @if (u.id !== session.user()?.id) {
+                <button nz-button nzType="link" nzSize="small" (click)="toggle(u)">
+                  {{ u.status === 'active' ? disableLabel : enableLabel }}
+                </button>
+              }
+            </td>
+          </tr>
         }
-        <div class="dialog-actions">
-          <p-button type="submit" label="Create" i18n-label data-testid="create-user" />
-        </div>
-      </form>
-    </p-dialog>
+      </tbody>
+    </nz-table>
+
+    <nz-modal
+      [(nzVisible)]="createOpen"
+      nzTitle="New user"
+      i18n-nzTitle
+      [nzFooter]="null"
+      [nzWidth]="448"
+    >
+      <ng-container *nzModalContent>
+        <form class="form" (ngSubmit)="create()">
+          <label for="u-username" i18n>Username</label>
+          <input
+            nz-input
+            id="u-username"
+            name="username"
+            cdkFocusInitial
+            [(ngModel)]="draft.username"
+            required
+          />
+          <label for="u-email" i18n>Email</label>
+          <input
+            nz-input
+            id="u-email"
+            name="email"
+            type="email"
+            [(ngModel)]="draft.email"
+            required
+          />
+          <label for="u-name" i18n>Full name</label>
+          <input nz-input id="u-name" name="full_name" [(ngModel)]="draft.full_name" />
+          <label nz-checkbox nzId="u-super" name="super" [(ngModel)]="draft.is_super_admin">
+            <span i18n>Super Admin</span>
+          </label>
+          <small i18n
+            >A temporary password is generated; the user must change it at first sign-in.</small
+          >
+          @if (dialogError(); as e) {
+            <nz-alert nzType="error" [nzMessage]="e" />
+          }
+          <div class="dialog-actions">
+            <button nz-button nzType="primary" type="submit" data-testid="create-user" i18n>
+              Create
+            </button>
+          </div>
+        </form>
+      </ng-container>
+    </nz-modal>
   `,
   styleUrl: './admin.scss',
 })

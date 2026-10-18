@@ -16,7 +16,7 @@ check() {
 
 check "web serves the UI"            curl -fsS "$base/"
 check "web proxies /api to the API"  curl -fsS "$base/api/v1/version"
-check "api is ready (db, redis)"     "${compose[@]}" exec -T api python -c \
+check "api is ready (db, valkey, search)" "${compose[@]}" exec -T api python -c \
   "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/readyz', timeout=5)"
 
 for queue in runs ingest; do

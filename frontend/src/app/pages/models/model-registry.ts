@@ -1,17 +1,18 @@
+import { DecimalPipe } from '@angular/common';
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ButtonModule } from 'primeng/button';
-import { CheckboxModule } from 'primeng/checkbox';
-import { DialogModule } from 'primeng/dialog';
-import { InputNumberModule } from 'primeng/inputnumber';
-import { InputTextModule } from 'primeng/inputtext';
-import { MessageModule } from 'primeng/message';
-import { MultiSelectModule } from 'primeng/multiselect';
-import { SelectModule } from 'primeng/select';
-import { SelectButtonModule } from 'primeng/selectbutton';
-import { TableModule } from 'primeng/table';
-import { TagModule } from 'primeng/tag';
-import { TextareaModule } from 'primeng/textarea';
+import { A11yModule } from '@angular/cdk/a11y';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
+import { NzModalModule } from 'ng-zorro-antd/modal';
+import { NzSegmentedModule } from 'ng-zorro-antd/segmented';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzTagModule } from 'ng-zorro-antd/tag';
 import { Observable, firstValueFrom } from 'rxjs';
 
 import {
@@ -161,19 +162,20 @@ function parseHeaders(text: string): Record<string, string> {
 @Component({
   selector: 'forge-model-registry',
   imports: [
+    A11yModule,
+    DecimalPipe,
     FormsModule,
-    ButtonModule,
-    CheckboxModule,
-    DialogModule,
-    InputNumberModule,
-    InputTextModule,
-    MessageModule,
-    MultiSelectModule,
-    SelectModule,
-    SelectButtonModule,
-    TableModule,
-    TagModule,
-    TextareaModule,
+    NzAlertModule,
+    NzButtonModule,
+    NzCheckboxModule,
+    NzIconModule,
+    NzInputModule,
+    NzInputNumberModule,
+    NzModalModule,
+    NzSegmentedModule,
+    NzSelectModule,
+    NzTableModule,
+    NzTagModule,
   ],
   templateUrl: './model-registry.html',
   styleUrls: ['../admin/admin.scss', './model-registry.scss'],

@@ -16,7 +16,7 @@ _Inputs: [specs.md](../specs.md), [01-spec-analysis.md](01-spec-analysis.md), [A
 | `forge-sandbox` (Phase 3) | Python tool execution under gVisor | tool calls |
 | `forge-web` | Angular SPA served by nginx | — |
 
-Infrastructure: PostgreSQL 17 (ParadeDB image: pgvector + pg_search), Temporal (PG persistence, separate DBs), Valkey (rate limits, quotas, cache, SSE fan-out), S3-compatible object storage (SeaweedFS in Compose, ADR-015), OTel Collector → Prometheus/Loki/Grafana, optional Langfuse/OpenBao.
+Infrastructure: PostgreSQL 17 (pgvector image), OpenSearch for BM25 (ADR-016), Temporal (PG persistence, separate DBs), Valkey (rate limits, quotas, cache, SSE fan-out), S3-compatible object storage (SeaweedFS in Compose, ADR-015), OTel Collector → Prometheus/Loki/Grafana, optional Langfuse/OpenBao.
 
 **Backend module layout** (`backend/src/forge/`)
 
@@ -49,7 +49,7 @@ sdk/       Python SDK + CLI (Phase 3)
 
 ## 2. ADRs
 
-All 13 ADRs are written and accepted: see [docs/adr/](../adr/README.md). Key points: modular monolith (001), RLS with `SET LOCAL` (002), Super Admin + Role Types + Role Names (003), Temporal outside / LangGraph inside agent activities (004), gateway-only model access (005), envelope encryption (006), DB config + infra wiring via deployment env (007), pgvector + pg_search (008), Forge-stored traces with optional Langfuse (009), graph schema v1 (010), API conventions (011), Angular architecture (012), `guard` model type (013).
+ADRs 001–013 are written and accepted (016 and 017 added on 2026-10-18, superseding the pg_search part of 008 and 014): see [docs/adr/](../adr/README.md). Key points: modular monolith (001), RLS with `SET LOCAL` (002), Super Admin + Role Types + Role Names (003), Temporal outside / LangGraph inside agent activities (004), gateway-only model access (005), envelope encryption (006), DB config + infra wiring via deployment env (007), pgvector + pg_search (008), Forge-stored traces with optional Langfuse (009), graph schema v1 (010), API conventions (011), Angular architecture (012), `guard` model type (013).
 
 ## 3. Phases
 
@@ -141,6 +141,6 @@ Definition of done: tests green in CI, tenant-isolation suite green, OpenAPI upd
 4. ~~Threat model v1~~ ✅ [security/threat-model.md](../security/threat-model.md)
 5. ~~Skeleton (E0.4)~~ ✅
 6. Spikes: ~~E0.5a Temporal + LangGraph~~ ✅, ~~E0.5b hybrid retrieval~~ ✅ (p95 39 ms at 1M), ~~E0.5d LiteLLM providers~~ ✅ (35/36, overhead 4 ms p95), ~~E0.5c graph editor~~ ✅ (Foblex Flow, 200 nodes in 0.65 s). **Phase 0 spikes complete.**
-7. PO decisions pending: Q8 AGPL, ADR-014 PrimeNG licensing, ADR-015 object store.
+7. PO decisions: ~~Q8 AGPL~~ → OpenSearch ([ADR-016](../adr/016-external-bm25-opensearch.md)), ~~ADR-014 PrimeNG~~ → NG-ZORRO on Angular 22 ([ADR-017](../adr/017-ng-zorro-angular-22.md)), both 2026-10-18; still pending: ADR-015 object store.
 8. ~~Phase 0 open items (OTel collector profile, licence check, spec text for ADR-007/013)~~ ✅ 2026-10-17.
 9. ~~M1.2 LLM gateway~~ ✅ 2026-10-17. Next: **M1.3 Prompt Studio** (E1.10–E1.13).

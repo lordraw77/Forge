@@ -1,18 +1,18 @@
 <main class="page">
-  <p-card styleClass="card">
+  <nz-card class="card">
     <div class="brand">
       <img src="brand/forge-logo-light.svg" alt="Forge" width="168" height="56" />
     </div>
 
     @if (error(); as message) {
-      <p-message severity="error" [text]="message" data-testid="login-error" />
+      <nz-alert nzType="error" [nzMessage]="message" nzShowIcon data-testid="login-error" />
     }
 
     @if (!challenge()) {
       <form (ngSubmit)="submit()" class="form">
         <label for="login" i18n>Username or email</label>
         <input
-          pInputText
+          nz-input
           id="login"
           name="login"
           autocomplete="username"
@@ -20,26 +20,20 @@
           [(ngModel)]="loginName"
         />
         <label for="password" i18n>Password</label>
-        <p-password
-          inputId="password"
-          name="password"
-          [(ngModel)]="password"
-          [feedback]="false"
-          [toggleMask]="true"
-          autocomplete="current-password"
-          [fluid]="true"
-        />
-        <p-button type="submit" label="Sign in" i18n-label [loading]="busy()" [fluid]="true" />
+        <forge-password inputId="password" autocomplete="current-password" [(value)]="password" />
+        <button nz-button nzType="primary" nzBlock type="submit" [nzLoading]="busy()" i18n>
+          Sign in
+        </button>
       </form>
     } @else {
       <form (ngSubmit)="submitCode()" class="form">
         @if (useRecovery) {
           <label for="code" i18n>Recovery code</label>
-          <input pInputText id="code" name="code" autocomplete="off" [(ngModel)]="code" />
+          <input nz-input id="code" name="code" autocomplete="off" [(ngModel)]="code" />
         } @else {
           <label for="code" i18n>Authentication code</label>
           <input
-            pInputText
+            nz-input
             id="code"
             name="code"
             inputmode="numeric"
@@ -48,7 +42,9 @@
             [(ngModel)]="code"
           />
         }
-        <p-button type="submit" label="Verify" i18n-label [loading]="busy()" [fluid]="true" />
+        <button nz-button nzType="primary" nzBlock type="submit" [nzLoading]="busy()" i18n>
+          Verify
+        </button>
         <div class="links">
           <button type="button" class="link" (click)="useRecovery = !useRecovery; code = ''">
             @if (useRecovery) {
@@ -61,5 +57,5 @@
         </div>
       </form>
     }
-  </p-card>
+  </nz-card>
 </main>

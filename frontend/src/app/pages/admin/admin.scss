@@ -15,9 +15,21 @@
   }
 }
 
-p-message {
+nz-alert {
   display: block;
   margin-bottom: 0.75rem;
+}
+
+.search {
+  width: 16rem;
+}
+
+.filter {
+  width: 18rem;
+}
+
+.range {
+  width: 12rem;
 }
 
 .actions {
@@ -66,22 +78,31 @@ p-message {
   display: flex;
   gap: 0.25rem;
   margin-bottom: 1rem;
-  border-bottom: 1px solid var(--p-surface-200);
+  border-bottom: 1px solid var(--forge-surface-200);
 
   a {
     padding: 0.5rem 0.9rem;
-    color: var(--p-text-muted-color);
+    color: var(--forge-text-muted-color);
     text-decoration: none;
     border-bottom: 2px solid transparent;
 
     &.active {
-      color: var(--p-primary-color);
-      border-bottom-color: var(--p-primary-color);
+      color: var(--forge-primary-color);
+      border-bottom-color: var(--forge-primary-color);
     }
   }
 }
 
 .intro {
   margin-top: -0.5rem;
-  color: var(--p-text-muted-color);
+  color: var(--forge-text-muted-color);
+}
+
+.role {
+  width: 12rem;
+}
+
+.scopes {
+  min-width: 18rem;
+  width: auto;
 }

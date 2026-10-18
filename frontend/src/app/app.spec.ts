@@ -82,7 +82,7 @@ describe('App shell and session (US-1.4.1, US-1.2.2)', () => {
   it('shows the nine menu entries, the user and their projects', async () => {
     await signedIn('/');
     const doc = harness.routeNativeElement!.ownerDocument;
-    const labels = Array.from(doc.querySelectorAll('nav a span')).map((el) =>
+    const labels = Array.from(doc.querySelectorAll('nav a .label')).map((el) =>
       el.textContent?.trim(),
     );
     expect(labels).toEqual(MENU.map((m) => m.label));

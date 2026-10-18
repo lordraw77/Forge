@@ -26,7 +26,8 @@ Use it together with [`lordraw/forge-frontend`](https://hub.docker.com/r/lordraw
 
 ## Requirements
 
-- PostgreSQL 17 with the `vector` and `pg_search` extensions (e.g. `paradedb/paradedb`)
+- PostgreSQL 17 with the `vector` extension (e.g. `pgvector/pgvector`)
+- OpenSearch 3 for BM25 full-text search (`FORGE_SEARCH_URL`, `FORGE_SEARCH_USERNAME`, `FORGE_SEARCH_PASSWORD`, `FORGE_SEARCH_CA_FILE`)
 - Valkey or Redis
 - Temporal server
 - S3-compatible object storage (SeaweedFS, Ceph RGW, AWS S3, …)
