@@ -34,7 +34,13 @@ jobs:
       - name: Unit tests
         run: uv run pytest -m "not integration"
       - name: Dependency audit
-        run: uv export --frozen --no-dev --no-hashes --no-emit-project -o /tmp/req.txt && uv run pip-audit -r /tmp/req.txt --strict
+        run: |
+          uv export --frozen --no-dev --no-hashes --no-emit-project -o /tmp/req.txt
+          uv run pip-audit -r /tmp/req.txt --strict
+          # The ingestion image adds Docling and CPU PyTorch (extra `ingest`).
+          uv export --frozen --no-dev --no-hashes --no-emit-project --extra ingest \
+            | grep -v '^--' | sed 's/+cpu//' > /tmp/req-ingest.txt
+          uv run pip-audit -r /tmp/req-ingest.txt --strict --no-deps --disable-pip
       - name: Licence check (scripts/license-policy.json)
         run: python3 ../scripts/check-licenses.py --backend
 
@@ -47,7 +53,7 @@ jobs:
         with:
           version: "0.11.31"
           enable-cache: true
-      - name: Tenant isolation and DB integration tests (PostgreSQL via compose)
+      - name: Integration tests (PostgreSQL, Valkey, OpenSearch, SeaweedFS, Temporal via compose)
         run: scripts/test-integration.sh
 
   frontend:
@@ -86,6 +92,8 @@ jobs:
           make docker/run
           make docker/smoke
           CI=1 make test/e2e
+      - name: Licence check of the ingestion image (Docling, CPU PyTorch)
+        run: python3 scripts/check-licenses.py --ingest-image forge-backend-ingest:dev
       - name: Stack logs on failure
         if: failure()
         run: docker compose -f deploy/compose/docker-compose.yml --project-directory . --env-file .env --env-file deploy/compose/infra.env logs --no-color --tail=300
@@ -93,6 +101,13 @@ jobs:
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: forge-backend:dev
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: Scan ingestion worker image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: forge-backend-ingest:dev
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: "1"

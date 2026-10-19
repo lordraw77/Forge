@@ -16,12 +16,16 @@ from forge.api import (
     health,
     routes_admin,
     routes_auth,
+    routes_bundles,
+    routes_data,
     routes_models,
     routes_projects,
     routes_prompts,
+    routes_rag,
     routes_v1,
 )
 from forge.api.deps import Services
+from forge.bundles.service import Bundles
 from forge.core.crypto import Envelope, derive_key
 from forge.core.db import create_engine, session_factory
 from forge.core.errors import install_problem_handlers
@@ -30,7 +34,7 @@ from forge.core.settings import Settings, get_settings
 from forge.gateway.service import Gateway
 from forge.iam.service import AuthService, TokenCodec
 from forge.prompts.service import PromptStudio
-from forge.rag.service import SearchClient
+from forge.rag.service import Rag, SearchClient
 from forge.tenancy.service import TenancyService
 
 log = get_logger(__name__)
@@ -44,6 +48,10 @@ async def _initialise(app: FastAPI, svc: Services) -> None:
             await svc.store.start()
             await svc.gateway.start(svc.store)
             await svc.auth.ensure_bootstrap_admin(svc.settings)
+            try:
+                await svc.rag.start(app.state.search)
+            except Exception as exc:  # S3 or OpenSearch not up yet: retried on first use
+                log.warning("api.rag_start_deferred", error=str(exc))
             app.state.initialised = True
             log.info("api.initialised")
             return
@@ -82,6 +90,17 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
             app.state.redis,
             backoff_base_s=gateway_backoff_s,
         )
+        tenancy = TenancyService(app.state.sessions)
+        prompts = PromptStudio(app.state.sessions, gateway)
+        rag = Rag.build(
+            settings,
+            app.state.sessions,
+            app.state.search,
+            gateway,
+            prompts,
+            tenancy.acl_terms,
+            tenancy.acl_principals,
+        )
         svc = Services(
             settings=settings,
             store=store,
@@ -92,9 +111,11 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
                 TokenCodec(derive_key(master, "forge/jwt/v1")),
                 app.state.redis,
             ),
-            tenancy=TenancyService(app.state.sessions),
+            tenancy=tenancy,
             gateway=gateway,
-            prompts=PromptStudio(app.state.sessions, gateway),
+            prompts=prompts,
+            rag=rag,
+            bundles=Bundles(prompts, rag, gateway, tenancy),
         )
         app.state.services = svc
         init = asyncio.create_task(_initialise(app, svc))
@@ -130,5 +151,9 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
     app.include_router(routes_models.admin_router)
     app.include_router(routes_models.project_router)
     app.include_router(routes_prompts.router)
+    app.include_router(routes_data.router)
+    app.include_router(routes_rag.router)
+    app.include_router(routes_bundles.router)
+    app.add_middleware(routes_data.BodyLimit)
     app.include_router(routes_v1.router)
     return app

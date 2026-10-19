@@ -9,6 +9,7 @@ import { NzMenuModule } from 'ng-zorro-antd/menu';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzTagModule } from 'ng-zorro-antd/tag';
 
+import { setThemeMode, ThemeMode, themeMode } from '../core/theme-mode';
 import { currentLocale, setLocale } from '../core/locale';
 import { Session } from '../core/session';
 import { SystemService } from '../core/system.service';
@@ -78,6 +79,18 @@ export class Shell {
       icon: 'safety-certificate',
       run: () => this.go('/account/totp'),
       disabled: user?.totp_enabled ?? false,
+    });
+    const mode = themeMode();
+    const next: ThemeMode = mode === 'light' ? 'dark' : mode === 'dark' ? 'system' : 'light';
+    const names: Record<ThemeMode, string> = {
+      light: $localize`Light`,
+      dark: $localize`Dark`,
+      system: $localize`System`,
+    };
+    items.push({
+      label: $localize`Theme: ${names[mode]}:mode: → ${names[next]}:next:`,
+      icon: 'bg-colors',
+      run: () => setThemeMode(next),
     });
     items.push({
       label: currentLocale() === 'it' ? 'English' : 'Italiano',

@@ -18,6 +18,7 @@ import re
 import sys
 import time
 from collections.abc import Callable, Iterable, Mapping
+from contextvars import ContextVar
 from dataclasses import dataclass
 from types import FrameType
 from typing import Any
@@ -29,8 +30,11 @@ from jinja2.filters import FILTERS
 from jinja2.sandbox import ImmutableSandboxedEnvironment
 
 MAX_TEMPLATE_CHARS = 32_000
-MAX_VALUE_CHARS = 262_144
-MAX_OUTPUT_CHARS = 1_000_000
+MAX_VALUE_CHARS = 262_144  # per variable on the test page and playground only
+MAX_OUTPUT_CHARS = 1_000_000  # growth a template may add on top of its inputs
+# Per render: the output and intermediate-value cap = MAX_OUTPUT_CHARS + the size of the inputs,
+# so large inputs in production use are never refused while doubling tricks still are.
+_SIZE_CAP: ContextVar[int] = ContextVar("template_size_cap", default=MAX_OUTPUT_CHARS)
 MAX_RANGE = 1_000
 MAX_INT_BITS = 4_096
 MAX_STEPS = 200_000
@@ -146,7 +150,7 @@ def valid_name(name: str) -> bool:
 def _too_big(value: Any) -> bool:
     if isinstance(value, int):
         return value.bit_length() > MAX_INT_BITS
-    return isinstance(value, str | list | tuple | dict) and len(value) > MAX_OUTPUT_CHARS
+    return isinstance(value, str | list | tuple | dict) and len(value) > _SIZE_CAP.get()
 
 
 def _safe_range(*args: int) -> range:
@@ -161,7 +165,7 @@ def _safe_replace(s: Any, old: str, new: str, count: int | None = None) -> str:
     hits = text.count(old) if old else len(text) + 1
     if count is not None and count >= 0:
         hits = min(hits, count)
-    if len(text) + hits * max(len(new) - len(old), 0) > MAX_OUTPUT_CHARS:
+    if len(text) + hits * max(len(new) - len(old), 0) > _SIZE_CAP.get():
         raise SecurityError("replace() result is too large")
     return text.replace(old, new, -1 if count is None else count)
 
@@ -180,10 +184,10 @@ class _Sandbox(ImmutableSandboxedEnvironment):
                 raise SecurityError("product is too large")
             for seq, n in ((left, right), (right, left)):
                 sized = isinstance(seq, str | list | tuple) and isinstance(n, int)
-                if sized and len(seq) * n > MAX_OUTPUT_CHARS:
+                if sized and len(seq) * n > _SIZE_CAP.get():
                     raise SecurityError("repetition result is too large")
         sequences = isinstance(left, str | list | tuple) and isinstance(right, type(left))
-        if op == "+" and sequences and len(left) + len(right) > MAX_OUTPUT_CHARS:
+        if op == "+" and sequences and len(left) + len(right) > _SIZE_CAP.get():
             raise SecurityError("concatenation result is too large")
         return super().call_binop(context, op, left, right)
 
@@ -283,16 +287,20 @@ class _Budget:
         return self.local if frame.f_code.co_filename == _TEMPLATE_FILE else None
 
 
-def render(source: str, values: Mapping[str, Any]) -> str:
+def render(source: str, values: Mapping[str, Any], *, limit_values: bool = True) -> str:
     """Render one template with `values` under the sandbox and budgets.
 
     Synchronous and CPU-bound: call it through `asyncio.to_thread`. The trace function is
     per-thread, so it never sees other requests' code.
     """
+    inputs = 0
     for name, value in values.items():
-        if isinstance(value, str) and len(value) > MAX_VALUE_CHARS:
+        size = len(value) if isinstance(value, str | list | tuple | dict) else 0
+        if limit_values and size > MAX_VALUE_CHARS:
             raise TemplateError(f"Value of '{name}' exceeds {MAX_VALUE_CHARS} characters")
+        inputs += size
     template = _compile(source)
+    token = _SIZE_CAP.set(MAX_OUTPUT_CHARS + 2 * inputs)
     budget = _Budget(deadline=time.monotonic() + RENDER_BUDGET_S)
     previous = sys.gettrace()
     sys.settrace(budget.tracer)
@@ -301,7 +309,7 @@ def render(source: str, values: Mapping[str, Any]) -> str:
         size = 0
         for chunk in template.generate(dict(values)):
             size += len(chunk)
-            if size > MAX_OUTPUT_CHARS:
+            if size > _SIZE_CAP.get():
                 raise SecurityError("rendered prompt is too large")
             parts.append(chunk)
         return "".join(parts)
@@ -313,6 +321,7 @@ def render(source: str, values: Mapping[str, Any]) -> str:
         raise TemplateError(f"Render error: {exc}") from exc
     finally:
         sys.settrace(previous)
+        _SIZE_CAP.reset(token)
 
 
 def missing_required(required: Iterable[str], values: Mapping[str, Any]) -> list[str]:

@@ -1,0 +1,484 @@
+@if (notice(); as n) {
+  <nz-alert
+    [nzType]="n.ok ? 'success' : 'error'"
+    [nzMessage]="n.text"
+    nzShowIcon
+    data-testid="data-notice"
+  />
+}
+
+@if (!id()) {
+  <!-- Collections -->
+  <div class="head">
+    <p class="intro" i18n>
+      Data Collections hold the files that RAG pipelines index. Files are parsed, chunked and
+      embedded automatically after upload.
+    </p>
+    <span class="spacer"></span>
+    @if (canWrite()) {
+      <button nz-button nzType="primary" (click)="createOpen = true" data-testid="new-collection">
+        <nz-icon nzType="plus" /><span i18n>New collection</span>
+      </button>
+    }
+  </div>
+  <nz-table
+    [nzData]="collections()"
+    nzSize="small"
+    [nzShowPagination]="false"
+    [nzPageSize]="1000"
+    [nzNoResult]="noCollections"
+    data-testid="collections"
+  >
+    <thead>
+      <tr>
+        <th i18n>Name</th>
+        <th i18n>Status</th>
+        <th i18n>Files</th>
+        <th i18n>Size</th>
+        <th i18n>Indexes</th>
+        <th i18n>Updated</th>
+        <th class="actions"><span class="sr-only" i18n>Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (c of collections(); track c.id) {
+        <tr [attr.data-collection]="c.name">
+          <td>
+            <a [routerLink]="['/projects/data', c.id]">{{ c.name }}</a>
+            @if (c.description) {
+              <div class="muted small">{{ c.description }}</div>
+            }
+          </td>
+          <td>
+            <nz-tag [nzColor]="statusColor(c.status)">{{ statusLabel(c.status) }}</nz-tag>
+          </td>
+          <td>
+            {{ files(c) }}
+            @if (c.documents.failed) {
+              <span class="error" i18n>({{ c.documents.failed }} failed)</span>
+            }
+          </td>
+          <td>{{ c.size_bytes / 1048576 | number: '1.0-1' }} MB</td>
+          <td>{{ c.knowledge_bases }}</td>
+          <td>{{ c.updated_at | date: 'short' }}</td>
+          <td class="actions">
+            @if (canWrite()) {
+              <button nz-button nzType="link" nzSize="small" (click)="openRename(c)" i18n>
+                Rename
+              </button>
+              <button
+                nz-button
+                nzType="link"
+                nzDanger
+                nzSize="small"
+                (click)="deleting.set(c)"
+                i18n
+              >
+                Delete
+              </button>
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+  </nz-table>
+  <ng-template #noCollections>
+    <span class="muted" i18n>No collections yet.</span>
+  </ng-template>
+} @else if (collection(); as c) {
+  <!-- One collection -->
+  <div class="crumbs">
+    <a routerLink="/projects/data" i18n>Data Collections</a>
+    <span class="muted">/</span>
+    <strong data-testid="collection-name">{{ c.name }}</strong>
+    <nz-tag [nzColor]="statusColor(c.status)" data-testid="collection-status">{{
+      statusLabel(c.status)
+    }}</nz-tag>
+  </div>
+
+  @if (canWrite()) {
+    <nz-card nzSize="small" nzTitle="Upload" i18n-nzTitle>
+      <div class="upload">
+        <input
+          #fileInput
+          type="file"
+          multiple
+          [accept]="accept"
+          (change)="pick($event, false)"
+          data-testid="upload-files"
+        />
+        <input
+          #folderInput
+          type="file"
+          multiple
+          webkitdirectory
+          (change)="pick($event, true)"
+          data-testid="upload-folder"
+        />
+        <button nz-button nzType="primary" [nzLoading]="uploading()" (click)="fileInput.click()">
+          <nz-icon nzType="upload" /><span i18n>Upload files</span>
+        </button>
+        <button nz-button [disabled]="uploading()" (click)="folderInput.click()" i18n>
+          Upload folder
+        </button>
+        <nz-select
+          class="groups"
+          nzMode="multiple"
+          nzPlaceHolder="Groups (none = whole project)"
+          i18n-nzPlaceHolder
+          aria-label="Groups that may read new files"
+          i18n-aria-label
+          data-testid="upload-groups"
+          [(ngModel)]="uploadGroups"
+        >
+          @for (g of principals().groups; track g.id) {
+            <nz-option [nzValue]="g.id" [nzLabel]="g.name" />
+          }
+        </nz-select>
+        <nz-select
+          class="groups"
+          nzMode="multiple"
+          nzPlaceHolder="Roles"
+          i18n-nzPlaceHolder
+          aria-label="Roles that may read new files"
+          i18n-aria-label
+          data-testid="upload-roles"
+          [(ngModel)]="uploadRoles"
+        >
+          @for (r of principals().roles; track r.id) {
+            <nz-option [nzValue]="r.id" [nzLabel]="r.name" />
+          }
+        </nz-select>
+      </div>
+      <p class="muted small" i18n>
+        PDF, DOCX, PPTX, XLSX, HTML, Markdown, text and PNG/JPG images (OCR), up to 100 MB per
+        upload. The type is checked from the content.
+      </p>
+      @if (uploadResults().length) {
+        @let n = counts(uploadResults());
+        <nz-alert
+          [nzType]="n.rejected ? 'warning' : 'success'"
+          [nzMessage]="uploadSummary"
+          [nzDescription]="rejectedList"
+          data-testid="upload-summary"
+        />
+        <ng-template #uploadSummary>
+          <span i18n
+            >{{ n.accepted }} accepted, {{ n.unchanged }} unchanged, {{ n.rejected }} rejected</span
+          >
+        </ng-template>
+        <ng-template #rejectedList>
+          @for (r of rejected(uploadResults()); track r.filename) {
+            <div>{{ r.filename }}: {{ r.error }}</div>
+          }
+        </ng-template>
+      }
+    </nz-card>
+  }
+
+  <nz-table
+    [nzData]="documents()"
+    nzSize="small"
+    [nzShowPagination]="false"
+    [nzPageSize]="2000"
+    [nzNoResult]="noDocs"
+    data-testid="documents"
+  >
+    <thead>
+      <tr>
+        <th i18n>File</th>
+        <th i18n>Type</th>
+        <th i18n>Size</th>
+        <th i18n>Status</th>
+        <th i18n>Access groups</th>
+        <th i18n>Uploaded</th>
+        <th class="actions"><span class="sr-only" i18n>Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (d of documents(); track d.id) {
+        <tr [attr.data-document]="d.name">
+          <td>
+            @if (d.path) {
+              <span class="path">{{ d.path }}/</span>
+            }
+            {{ d.name }}
+            @if (d.pages) {
+              <span class="muted small" i18n>({{ d.pages }} pages)</span>
+            }
+          </td>
+          <td>{{ d.kind }}</td>
+          <td>{{ d.size_bytes / 1024 | number: '1.0-0' }} KB</td>
+          <td>
+            <nz-tag [nzColor]="statusColor(d.status)" [attr.data-testid]="'status-' + d.name">{{
+              statusLabel(d.status)
+            }}</nz-tag>
+            @if (d.status === 'failed') {
+              <div class="error" [attr.data-testid]="'error-' + d.name">
+                {{ d.failed_at | date: 'short' }} · {{ d.error }}
+              </div>
+            }
+            @for (i of d.ingestions ?? []; track i.kb_id) {
+              @if (i.status === 'ready') {
+                <div class="muted small" i18n>
+                  {{ i.embedding_model }}: {{ i.chunks }} chunks ({{ i.reused }} reused)
+                </div>
+              }
+            }
+          </td>
+          <td>
+            @for (a of d.acl; track a.id) {
+              <nz-tag [nzColor]="a.kind === 'role' ? 'purple' : 'blue'">{{
+                a.name ?? deletedLabel
+              }}</nz-tag>
+            } @empty {
+              <span class="muted small" i18n>Whole project</span>
+            }
+          </td>
+          <td>{{ d.created_at | date: 'short' }}</td>
+          <td class="actions">
+            <a
+              nz-button
+              nzType="link"
+              nzSize="small"
+              [href]="downloadUrl(d)"
+              target="_blank"
+              rel="noopener"
+              i18n
+              >Download</a
+            >
+            @if (canWrite()) {
+              @if (d.status === 'failed') {
+                <button
+                  nz-button
+                  nzType="link"
+                  nzSize="small"
+                  (click)="retry(d)"
+                  [attr.data-testid]="'retry-' + d.name"
+                  i18n
+                >
+                  Retry
+                </button>
+              }
+              <button nz-button nzType="link" nzSize="small" (click)="openAcl(d)" i18n>
+                Access
+              </button>
+              <button
+                nz-button
+                nzType="link"
+                nzDanger
+                nzSize="small"
+                (click)="deletingDoc.set(d)"
+                i18n
+              >
+                Delete
+              </button>
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+  </nz-table>
+  <ng-template #noDocs>
+    <span class="muted" i18n>No files yet. Upload files or a folder.</span>
+  </ng-template>
+
+  @if (knowledgeBases().length) {
+    <nz-card nzSize="small" nzTitle="Indexes" i18n-nzTitle data-testid="knowledge-bases">
+      <p class="muted small" i18n>
+        One index per embedding model and chunking setting, created by RAG pipelines.
+      </p>
+      <nz-table [nzData]="knowledgeBases()" nzSize="small" [nzShowPagination]="false">
+        <thead>
+          <tr>
+            <th i18n>Embedding model</th>
+            <th i18n>Chunking</th>
+            <th i18n>Status</th>
+            <th i18n>Chunks</th>
+            <th i18n>Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (k of knowledgeBases(); track k.id) {
+            <tr>
+              <td>
+                {{ k.embedding_model }} <span class="muted small">({{ k.dims }} dims)</span>
+              </td>
+              <td>{{ k.node_parser }} · {{ k.chunk_size }}/{{ k.chunk_overlap }}</td>
+              <td>
+                <nz-tag [nzColor]="statusColor(k.status)">{{ statusLabel(k.status) }}</nz-tag>
+              </td>
+              <td>{{ k.chunks | number }}</td>
+              <td>{{ k.created_at | date: 'short' }}</td>
+            </tr>
+          }
+        </tbody>
+      </nz-table>
+    </nz-card>
+  }
+}
+
+<!-- New collection -->
+<nz-modal [(nzVisible)]="createOpen" nzTitle="New collection" i18n-nzTitle [nzFooter]="null">
+  <ng-container *nzModalContent>
+    <form class="form" (ngSubmit)="create()">
+      <label for="dc-name" i18n>Name</label>
+      <input
+        nz-input
+        id="dc-name"
+        name="name"
+        cdkFocusInitial
+        required
+        maxlength="120"
+        data-testid="collection-name-input"
+        [(ngModel)]="draft.name"
+      />
+      <label for="dc-desc" i18n>Description</label>
+      <textarea
+        nz-input
+        id="dc-desc"
+        name="description"
+        rows="3"
+        maxlength="2000"
+        [(ngModel)]="draft.description"
+      ></textarea>
+      <div class="dialog-actions">
+        <button nz-button type="button" (click)="createOpen = false" i18n>Cancel</button>
+        <button
+          nz-button
+          nzType="primary"
+          type="submit"
+          [disabled]="!draft.name.trim()"
+          data-testid="collection-create"
+          i18n
+        >
+          Create
+        </button>
+      </div>
+    </form>
+  </ng-container>
+</nz-modal>
+
+<!-- Rename -->
+<nz-modal
+  [nzVisible]="!!renaming"
+  nzTitle="Rename collection"
+  i18n-nzTitle
+  [nzFooter]="null"
+  (nzOnCancel)="renaming = null"
+>
+  <ng-container *nzModalContent>
+    <form class="form" (ngSubmit)="rename()">
+      <label for="dc-rename" i18n>Name</label>
+      <input
+        nz-input
+        id="dc-rename"
+        name="name"
+        cdkFocusInitial
+        required
+        maxlength="120"
+        [(ngModel)]="renameName"
+      />
+      <div class="dialog-actions">
+        <button nz-button type="button" (click)="renaming = null" i18n>Cancel</button>
+        <button nz-button nzType="primary" type="submit" i18n>Save</button>
+      </div>
+    </form>
+  </ng-container>
+</nz-modal>
+
+<!-- Delete collection -->
+<nz-modal
+  [nzVisible]="!!deleting()"
+  nzTitle="Delete collection"
+  i18n-nzTitle
+  [nzFooter]="null"
+  (nzOnCancel)="deleting.set(null)"
+>
+  <ng-container *nzModalContent>
+    <p i18n>
+      Delete “{{ deleting()?.name }}” with all its files, chunks and embeddings? This cannot be
+      undone.
+    </p>
+    <div class="dialog-actions">
+      <button nz-button (click)="deleting.set(null)" cdkFocusInitial i18n>No</button>
+      <button
+        nz-button
+        nzDanger
+        nzType="primary"
+        (click)="removeCollection()"
+        data-testid="collection-delete-yes"
+        i18n
+      >
+        Yes
+      </button>
+    </div>
+  </ng-container>
+</nz-modal>
+
+<!-- Delete document -->
+<nz-modal
+  [nzVisible]="!!deletingDoc()"
+  nzTitle="Delete file"
+  i18n-nzTitle
+  [nzFooter]="null"
+  (nzOnCancel)="deletingDoc.set(null)"
+>
+  <ng-container *nzModalContent>
+    <p i18n>Delete “{{ deletingDoc()?.name }}” and its chunks?</p>
+    <div class="dialog-actions">
+      <button nz-button (click)="deletingDoc.set(null)" cdkFocusInitial i18n>No</button>
+      <button
+        nz-button
+        nzDanger
+        nzType="primary"
+        (click)="removeDocument()"
+        data-testid="document-delete-yes"
+        i18n
+      >
+        Yes
+      </button>
+    </div>
+  </ng-container>
+</nz-modal>
+
+<!-- Document ACL -->
+<nz-modal
+  [nzVisible]="!!aclDoc"
+  nzTitle="Access groups"
+  i18n-nzTitle
+  [nzFooter]="null"
+  (nzOnCancel)="aclDoc = null"
+>
+  <ng-container *nzModalContent>
+    <div class="form">
+      <p class="muted" i18n>
+        Only members of these groups, or with these roles, receive chunks of “{{ aclDoc?.name }}” in
+        RAG answers. Leave both empty to make the file visible to the whole project.
+      </p>
+      <label for="acl-groups" i18n>Groups</label>
+      <nz-select
+        nzMode="multiple"
+        nzId="acl-groups"
+        data-testid="acl-groups"
+        [(ngModel)]="aclGroups"
+      >
+        @for (g of principals().groups; track g.id) {
+          <nz-option [nzValue]="g.id" [nzLabel]="g.name" />
+        }
+      </nz-select>
+      <label for="acl-roles" i18n>Roles</label>
+      <nz-select nzMode="multiple" nzId="acl-roles" data-testid="acl-roles" [(ngModel)]="aclRoles">
+        @for (r of principals().roles; track r.id) {
+          <nz-option [nzValue]="r.id" [nzLabel]="r.name" />
+        }
+      </nz-select>
+      <div class="dialog-actions">
+        <button nz-button (click)="aclDoc = null" i18n>Cancel</button>
+        <button nz-button nzType="primary" (click)="saveAcl()" data-testid="acl-save" i18n>
+          Save
+        </button>
+      </div>
+    </div>
+  </ng-container>
+</nz-modal>

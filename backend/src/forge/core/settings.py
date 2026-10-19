@@ -45,11 +45,14 @@ class Settings(BaseSettings):
     s3_bucket: str = "forge"
     temporal_address: str = "localhost:7233"
     temporal_namespace: str = "default"
+    temporal_ingest_queue: str = "ingest"
     # BM25 full-text engine (ADR-016); the CA file verifies its TLS certificate.
     search_url: str = "https://localhost:9200"
     search_username: str = "forge"
     search_password: SecretStr | None = None
     search_ca_file: str | None = None
+    # Alias of the chunk index; the physical index is `<alias>-v<N>` (ADR-016).
+    search_index: str = "forge-chunks"
 
     # Boot-time log level, used until the GUI setting is loaded from the database.
     log_level: str = "INFO"

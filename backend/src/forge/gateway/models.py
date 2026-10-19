@@ -48,6 +48,7 @@ class Model(Base):
     timeout_s: Mapped[int] = mapped_column(default=60)
     max_retries: Mapped[int] = mapped_column(default=2)
     rpm_limit: Mapped[int | None]
+    tokenizer: Mapped[str | None]
     all_projects: Mapped[bool] = mapped_column(default=False)
     status: Mapped[str] = mapped_column(default="active")
     created_at: Mapped[datetime] = mapped_column(default=utcnow)

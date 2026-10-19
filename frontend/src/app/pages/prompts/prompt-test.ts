@@ -431,8 +431,12 @@ export class PromptTest {
   protected values: Record<string, string> = {};
   protected compareModels: string[] = [];
 
+  /** False until the prompt, its versions and the first runs are loaded. */
+  protected readonly loaded = signal(false);
+
   protected readonly ready = computed(() => {
     this.tick();
+    if (!this.loaded() || this.versionNo() === null) return false;
     return this.variables().every((v) => !v.required || !!(this.values[v.name] ?? '').trim());
   });
 
@@ -445,6 +449,7 @@ export class PromptTest {
   }
 
   private async load(projectId: string, promptId: string): Promise<void> {
+    this.loaded.set(false);
     try {
       const [prompt, versions, models] = await Promise.all([
         firstValueFrom(this.api.getPrompt({ projectId, promptId })),
@@ -456,6 +461,7 @@ export class PromptTest {
       this.models.set(models);
       this.setVersion(prompt.version);
       await this.loadRuns();
+      this.loaded.set(true);
     } catch (e) {
       this.message.set({ ok: false, text: problemMessage(e) });
     }

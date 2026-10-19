@@ -1,6 +1,86 @@
 {
   "components": {
     "schemas": {
+      "AclEntry": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "group",
+              "role"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None when the group or role no longer exists",
+            "title": "Name"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "name"
+        ],
+        "title": "AclEntry",
+        "type": "object"
+      },
+      "AclPrincipal": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "AclPrincipal",
+        "type": "object"
+      },
+      "AclPrincipalsOut": {
+        "description": "Groups and roles a document ACL can name.",
+        "properties": {
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/AclPrincipal"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/AclPrincipal"
+            },
+            "title": "Roles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "groups",
+          "roles"
+        ],
+        "title": "AclPrincipalsOut",
+        "type": "object"
+      },
       "AdminProjectOut": {
         "properties": {
           "created_at": {
@@ -281,6 +361,31 @@
         "title": "ApiKeyOut",
         "type": "object"
       },
+      "AssetRef": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "versions": {
+            "default": "all",
+            "enum": [
+              "all",
+              "published",
+              "latest"
+            ],
+            "title": "Versions",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "AssetRef",
+        "type": "object"
+      },
       "AssistIn": {
         "additionalProperties": false,
         "properties": {
@@ -446,6 +551,71 @@
           "created_at"
         ],
         "title": "AuditOut",
+        "type": "object"
+      },
+      "Body_upload_documents": {
+        "properties": {
+          "files": {
+            "description": "Files, or the files of a folder",
+            "items": {
+              "contentMediaType": "application/octet-stream",
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "group_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Groups that may read the files",
+            "title": "Group Ids"
+          },
+          "paths": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Relative path of each file (folder uploads)",
+            "title": "Paths"
+          },
+          "role_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Roles that may read the files",
+            "title": "Role Ids"
+          }
+        },
+        "required": [
+          "files"
+        ],
+        "title": "Body_upload_documents",
         "type": "object"
       },
       "ChatCompletionIn": {
@@ -805,6 +975,68 @@
         "title": "ChatMessage",
         "type": "object"
       },
+      "Citation": {
+        "properties": {
+          "chunk_id": {
+            "format": "uuid",
+            "title": "Chunk Id",
+            "type": "string"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "document_name": {
+            "title": "Document Name",
+            "type": "string"
+          },
+          "excerpt": {
+            "title": "Excerpt",
+            "type": "string"
+          },
+          "heading_path": {
+            "title": "Heading Path",
+            "type": "string"
+          },
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "index",
+          "chunk_id",
+          "document_id",
+          "document_name",
+          "page",
+          "heading_path",
+          "score",
+          "excerpt",
+          "url"
+        ],
+        "title": "Citation",
+        "type": "object"
+      },
       "CodeIn": {
         "additionalProperties": false,
         "properties": {
@@ -819,6 +1051,272 @@
           "code"
         ],
         "title": "CodeIn",
+        "type": "object"
+      },
+      "CollectionIn": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CollectionIn",
+        "type": "object"
+      },
+      "CollectionOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "documents": {
+            "$ref": "#/components/schemas/StatusCounts"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "knowledge_bases": {
+            "title": "Knowledge Bases",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "empty",
+              "in_progress",
+              "success",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "status",
+          "documents",
+          "size_bytes",
+          "knowledge_bases",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "CollectionOut",
+        "type": "object"
+      },
+      "CollectionUpdateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "CollectionUpdateIn",
+        "type": "object"
+      },
+      "DocumentOut": {
+        "properties": {
+          "acl": {
+            "items": {
+              "$ref": "#/components/schemas/AclEntry"
+            },
+            "title": "Acl",
+            "type": "array"
+          },
+          "collection_id": {
+            "format": "uuid",
+            "title": "Collection Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "failed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failed At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "ingestions": {
+            "items": {
+              "$ref": "#/components/schemas/IngestionOut"
+            },
+            "title": "Ingestions",
+            "type": "array"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "mime_type": {
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pages"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "processing",
+              "ready",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "collection_id",
+          "name",
+          "path",
+          "kind",
+          "mime_type",
+          "size_bytes",
+          "sha256",
+          "acl",
+          "status",
+          "error",
+          "failed_at",
+          "pages",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "DocumentOut",
+        "type": "object"
+      },
+      "DocumentUpdateIn": {
+        "additionalProperties": false,
+        "description": "Who may read the document in RAG answers: members of these groups or with these roles.\nBoth empty = the whole project (US-1.16.2).",
+        "properties": {
+          "group_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Group Ids",
+            "type": "array"
+          },
+          "role_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Role Ids",
+            "type": "array"
+          }
+        },
+        "title": "DocumentUpdateIn",
         "type": "object"
       },
       "DuplicateIn": {
@@ -1018,6 +1516,59 @@
         "title": "Example",
         "type": "object"
       },
+      "ExportIn": {
+        "additionalProperties": false,
+        "properties": {
+          "collections": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 500,
+            "title": "Collections",
+            "type": "array"
+          },
+          "gateway_config": {
+            "default": false,
+            "title": "Gateway Config",
+            "type": "boolean"
+          },
+          "include_dependencies": {
+            "default": true,
+            "description": "Add the prompts and collections used by the pipelines",
+            "title": "Include Dependencies",
+            "type": "boolean"
+          },
+          "model_aliases": {
+            "default": false,
+            "title": "Model Aliases",
+            "type": "boolean"
+          },
+          "prompts": {
+            "items": {
+              "$ref": "#/components/schemas/AssetRef"
+            },
+            "maxItems": 500,
+            "title": "Prompts",
+            "type": "array"
+          },
+          "rag_pipelines": {
+            "items": {
+              "$ref": "#/components/schemas/AssetRef"
+            },
+            "maxItems": 500,
+            "title": "Rag Pipelines",
+            "type": "array"
+          },
+          "user_groups": {
+            "default": false,
+            "title": "User Groups",
+            "type": "boolean"
+          }
+        },
+        "title": "ExportIn",
+        "type": "object"
+      },
       "FlagsOut": {
         "properties": {
           "eula_required": {
@@ -1041,6 +1592,86 @@
         "title": "FlagsOut",
         "type": "object"
       },
+      "GroupIn": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "GroupIn",
+        "type": "object"
+      },
+      "GroupMembersIn": {
+        "additionalProperties": false,
+        "properties": {
+          "user_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 5000,
+            "title": "User Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "user_ids"
+        ],
+        "title": "GroupMembersIn",
+        "type": "object"
+      },
+      "GroupOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "member_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Member Ids",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "member_ids",
+          "created_at"
+        ],
+        "title": "GroupOut",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1052,6 +1683,236 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "ImportIn": {
+        "additionalProperties": false,
+        "properties": {
+          "bundle": {
+            "additionalProperties": true,
+            "title": "Bundle",
+            "type": "object"
+          },
+          "dry_run": {
+            "default": true,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "policy": {
+            "default": "new_version",
+            "enum": [
+              "new_version",
+              "rename",
+              "skip"
+            ],
+            "title": "Policy",
+            "type": "string"
+          }
+        },
+        "required": [
+          "bundle"
+        ],
+        "title": "ImportIn",
+        "type": "object"
+      },
+      "ImportItem": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "versions": {
+            "default": 0,
+            "title": "Versions",
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind",
+          "name",
+          "action"
+        ],
+        "title": "ImportItem",
+        "type": "object"
+      },
+      "ImportReport": {
+        "properties": {
+          "dry_run": {
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ImportItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "migrated_from": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Migrated From"
+          },
+          "policy": {
+            "enum": [
+              "new_version",
+              "rename",
+              "skip"
+            ],
+            "title": "Policy",
+            "type": "string"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "source": {
+            "additionalProperties": true,
+            "title": "Source",
+            "type": "object"
+          },
+          "summary": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Summary",
+            "type": "object"
+          }
+        },
+        "required": [
+          "dry_run",
+          "policy",
+          "schema_version",
+          "migrated_from",
+          "source",
+          "items",
+          "summary"
+        ],
+        "title": "ImportReport",
+        "type": "object"
+      },
+      "IngestionOut": {
+        "properties": {
+          "chunks": {
+            "title": "Chunks",
+            "type": "integer"
+          },
+          "embedded": {
+            "title": "Embedded",
+            "type": "integer"
+          },
+          "embedding_model": {
+            "title": "Embedding Model",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "kb_id": {
+            "format": "uuid",
+            "title": "Kb Id",
+            "type": "string"
+          },
+          "reused": {
+            "title": "Reused",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "processing",
+              "ready",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kb_id",
+          "embedding_model",
+          "status",
+          "error",
+          "chunks",
+          "embedded",
+          "reused",
+          "finished_at"
+        ],
+        "title": "IngestionOut",
         "type": "object"
       },
       "InviteIn": {
@@ -1108,6 +1969,89 @@
           "user_id"
         ],
         "title": "InviteResultOut",
+        "type": "object"
+      },
+      "KnowledgeBaseOut": {
+        "properties": {
+          "chunk_overlap": {
+            "title": "Chunk Overlap",
+            "type": "integer"
+          },
+          "chunk_size": {
+            "title": "Chunk Size",
+            "type": "integer"
+          },
+          "chunks": {
+            "title": "Chunks",
+            "type": "integer"
+          },
+          "collection_id": {
+            "format": "uuid",
+            "title": "Collection Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "dims": {
+            "title": "Dims",
+            "type": "integer"
+          },
+          "documents": {
+            "$ref": "#/components/schemas/StatusCounts"
+          },
+          "embedding_model": {
+            "title": "Embedding Model",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "node_parser": {
+            "title": "Node Parser",
+            "type": "string"
+          },
+          "ready_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ready At"
+          },
+          "status": {
+            "enum": [
+              "building",
+              "ready",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "collection_id",
+          "embedding_model",
+          "dims",
+          "chunk_size",
+          "chunk_overlap",
+          "node_parser",
+          "status",
+          "documents",
+          "chunks",
+          "created_at",
+          "ready_at"
+        ],
+        "title": "KnowledgeBaseOut",
         "type": "object"
       },
       "Liveness": {
@@ -1265,6 +2209,14 @@
             "title": "Full Name",
             "type": "string"
           },
+          "group_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Group Ids",
+            "type": "array"
+          },
           "last_active_at": {
             "anyOf": [
               {
@@ -1308,7 +2260,8 @@
           "role_name_id",
           "role_name",
           "role_type",
-          "last_active_at"
+          "last_active_at",
+          "group_ids"
         ],
         "title": "MemberOut",
         "type": "object"
@@ -1316,15 +2269,35 @@
       "MemberUpdateIn": {
         "additionalProperties": false,
         "properties": {
+          "group_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "maxItems": 200,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Ids"
+          },
           "role_name_id": {
-            "format": "uuid",
-            "title": "Role Name Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role Name Id"
           }
         },
-        "required": [
-          "role_name_id"
-        ],
         "title": "MemberUpdateIn",
         "type": "object"
       },
@@ -1564,6 +2537,19 @@
             "minimum": 1.0,
             "title": "Timeout S",
             "type": "integer"
+          },
+          "tokenizer": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "pattern": "^(hf:[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*|tiktoken:[a-z0-9_]+)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokenizer"
           }
         },
         "required": [
@@ -1747,6 +2733,17 @@
             "title": "Timeout S",
             "type": "integer"
           },
+          "tokenizer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokenizer"
+          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
@@ -1790,6 +2787,7 @@
           "timeout_s",
           "max_retries",
           "rpm_limit",
+          "tokenizer",
           "all_projects",
           "enabled_project_ids",
           "status",
@@ -1976,6 +2974,546 @@
           "new_password"
         ],
         "title": "PasswordChangeIn",
+        "type": "object"
+      },
+      "PipelineConfig": {
+        "additionalProperties": false,
+        "description": "Pipeline parameters (spec Part 2) with the \"RAG design\" defaults.",
+        "properties": {
+          "candidates": {
+            "default": 40,
+            "maximum": 200.0,
+            "minimum": 5.0,
+            "title": "Candidates",
+            "type": "integer"
+          },
+          "chunk_overlap": {
+            "default": 64,
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Chunk Overlap",
+            "type": "integer"
+          },
+          "chunk_size": {
+            "default": 512,
+            "maximum": 2000.0,
+            "minimum": 100.0,
+            "title": "Chunk Size",
+            "type": "integer"
+          },
+          "collection_id": {
+            "format": "uuid",
+            "title": "Collection Id",
+            "type": "string"
+          },
+          "context_budget": {
+            "default": 6000,
+            "maximum": 100000.0,
+            "minimum": 500.0,
+            "title": "Context Budget",
+            "type": "integer"
+          },
+          "embedding_model": {
+            "default": "embedding",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Embedding Model",
+            "type": "string"
+          },
+          "llm": {
+            "default": "default-chat",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Llm",
+            "type": "string"
+          },
+          "node_parser": {
+            "default": "structure",
+            "enum": [
+              "structure",
+              "recursive",
+              "fixed"
+            ],
+            "title": "Node Parser",
+            "type": "string"
+          },
+          "prompt_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Id"
+          },
+          "reranker": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "rerank",
+            "description": "Model or alias; null disables reranking",
+            "title": "Reranker"
+          },
+          "response_mode": {
+            "default": "compact",
+            "enum": [
+              "compact",
+              "refine"
+            ],
+            "title": "Response Mode",
+            "type": "string"
+          },
+          "search_method": {
+            "default": "hybrid",
+            "enum": [
+              "vector",
+              "semantic",
+              "hybrid"
+            ],
+            "title": "Search Method",
+            "type": "string"
+          },
+          "similarity_threshold": {
+            "default": 0.3,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Similarity Threshold",
+            "type": "number"
+          },
+          "temperature": {
+            "anyOf": [
+              {
+                "maximum": 2.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 0.1,
+            "title": "Temperature"
+          },
+          "top_k": {
+            "default": 6,
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Top K",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "collection_id"
+        ],
+        "title": "PipelineConfig",
+        "type": "object"
+      },
+      "PipelineCreateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/PipelineConfig"
+          },
+          "description": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "config"
+        ],
+        "title": "PipelineCreateIn",
+        "type": "object"
+      },
+      "PipelineDetail": {
+        "properties": {
+          "collection_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Name"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "latest_version": {
+            "title": "Latest Version",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "published_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published Version"
+          },
+          "search_method": {
+            "title": "Search Method",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "published"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "tags": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Tags",
+            "type": "object"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "$ref": "#/components/schemas/PipelineVersionOut"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "status",
+          "latest_version",
+          "published_version",
+          "tags",
+          "collection_name",
+          "search_method",
+          "created_at",
+          "updated_at",
+          "version"
+        ],
+        "title": "PipelineDetail",
+        "type": "object"
+      },
+      "PipelineDuplicateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "PipelineDuplicateIn",
+        "type": "object"
+      },
+      "PipelineOut": {
+        "properties": {
+          "collection_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Name"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "latest_version": {
+            "title": "Latest Version",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "published_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published Version"
+          },
+          "search_method": {
+            "title": "Search Method",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "published"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "tags": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Tags",
+            "type": "object"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "status",
+          "latest_version",
+          "published_version",
+          "tags",
+          "collection_name",
+          "search_method",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "PipelineOut",
+        "type": "object"
+      },
+      "PipelinePage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "PipelinePage",
+        "type": "object"
+      },
+      "PipelinePublishIn": {
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "title": "PipelinePublishIn",
+        "type": "object"
+      },
+      "PipelineTagIn": {
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "PipelineTagIn",
+        "type": "object"
+      },
+      "PipelineUpdateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "PipelineUpdateIn",
+        "type": "object"
+      },
+      "PipelineVersionIn": {
+        "additionalProperties": false,
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/PipelineConfig"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "config"
+        ],
+        "title": "PipelineVersionIn",
+        "type": "object"
+      },
+      "PipelineVersionOut": {
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/PipelineConfig"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "kb_id": {
+            "format": "uuid",
+            "title": "Kb Id",
+            "type": "string"
+          },
+          "kb_status": {
+            "title": "Kb Status",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "enum": [
+                "draft",
+                "staging",
+                "prod"
+              ],
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "config",
+          "kb_id",
+          "kb_status",
+          "note",
+          "tags",
+          "created_at",
+          "created_by"
+        ],
+        "title": "PipelineVersionOut",
         "type": "object"
       },
       "PlaygroundIn": {
@@ -2862,6 +4400,331 @@
         "title": "PublishIn",
         "type": "object"
       },
+      "QueryIn": {
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Query",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "QueryIn",
+        "type": "object"
+      },
+      "RagRunDetail": {
+        "properties": {
+          "answer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/Citation"
+            },
+            "title": "Citations",
+            "type": "array"
+          },
+          "cost": {
+            "title": "Cost",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "latency_ms": {
+            "title": "Latency Ms",
+            "type": "integer"
+          },
+          "messages": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Messages",
+            "type": "array"
+          },
+          "model_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Name"
+          },
+          "pipeline_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pipeline Id"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "retrieval": {
+            "additionalProperties": true,
+            "title": "Retrieval",
+            "type": "object"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "no_context",
+              "error"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "tokens_in": {
+            "title": "Tokens In",
+            "type": "integer"
+          },
+          "tokens_out": {
+            "title": "Tokens Out",
+            "type": "integer"
+          },
+          "total_tokens": {
+            "title": "Total Tokens",
+            "type": "integer"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "id",
+          "pipeline_id",
+          "version",
+          "query",
+          "status",
+          "error_code",
+          "error",
+          "answer",
+          "citations",
+          "model_name",
+          "tokens_in",
+          "tokens_out",
+          "total_tokens",
+          "cost",
+          "latency_ms",
+          "created_at",
+          "retrieval",
+          "messages"
+        ],
+        "title": "RagRunDetail",
+        "type": "object"
+      },
+      "RagRunOut": {
+        "properties": {
+          "answer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/Citation"
+            },
+            "title": "Citations",
+            "type": "array"
+          },
+          "cost": {
+            "title": "Cost",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "latency_ms": {
+            "title": "Latency Ms",
+            "type": "integer"
+          },
+          "model_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Name"
+          },
+          "pipeline_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pipeline Id"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "no_context",
+              "error"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "tokens_in": {
+            "title": "Tokens In",
+            "type": "integer"
+          },
+          "tokens_out": {
+            "title": "Tokens Out",
+            "type": "integer"
+          },
+          "total_tokens": {
+            "title": "Total Tokens",
+            "type": "integer"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "id",
+          "pipeline_id",
+          "version",
+          "query",
+          "status",
+          "error_code",
+          "error",
+          "answer",
+          "citations",
+          "model_name",
+          "tokens_in",
+          "tokens_out",
+          "total_tokens",
+          "cost",
+          "latency_ms",
+          "created_at"
+        ],
+        "title": "RagRunOut",
+        "type": "object"
+      },
       "Readiness": {
         "properties": {
           "checks": {
@@ -3448,6 +5311,32 @@
         "title": "SettingOut",
         "type": "object"
       },
+      "StatusCounts": {
+        "properties": {
+          "failed": {
+            "default": 0,
+            "title": "Failed",
+            "type": "integer"
+          },
+          "pending": {
+            "default": 0,
+            "title": "Pending",
+            "type": "integer"
+          },
+          "processing": {
+            "default": 0,
+            "title": "Processing",
+            "type": "integer"
+          },
+          "ready": {
+            "default": 0,
+            "title": "Ready",
+            "type": "integer"
+          }
+        },
+        "title": "StatusCounts",
+        "type": "object"
+      },
       "TagIn": {
         "additionalProperties": false,
         "properties": {
@@ -3631,6 +5520,50 @@
           "otpauth_uri"
         ],
         "title": "TotpEnrollOut",
+        "type": "object"
+      },
+      "UploadResult": {
+        "properties": {
+          "document": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DocumentOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "accepted",
+              "rejected",
+              "unchanged"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "filename",
+          "status"
+        ],
+        "title": "UploadResult",
         "type": "object"
       },
       "Usage": {
@@ -5796,6 +7729,50 @@
         ]
       }
     },
+    "/api/v1/projects/{project_id}/acl-principals": {
+      "get": {
+        "description": "Groups and roles that document ACLs can name (Builders choose them when uploading).",
+        "operationId": "acl_principals",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AclPrincipalsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Acl Principals",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
     "/api/v1/projects/{project_id}/aliases": {
       "get": {
         "operationId": "project_list_aliases",
@@ -6093,6 +8070,752 @@
         ]
       }
     },
+    "/api/v1/projects/{project_id}/collections": {
+      "get": {
+        "operationId": "list_collections",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CollectionOut"
+                  },
+                  "title": "Response List Collections",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Collections",
+        "tags": [
+          "data"
+        ]
+      },
+      "post": {
+        "operationId": "create_collection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Collection",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/collections/{collection_id}": {
+      "delete": {
+        "description": "Deletes the files, chunks and embeddings (US-1.14.2).",
+        "operationId": "delete_collection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Collection Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Collection",
+        "tags": [
+          "data"
+        ]
+      },
+      "get": {
+        "operationId": "get_collection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Collection Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Collection",
+        "tags": [
+          "data"
+        ]
+      },
+      "patch": {
+        "operationId": "update_collection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Collection Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionUpdateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Collection",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/collections/{collection_id}/documents": {
+      "get": {
+        "operationId": "list_documents",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Collection Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DocumentOut"
+                  },
+                  "title": "Response List Documents",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Documents",
+        "tags": [
+          "data"
+        ]
+      },
+      "post": {
+        "description": "Per-file results: accepted (ingestion started), unchanged (same SHA-256) or rejected.\nWithout groups and roles the files are readable by the whole project.",
+        "operationId": "upload_documents",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Collection Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_documents"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UploadResult"
+                  },
+                  "title": "Response Upload Documents",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Documents",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/collections/{collection_id}/documents/{document_id}": {
+      "delete": {
+        "operationId": "delete_document",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Collection Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Document",
+        "tags": [
+          "data"
+        ]
+      },
+      "patch": {
+        "description": "Groups and roles that may read the document; none = the whole project (US-1.16.2).",
+        "operationId": "update_document",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Collection Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentUpdateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Document",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/collections/{collection_id}/documents/{document_id}/content": {
+      "get": {
+        "description": "The original file. PDFs and images open inline (citations link to `#page=N`); text and\nHTML are shown as plain text; Office files download. Never executable in the browser.",
+        "operationId": "download_document",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Collection Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Document",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/collections/{collection_id}/documents/{document_id}/retry": {
+      "post": {
+        "operationId": "retry_document",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Collection Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retry Document",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/collections/{collection_id}/knowledge-bases": {
+      "get": {
+        "operationId": "list_knowledge_bases",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Collection Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/KnowledgeBaseOut"
+                  },
+                  "title": "Response List Knowledge Bases",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Knowledge Bases",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/export": {
+      "post": {
+        "description": "A bundle (JSON) with the chosen items, downloaded as a file.",
+        "operationId": "export_bundle",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Export Bundle",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Bundle",
+        "tags": [
+          "bundles"
+        ]
+      }
+    },
     "/api/v1/projects/{project_id}/gateway/config": {
       "get": {
         "operationId": "project_gateway_config",
@@ -6227,6 +8950,321 @@
         "summary": "Project Gateway Usage",
         "tags": [
           "project-models"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/groups": {
+      "get": {
+        "operationId": "list_groups",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GroupOut"
+                  },
+                  "title": "Response List Groups",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Groups",
+        "tags": [
+          "projects"
+        ]
+      },
+      "post": {
+        "operationId": "create_group",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Group",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/groups/{group_id}": {
+      "delete": {
+        "operationId": "delete_group",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Group",
+        "tags": [
+          "projects"
+        ]
+      },
+      "put": {
+        "operationId": "update_group",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Group",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/groups/{group_id}/members": {
+      "put": {
+        "operationId": "set_group_members",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Group Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupMembersIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Group Members",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/import": {
+      "post": {
+        "description": "Dry run by default: the report says what would be created, extended, renamed or skipped\nand why an item cannot be imported. Send again with `dry_run: false` to apply.",
+        "operationId": "import_bundle",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Bundle",
+        "tags": [
+          "bundles"
         ]
       }
     },
@@ -8125,6 +11163,930 @@
         "summary": "Project Update Provider",
         "tags": [
           "project-models"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/rag": {
+      "get": {
+        "operationId": "list_rag_pipelines",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "draft",
+                    "published"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 120,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelinePage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Rag Pipelines",
+        "tags": [
+          "rag"
+        ]
+      },
+      "post": {
+        "operationId": "create_rag_pipeline",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelineCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Rag Pipeline",
+        "tags": [
+          "rag"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/rag/runs/{run_id}": {
+      "get": {
+        "description": "The trace: retrieval ranking and timings, prompt messages, answer, cost and usage.",
+        "operationId": "get_rag_run",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RagRunDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Rag Run",
+        "tags": [
+          "rag"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/rag/{pipeline_id}": {
+      "delete": {
+        "operationId": "delete_rag_pipeline",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pipeline_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pipeline Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Rag Pipeline",
+        "tags": [
+          "rag"
+        ]
+      },
+      "get": {
+        "operationId": "get_rag_pipeline",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pipeline_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pipeline Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Rag Pipeline",
+        "tags": [
+          "rag"
+        ]
+      },
+      "patch": {
+        "operationId": "update_rag_pipeline",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pipeline_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pipeline Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelineUpdateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Rag Pipeline",
+        "tags": [
+          "rag"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/rag/{pipeline_id}/duplicate": {
+      "post": {
+        "operationId": "duplicate_rag_pipeline",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pipeline_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pipeline Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelineDuplicateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Duplicate Rag Pipeline",
+        "tags": [
+          "rag"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/rag/{pipeline_id}/publish": {
+      "post": {
+        "operationId": "publish_rag_pipeline",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pipeline_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pipeline Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelinePublishIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Publish Rag Pipeline",
+        "tags": [
+          "rag"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/rag/{pipeline_id}/query": {
+      "post": {
+        "description": "Retrieve, answer with citations, record the run. Model errors are failed runs.",
+        "operationId": "query_rag_pipeline",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pipeline_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pipeline Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueryIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RagRunDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Query Rag Pipeline",
+        "tags": [
+          "rag"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/rag/{pipeline_id}/runs": {
+      "get": {
+        "operationId": "list_rag_runs",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pipeline_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pipeline Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RagRunOut"
+                  },
+                  "title": "Response List Rag Runs",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Rag Runs",
+        "tags": [
+          "rag"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/rag/{pipeline_id}/tags/{tag}": {
+      "delete": {
+        "operationId": "remove_rag_pipeline_tag",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pipeline_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pipeline Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "tag",
+            "required": true,
+            "schema": {
+              "enum": [
+                "staging",
+                "prod"
+              ],
+              "title": "Tag",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Rag Pipeline Tag",
+        "tags": [
+          "rag"
+        ]
+      },
+      "put": {
+        "operationId": "set_rag_pipeline_tag",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pipeline_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pipeline Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "tag",
+            "required": true,
+            "schema": {
+              "enum": [
+                "staging",
+                "prod"
+              ],
+              "title": "Tag",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelineTagIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Rag Pipeline Tag",
+        "tags": [
+          "rag"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/rag/{pipeline_id}/versions": {
+      "get": {
+        "operationId": "list_rag_pipeline_versions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pipeline_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pipeline Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PipelineVersionOut"
+                  },
+                  "title": "Response List Rag Pipeline Versions",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Rag Pipeline Versions",
+        "tags": [
+          "rag"
+        ]
+      },
+      "post": {
+        "description": "Save Configuration = a new version; new index parameters start a new knowledge base.",
+        "operationId": "save_rag_pipeline_version",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pipeline_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pipeline Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelineVersionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Rag Pipeline Version",
+        "tags": [
+          "rag"
         ]
       }
     },

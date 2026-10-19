@@ -1,11 +1,17 @@
 import { createHmac } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
 
 import { APIRequestContext, expect, Locator, Page, request } from '@playwright/test';
+
+type Cookie = Parameters<ReturnType<Page['context']>['addCookies']>[0][number];
 
 export const ADMIN = {
   username: process.env['FORGE_E2E_ADMIN_USER'] ?? 'e2e-admin',
   password: process.env['FORGE_E2E_ADMIN_PASSWORD'] ?? '',
 };
+
+/** Session of the e2e admin saved by global-setup.ts. */
+export const ADMIN_STATE = 'e2e/.auth/admin.json';
 
 export function uniqueName(prefix: string): string {
   return `${prefix}${Date.now().toString(36)}${Math.floor(Math.random() * 1e4)}`;
@@ -18,9 +24,19 @@ export async function login(page: Page, username: string, password: string): Pro
   await page.getByRole('button', { name: 'Sign in' }).click();
 }
 
-export async function loginAsAdmin(page: Page): Promise<void> {
+/**
+ * Sign the page in as the e2e Super Admin. By default the session saved by global-setup.ts is
+ * reused (no login request); `fresh` signs in through the login page, for tests that log out.
+ */
+export async function loginAsAdmin(page: Page, { fresh = false } = {}): Promise<void> {
   expect(ADMIN.password, 'FORGE_E2E_ADMIN_PASSWORD must be set (make test/e2e)').not.toBe('');
-  await login(page, ADMIN.username, ADMIN.password);
+  if (fresh || !existsSync(ADMIN_STATE)) {
+    await login(page, ADMIN.username, ADMIN.password);
+  } else {
+    const state = JSON.parse(readFileSync(ADMIN_STATE, 'utf8')) as { cookies: Cookie[] };
+    await page.context().addCookies(state.cookies);
+    await page.goto('/');
+  }
   await expect(page.getByTestId('user-name')).toBeVisible();
 }
 

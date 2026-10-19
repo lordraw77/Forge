@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import sys
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from forge.core.network import configure_outbound
 from forge.core.settings import get_settings
 
 if TYPE_CHECKING:
@@ -34,7 +36,10 @@ def _api(args: argparse.Namespace) -> int:
         host=args.host,
         port=args.port,
         proxy_headers=True,
-        forwarded_allow_ips="*",
+        # Only the web service (nginx) reaches the API, on the private Compose or cluster
+        # network; nginx has already decided which client address to believe. Narrow this to
+        # its address if the API port is ever published (FORGE_FORWARDED_ALLOW_IPS).
+        forwarded_allow_ips=os.environ.get("FORGE_FORWARDED_ALLOW_IPS", "*"),
         access_log=False,
         log_config=None,
     )
@@ -52,6 +57,19 @@ def _worker_health(_args: argparse.Namespace) -> int:
     from forge.workers.runner import worker_is_alive
 
     return 0 if worker_is_alive() else 1
+
+
+def _fetch_models(args: argparse.Namespace) -> int:
+    """Build time (embedded image) or worker start (`-slim` image); honours the egress proxy."""
+    from forge.gateway.service import tokenizers
+    from forge.rag.service import docling_models_present, download_docling_models
+
+    if args.docling and not (args.if_missing and docling_models_present()):
+        print(f"docling models -> {download_docling_models()}")
+    for spec in args.tokenizer or tokenizers.DEFAULT_TOKENIZERS:
+        tokenizers.fetch(spec)
+        print(f"tokenizer {spec} -> {tokenizers.MODELS_DIR}")
+    return 0
 
 
 def _migrate(args: argparse.Namespace) -> int:
@@ -248,6 +266,23 @@ def build_parser() -> argparse.ArgumentParser:
     test.add_argument("--model", action="append", help="test only this model (repeatable)")
     test.set_defaults(func=_test_providers)
 
+    models_cmd = sub.add_parser("models", help="local model files (Docling, tokenizers)")
+    models_sub = models_cmd.add_subparsers(dest="models_command", required=True)
+    fetch = models_sub.add_parser(
+        "fetch", help="download Docling models and tokenizers into FORGE_MODELS_DIR"
+    )
+    fetch.add_argument("--docling", action="store_true", help="also the Docling models")
+    fetch.add_argument(
+        "--tokenizer",
+        action="append",
+        help="tokenizer spec, e.g. hf:BAAI/bge-m3 or tiktoken:o200k_base (repeatable; "
+        "default: the built-in list)",
+    )
+    fetch.add_argument(
+        "--if-missing", action="store_true", help="skip the Docling models if already present"
+    )
+    fetch.set_defaults(func=_fetch_models)
+
     migrate = sub.add_parser("migrate", help="apply database migrations")
     migrate.add_argument("revision", nargs="?", default="head")
     migrate.set_defaults(func=_migrate)
@@ -256,7 +291,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if getattr(args, "func", None) is _fetch_models:
+        os.environ["FORGE_MODELS_FETCH"] = "1"  # fetching must be able to download
     get_settings()  # fail fast on invalid environment
+    configure_outbound()  # corporate proxy and extra CA, before any client is created
     return int(args.func(args))
 
 

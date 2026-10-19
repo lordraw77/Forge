@@ -9,7 +9,7 @@
 
 Self-hosted, LLM-agnostic platform to build and run agents, RAG pipelines and governed prompts, with multi-tenancy and observability. All models are external endpoints; Forge never hosts a model.
 
-**Status:** Phase 1, milestone M1.3 (Prompt Studio) done; next is M1.4 (RAG on upload). Phase 0 delivered the specification, the plan, the architecture decisions, the spikes, a running skeleton, the observability profile and the licence gate. M1.1 added tenant isolation, local authentication, secrets, runtime settings, the Super Admin console and the Projects Studio. M1.2 adds the model registry (providers, models, aliases with fallback chains, per-project enablement), Test Connection, the OpenAI-compatible `/v1` API with streaming, quotas and rate limits, and an optional response cache. M1.3 adds Prompt Studio: versioned prompts with variables and few-shot examples in a sandboxed template engine, a test page with call traces, side-by-side model comparison, Help Me Write and the Prompt Library.
+**Status:** Phase 1, milestone M1.4 (RAG on upload) done; next is M1.5 (single agent and tracing). Phase 0 delivered the specification, the plan, the architecture decisions, the spikes, a running skeleton, the observability profile and the licence gate. M1.1 added tenant isolation, local authentication, secrets, runtime settings, the Super Admin console and the Projects Studio. M1.2 adds the model registry (providers, models, aliases with fallback chains, per-project enablement), Test Connection, the OpenAI-compatible `/v1` API with streaming, quotas and rate limits, and an optional response cache. M1.3 adds Prompt Studio: versioned prompts with variables and few-shot examples in a sandboxed template engine, a test page with call traces, side-by-side model comparison, Help Me Write and the Prompt Library. M1.4 adds Data Collections with file and folder upload, automatic ingestion (Docling parsing, chunking, embedding) on Temporal, hybrid retrieval with access groups, and RAG Studio with cited answers.
 
 | Document | Content |
 | --- | --- |
@@ -93,6 +93,28 @@ client.chat.completions.create(model="default-chat", messages=[{"role": "user", 
 
 For a lab, `make providers/import` registers the providers whose keys are present in `.env` (`OLLAMA_HOST`, `GROQ_API_KEY`, `MISTRAL_API_KEY`, `CEREBRAS_API_KEY`, `OPENROUTER_API_KEY`, `NVIDIA_API_KEY`, `CLOUDFLARE_API_KEY` + `CLOUDFLARE_ACCOUNT_ID`, `GEMINI_API_KEY`). It is idempotent and keeps whatever already exists. Paid models (cost > 0) are in no alias. `docker compose … exec api forge providers test [--include-paid]` runs Test Connection on every platform model. The running platform never reads these variables; they only feed the import.
 
+### Documents and RAG
+
+In **Projects Studio → Data**, create a Data Collection and upload files or a whole folder (PDF, Office, HTML, Markdown, text, images with OCR; up to 100 MB per upload). Each file shows its status; failed files show the reason and can be retried. Access groups on a file limit it to members who have those groups (Projects Studio → Users).
+
+In **RAG Studio**, choose the collection, the models (`default-chat`, `embedding` and, optionally, `rerank` aliases by default) and the retrieval settings, then **Save Configuration & Test RAG**: answers cite the documents and pages they come from. Parsing runs on the `worker-ingest` service, whose image includes Docling and its models.
+
+### Export and import
+
+**Projects Studio → Export / Import** moves prompts, RAG pipelines and collection definitions between projects and Forge installations as one JSON bundle, with all versions, only the published one or only the latest. Project administrators can include model aliases, limits and group names. Bundles hold no secrets, files or documents. On import, a preview shows what will be created, extended with new versions, renamed or skipped (your choice when a name exists), and bundles from older Forge versions are upgraded automatically ([ADR-018](docs/adr/018-bundle-format.md)).
+
+### Corporate networks
+
+Behind a proxy, set `FORGE_HTTP_PROXY`, `FORGE_HTTPS_PROXY` and, optionally, `FORGE_NO_PROXY` in `.env`; Forge's own services are always excluded. Calls to model providers, S3 and model downloads then use the proxy. If it inspects TLS, put the corporate root CA (PEM) in `deploy/compose/extra-ca/` and set `FORGE_EXTRA_CA_FILE=/etc/forge/extra-ca/<file>.pem`; it is added to the default trust store. In production, put Forge behind your reverse proxy or load balancer with TLS terminated there and `FORGE_PUBLIC_URL` set to the public HTTPS address. List that proxy's addresses in `FORGE_TRUSTED_PROXIES` (comma-separated CIDRs): only from them does Forge believe `X-Forwarded-For` and `X-Forwarded-Proto`, so clients cannot choose the address used for login rate limiting and the audit log. With none listed (the default) the connection's own address is used.
+
+### Model files and air-gapped installs
+
+The Docling models and the default tokenizers are baked into the images (`MODELS=embedded`, the default), which then work without internet access. For smaller images that download them on first start, build with `make docker/build docker/run MODELS=download` (`-slim` tags). Add a tokenizer to a model in the model dialog (`hf:BAAI/bge-m3` or `tiktoken:o200k_base`) for exact token counts; `forge models fetch --tokenizer <spec>` adds it to an image.
+
+### Appearance
+
+The profile menu switches between light, dark and system themes; the choice is remembered in the browser.
+
 ### Prompts
 
 **Prompt Studio** (Builder or Project Admin) keeps a project's prompts:
@@ -114,7 +136,7 @@ Both generated files are git-ignored and created with mode `600`.
 | `web` | `forge-web` | Angular UI; proxies `/api` and `/v1` to `api` | `/nginx-health` |
 | `api` | `forge-backend` (`forge api`) | REST + OpenAI-compatible API | `/healthz` (liveness), `/readyz` (db, valkey, search) |
 | `worker-runs` | `forge-backend` (`forge worker runs`) | Temporal worker: use case and agent runs | heartbeat file (`forge worker-health`) |
-| `worker-ingest` | `forge-backend` (`forge worker ingest`) | Temporal worker: RAG ingestion | heartbeat file |
+| `worker-ingest` | `forge-backend-ingest` (`forge worker ingest`) | Temporal worker: RAG ingestion (Docling, CPU PyTorch, models included) | heartbeat file |
 | `migrate` | `forge-backend` (`forge migrate`) | One-shot Alembic upgrade before api/workers start | exit code |
 | `db` | `pgvector/pgvector:0.8.7-pg17-trixie` | PostgreSQL 17 + pgvector; databases `forge`, `temporal`, `temporal_visibility` | `pg_isready` over TCP |
 | `search` | `opensearchproject/opensearch:3.9.0` | BM25 full-text search for RAG (ADR-016); TLS and users from `make env`; Forge connects as `forge` | cluster health |
@@ -194,12 +216,13 @@ make release NAMESPACE=registry.local/forge # another registry (air-gapped)
 make dockerhub/overview                     # push deploy/dockerhub/*.md as the Docker Hub overviews
 ```
 
-`make release` builds both images with `--pull`, then pushes them; run `docker login` first. It performs no git operations, so tagging the source is a separate manual step.
+`make release` builds the three images (`forge-backend`, `forge-backend-ingest`, `forge-frontend`) with `--pull`, then pushes them; run `docker login` first. It performs no git operations, so tagging the source is a separate manual step.
 
 To run the published images instead of building locally:
 
 ```bash
-FORGE_BACKEND_IMAGE=lordraw/forge-backend:0.1.0-dev FORGE_WEB_IMAGE=lordraw/forge-frontend:0.1.0-dev \
+FORGE_BACKEND_IMAGE=lordraw/forge-backend:0.1.0-dev FORGE_INGEST_IMAGE=lordraw/forge-backend-ingest:0.1.0-dev \
+FORGE_WEB_IMAGE=lordraw/forge-frontend:0.1.0-dev \
   docker compose -f deploy/compose/docker-compose.yml --project-directory . \
   --env-file .env --env-file deploy/compose/infra.env up -d --wait --no-build
 ```

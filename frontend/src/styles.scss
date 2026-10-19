@@ -43,6 +43,61 @@ html {
   --forge-green-500: #22c55e;
   --forge-cyan-500: #06b6d4;
   --forge-purple-500: #a855f7;
+
+  // Side menu: navy in both themes.
+  --forge-nav-bg: #0b1220;
+  --forge-nav-text: #cbd5e1;
+  --forge-nav-text-strong: #ffffff;
+  --forge-nav-text-muted: #94a3b8;
+  --forge-nav-hover: #1e293b;
+  --forge-nav-border: #334155;
+}
+
+// Dark theme (core/theme-mode.ts): Forge's own tokens; NG-ZORRO's components get the dark
+// stylesheet theme-dark.css. Text contrast on #141414: 15.9:1 (text), 7.3:1 (muted).
+html[data-theme='dark'] {
+  // The light block above sets the --ant-primary-* palette on `html`; repeat it for dark with
+  // the same specificity, or the light orange (3.6:1 on #141414) would win.
+  --ant-primary-color: #e0611f;
+  --ant-primary-color-hover: #ea6a26;
+  --ant-primary-color-active: #c2410c;
+  --ant-primary-color-outline: rgba(224, 97, 31, 0.25);
+  --ant-primary-1: #2b1a12;
+  --ant-primary-2: #3d2316;
+  --ant-primary-3: #5c3319;
+  --ant-primary-4: #8a4a1d;
+  --ant-primary-5: #b85a1f;
+  --ant-primary-6: #e0611f;
+  --ant-primary-7: #ea6a26;
+  --ant-primary-color-deprecated-l-35: #3d2316;
+  --ant-primary-color-deprecated-l-20: #8a4a1d;
+  --ant-primary-color-deprecated-t-20: #e6814c;
+  --ant-primary-color-deprecated-t-50: #f0b08c;
+  --ant-primary-color-deprecated-f-12: rgba(224, 97, 31, 0.12);
+  --forge-primary-color: #e0611f;
+  --forge-primary-contrast-color: #141414;
+  --forge-text-color: rgba(255, 255, 255, 0.85);
+  --forge-text-muted-color: #a3a3a3;
+  --forge-surface-0: #1f1f1f;
+  --forge-surface-50: #141414;
+  --forge-surface-100: #1f1f1f;
+  --forge-surface-200: #303030;
+  --forge-surface-300: #434343;
+  --forge-surface-400: #5c5c5c;
+  --forge-surface-500: #8c8c8c;
+  --forge-surface-700: #bfbfbf;
+  --forge-surface-800: #d9d9d9;
+  --forge-red-500: #f87171;
+  --forge-green-500: #4ade80;
+  --forge-nav-bg: #0a0f1a;
+  --forge-nav-hover: #1a2433;
+  --forge-nav-border: #263241;
+}
+
+// NG-ZORRO's dark stylesheet paints the page pure black; use the app surface instead.
+html[data-theme='dark'] body {
+  background: var(--forge-surface-50);
+  color: var(--forge-text-color);
 }
 
 html,

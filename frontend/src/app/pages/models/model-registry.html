@@ -527,6 +527,21 @@
           />
         </div>
         <div class="field">
+          <label for="md-tokenizer" i18n>Tokenizer</label>
+          <input
+            nz-input
+            id="md-tokenizer"
+            name="tokenizer"
+            placeholder="hf:BAAI/bge-m3 or tiktoken:o200k_base"
+            i18n-placeholder
+            data-testid="md-tokenizer"
+            [(ngModel)]="modelDraft.tokenizer"
+          />
+          <small class="muted" i18n
+            >Exact token counts for chunking, context budget and quotas. Empty: estimated.</small
+          >
+        </div>
+        <div class="field">
           <label for="md-caps" i18n>Capabilities</label>
           <nz-select
             nzId="md-caps"

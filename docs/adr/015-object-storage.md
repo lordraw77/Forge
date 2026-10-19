@@ -1,6 +1,6 @@
 # ADR-015 – S3 API for object storage; SeaweedFS in the shipped Compose
 
-- Status: Accepted provisionally, **pending PO confirmation**
+- Status: Accepted (PO, 2026-10-19)
 - Date: 2026-10-16
 
 ## Context
@@ -22,8 +22,13 @@ Options considered: build MinIO from the archived source (AGPL-3.0, unmaintained
 
 - The backend depends on the **S3 API only** (endpoint, access key, secret key, bucket from deployment wiring, ADR-007). Any S3-compatible store works: MinIO (self-built or commercial), Ceph RGW, SeaweedFS, cloud S3.
 - The shipped Compose uses **SeaweedFS 4.47** (Apache-2.0), single-node `weed server -s3`. S3 identities are generated inside the container from `S3_ACCESS_KEY` / `S3_SECRET_KEY`, so no secret file is mounted.
-- Helm (Phase 3) makes the S3 endpoint external by default, with SeaweedFS as an optional sub-chart.
+- Helm (Phase 3) supports both deployments, chosen per installation: an **external** S3 endpoint provided by the customer, or **SeaweedFS shipped in the chart** (sub-chart). Neither is privileged; the chart values select one (PO, 2026-10-19).
 - Integration tests for E1.14 run against SeaweedFS and must avoid MinIO-only API extensions.
+
+## PO confirmation (2026-10-19)
+
+- SeaweedFS replaces MinIO in the standard installation (deviation from the spec accepted).
+- Production object storage: both an external S3 service and SeaweedFS in the Helm chart are supported.
 
 ## Consequences
 

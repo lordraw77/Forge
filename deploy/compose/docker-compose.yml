@@ -21,8 +21,16 @@ x-backend: &backend
     FORGE_SEARCH_USERNAME: forge
     FORGE_SEARCH_PASSWORD: ${FORGE_SEARCH_PASSWORD}
     FORGE_SEARCH_CA_FILE: /etc/forge/search-ca.pem
+    # Corporate egress proxy (optional). Forge's own services never go through it.
+    HTTP_PROXY: ${FORGE_HTTP_PROXY:-}
+    HTTPS_PROXY: ${FORGE_HTTPS_PROXY:-}
+    NO_PROXY: ${FORGE_NO_PROXY:-}${FORGE_NO_PROXY:+,}db,valkey,s3,search,temporal,api,web,otel-collector,localhost,127.0.0.1
+    # Extra trusted root CA (optional), e.g. for a TLS-inspecting proxy: put the PEM file in
+    # deploy/compose/extra-ca/ and set FORGE_EXTRA_CA_FILE=/etc/forge/extra-ca/<file>.pem
+    FORGE_EXTRA_CA_FILE: ${FORGE_EXTRA_CA_FILE:-}
   volumes:
     - ./deploy/compose/search/certs/root-ca.pem:/etc/forge/search-ca.pem:ro
+    - ./deploy/compose/extra-ca:/etc/forge/extra-ca:ro
   read_only: true
   tmpfs: [/tmp]
   security_opt: [no-new-privileges:true]
@@ -105,15 +113,19 @@ services:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY}
       S3_SECRET_KEY: ${S3_SECRET_KEY}
     # Identity file is written to tmpfs from the environment, so no secret file is mounted.
+    # Each bucket is a SeaweedFS collection that grows several volumes at once: small volumes
+    # and an explicit maximum, or a single node runs out of volume slots (ADR-015).
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
         umask 077
         printf '{"identities":[{"name":"forge","credentials":[{"accessKey":"%s","secretKey":"%s"}],"actions":["Admin","Read","Write","List","Tagging"]}]}' \
           "$$S3_ACCESS_KEY" "$$S3_SECRET_KEY" > /tmp/s3.json
-        exec weed server -dir=/data -s3 -s3.port=8333 -s3.config=/tmp/s3.json -volume.max=0
+        exec weed server -dir=/data -s3 -s3.port=8333 -s3.config=/tmp/s3.json \
+          -master.volumeSizeLimitMB=512 -volume.max=200
     tmpfs: [/tmp]
     volumes: [s3-data:/data]
+    ports: ["127.0.0.1:${FORGE_S3_PORT:-8333}:8333"]  # host-side tests and tools
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8333/healthz || exit 1"]
       interval: 10s
@@ -171,6 +183,11 @@ services:
 
   worker-ingest:
     <<: *backend
+    # Ingestion variant: Docling with CPU PyTorch and baked-in models (ADR-013).
+    image: ${FORGE_INGEST_IMAGE:-forge-backend-ingest:dev}
+    build:
+      context: ./backend
+      args: { EXTRAS: ingest }
     command: ["worker", "ingest"]
     depends_on:
       migrate: { condition: service_completed_successfully }
@@ -189,6 +206,10 @@ services:
     restart: unless-stopped
     depends_on:
       api: { condition: service_healthy }
+    environment:
+      # Reverse proxies or load balancers in front of this service (comma-separated CIDRs).
+      # Only from these does it believe X-Forwarded-For/-Proto; default none.
+      FORGE_TRUSTED_PROXIES: ${FORGE_TRUSTED_PROXIES:-}
     ports: ["${FORGE_HTTP_PORT:-8080}:8080"]
     read_only: true
     tmpfs: [/tmp]

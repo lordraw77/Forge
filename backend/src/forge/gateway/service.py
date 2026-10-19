@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass, field
 
 import redis.asyncio as redis
@@ -9,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from forge.admin.service import SettingsStore
 from forge.core.crypto import Envelope
+from forge.gateway import tokenizers
 from forge.gateway.adapter import LiteLLMAdapter, ProviderAdapter, UpstreamError, warm_up
 from forge.gateway.catalog import Catalog
 from forge.gateway.limits import Limiter, ResponseCache
@@ -27,6 +29,7 @@ from forge.gateway.schemas import (
     TestResult,
     UsageOut,
 )
+from forge.gateway.tokenizers import TokenCounter
 
 
 @dataclass
@@ -73,6 +76,13 @@ class Gateway:
     async def stop(self) -> None:
         await self.service.drain()
 
+    def token_counter(
+        self, project_id: uuid.UUID, requested: str, kinds: frozenset[str]
+    ) -> TokenCounter:
+        """Token counter of the first model behind `requested` (alias or model name)."""
+        model = self.registry.resolve(project_id, requested, kinds).chain[0]
+        return tokenizers.counter(model.tokenizer)
+
 
 __all__ = [
     "STANDARD_ALIASES",
@@ -92,6 +102,8 @@ __all__ = [
     "ProviderOut",
     "TestConnectionIn",
     "TestResult",
+    "TokenCounter",
     "UpstreamError",
     "UsageOut",
+    "tokenizers",
 ]

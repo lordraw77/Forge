@@ -6,7 +6,9 @@ licence field or trove classifier) is allowed, or when it is listed as an except
 reason. Unknown or denied licences fail the build. LiteLLM must not ship its proprietary
 `enterprise` package (spike E0.5d).
 
-Usage: scripts/check-licenses.py [--backend] [--frontend]   (default: both)
+Usage: scripts/check-licenses.py [--backend] [--frontend] [--ingest-image IMAGE]
+  (default: backend and frontend). `--ingest-image` checks the ingestion worker's extra
+  dependencies (Docling, CPU PyTorch, ...) inside that built image, where they are installed.
 """
 
 from __future__ import annotations
@@ -117,23 +119,32 @@ def check(kind: str, name: str, version: str, licence: str | None, problems: lis
     return licence or "unknown"
 
 
-def backend(problems: list[str]) -> int:
+def backend(problems: list[str], image: str | None = None) -> int:
+    extra = ["--extra", "ingest"] if image else []
     req = subprocess.run(
         ["uv", "export", "--frozen", "--no-dev", "--no-hashes", "--no-emit-project",
-         "--no-header", "--no-annotate"],
+         "--no-header", "--no-annotate", *extra],
         cwd=ROOT / "backend", check=True, capture_output=True, text=True,
     ).stdout  # fmt: skip
     lines = [ln.strip() for ln in req.splitlines() if ln.strip() and not ln.startswith(("#", "-"))]
+    # Index URLs (PyTorch CPU wheels) are not requirements.
+    lines = [ln.split(" @ ")[0] if " @ " in ln else ln for ln in lines]
+    if image:
+        cmd = ["docker", "run", "--rm", "-i", "--network", "none", "--entrypoint", "python",
+               image, "-c", _PY_PROBE]
+    else:
+        cmd = ["uv", "run", "--frozen", "--no-dev", "python", "-c", _PY_PROBE]
     probe = subprocess.run(
-        ["uv", "run", "--frozen", "--no-dev", "python", "-c", _PY_PROBE],
-        cwd=ROOT / "backend", input=json.dumps(lines), check=True, capture_output=True, text=True,
+        cmd, cwd=ROOT / "backend", input=json.dumps(lines), check=True, capture_output=True,
+        text=True,
     )  # fmt: skip
     found = json.loads(probe.stdout)
+    where = image or "the virtualenv (run uv sync)"
     if found.pop("__litellm_enterprise__"):
         problems.append("backend litellm: proprietary `enterprise` package is installed")
     for name, info in sorted(found.items()):
         if info is None:
-            problems.append(f"backend {name}: not installed in the virtualenv (run uv sync)")
+            problems.append(f"backend {name}: not installed in {where}")
             continue
         check("python", name, info["version"], python_licence(info), problems)
     return len(found)
@@ -155,10 +166,18 @@ def frontend(problems: list[str]) -> int:
 
 
 def main() -> int:
-    args = set(sys.argv[1:]) or {"--backend", "--frontend"}
+    argv = sys.argv[1:]
+    image = None
+    if "--ingest-image" in argv:
+        i = argv.index("--ingest-image")
+        image = argv[i + 1]
+        del argv[i : i + 2]
+    args = set(argv) or ({"--backend", "--frontend"} if image is None else set())
     problems: list[str] = []
     if "--backend" in args:
         print(f"backend: {backend(problems)} runtime packages checked")
+    if image:
+        print(f"ingest image: {backend(problems, image)} runtime packages checked")
     if "--frontend" in args:
         print(f"frontend: {frontend(problems)} production packages checked")
     for p in problems:

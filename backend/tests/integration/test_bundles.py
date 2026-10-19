@@ -1,0 +1,204 @@
+"""Export and import of configuration and assets between projects (bundles)."""
+
+from __future__ import annotations
+
+from typing import Any
+
+import pytest
+from fastapi.testclient import TestClient
+
+from tests.integration.test_gateway import ok, uid
+from tests.integration.test_platform_core import csrf
+from tests.integration.test_rag import (  # noqa: F401 - module fixtures
+    MANUAL,
+    admin,
+    client,
+    collection,
+    env,
+    mock,
+    pipeline,
+    settings,
+    upload,
+    worker,
+)
+
+
+def _prompt(c: TestClient, base: str, name: str) -> dict[str, Any]:
+    body = {
+        "name": name,
+        "description": "answer style",
+        "version": {"model": "default-chat", "system_template": "Answer briefly, cite [n]."},
+    }
+    p = ok(c.post(f"{base}/prompts", headers=csrf(c), json=body), 201)
+    v2 = {"model": "default-chat", "system_template": "Answer in one line, cite [n]."}
+    ok(c.post(f"{base}/prompts/{p['id']}/versions", headers=csrf(c), json=v2), 201)
+    ok(c.post(f"{base}/prompts/{p['id']}/publish", headers=csrf(c), json={"version": 1}))
+    return p
+
+
+def test_export_import_with_versions_dependencies_and_policies(
+    env: dict[str, Any],  # noqa: F811
+    admin: TestClient,  # noqa: F811
+) -> None:
+    c, base = env["owner"], env["base"]
+    prompt = _prompt(c, base, f"Style {uid()}")
+    cid = collection(env)["id"]
+    upload(env, cid, [("manual.md", MANUAL)])
+    p = pipeline(env, cid)
+    cfg = p["version"]["config"] | {"prompt_id": prompt["id"], "top_k": 4}
+    ok(c.post(f"{base}/rag/{p['id']}/versions", headers=csrf(c), json={"config": cfg}), 201)
+    group = ok(c.post(f"{base}/groups", headers=csrf(c), json={"name": f"Ops {uid()}"}), 201)
+
+    exported = c.post(
+        f"{base}/export",
+        headers=csrf(c),
+        json={
+            "rag_pipelines": [{"id": p["id"], "versions": "all"}],
+            "model_aliases": True,
+            "gateway_config": True,
+            "user_groups": True,
+        },
+    )
+    assert exported.status_code == 200, exported.text
+    assert "attachment" in exported.headers["content-disposition"]
+    bundle = exported.json()
+    assert (bundle["format"], bundle["schema_version"]) == ("forge.bundle", 1)
+    aliases = [i for i in bundle["items"] if i["kind"] == "model_alias"]
+    assert aliases
+    assert all(a["models"] for a in aliases)
+    kinds = [i["kind"] for i in bundle["items"]]
+    assert set(kinds) >= {
+        "prompt",
+        "data_collection",
+        "rag_pipeline",
+        "model_alias",
+        "gateway_config",
+        "user_group",
+    }
+    exp_prompt = next(i for i in bundle["items"] if i["kind"] == "prompt")
+    assert [v["version"] for v in exp_prompt["versions"]] == [1, 2]
+    assert exp_prompt["tags"] == {"prod": 1}
+    exp_rag = next(i for i in bundle["items"] if i["kind"] == "rag_pipeline")
+    latest = exp_rag["versions"][-1]["config"]
+    assert latest["prompt"] == prompt["name"]  # references by name, never ids
+    assert "collection_id" not in latest
+    assert "prompt_id" not in latest
+    assert all("api_key" not in str(i) for i in bundle["items"])
+
+    # ---- into another project owned by the same Project Admin
+    target = ok(
+        admin.post(
+            "/api/v1/admin/projects",
+            headers=csrf(admin),
+            json={"name": f"Target {uid()}", "admin_user_id": env["project"]["owner"]["id"]},
+        ),
+        201,
+    )["project"]["id"]
+    tbase = f"/api/v1/projects/{target}"
+    dry = ok(c.post(f"{tbase}/import", headers=csrf(c), json={"bundle": bundle}))
+    assert dry["dry_run"] is True
+    actions = {(i["kind"], i["action"]) for i in dry["items"]}
+    assert [i["error"] for i in dry["items"] if i["action"] == "error"] == [], dry["items"]
+    assert ("prompt", "created") in actions
+    assert ("rag_pipeline", "created") in actions, dry
+    assert ok(c.get(f"{tbase}/prompts"))["items"] == []  # nothing written by a dry run
+
+    real = ok(c.post(f"{tbase}/import", headers=csrf(c), json={"bundle": bundle, "dry_run": False}))
+    errors = [i for i in real["items"] if i["action"] == "error"]
+    assert errors == [], errors
+    imported = next(
+        i for i in ok(c.get(f"{tbase}/prompts"))["items"] if i["name"] == prompt["name"]
+    )
+    assert imported["latest_version"] == 2
+    assert imported["published_version"] == 1  # tags follow their versions
+    rag = next(i for i in ok(c.get(f"{tbase}/rag"))["items"] if i["name"] == p["name"])
+    detail = ok(c.get(f"{tbase}/rag/{rag['id']}"))
+    assert detail["version"]["config"]["prompt_id"] == imported["id"]
+    assert detail["version"]["config"]["top_k"] == 4
+    assert detail["collection_name"] == next(
+        i["name"] for i in bundle["items"] if i["kind"] == "data_collection"
+    )
+    groups = {g["name"] for g in ok(c.get(f"{tbase}/groups"))}
+    assert group["name"] in groups
+
+    # ---- conflicts on a second import
+    again = ok(
+        c.post(
+            f"{tbase}/import",
+            headers=csrf(c),
+            json={"bundle": bundle, "dry_run": False, "policy": "new_version"},
+        )
+    )
+    by_kind = {i["kind"]: i for i in again["items"] if i["kind"] in ("prompt", "rag_pipeline")}
+    assert by_kind["prompt"]["action"] == "new_versions"
+    assert by_kind["prompt"]["warnings"]  # tags are not moved on an existing prompt
+    after = ok(c.get(f"{tbase}/prompts/{imported['id']}"))
+    assert after["latest_version"] == 4
+    assert after["published_version"] == 1
+    renamed = ok(
+        c.post(
+            f"{tbase}/import",
+            headers=csrf(c),
+            json={"bundle": bundle, "dry_run": False, "policy": "rename"},
+        )
+    )
+    assert next(i for i in renamed["items"] if i["kind"] == "prompt")["target"].endswith(
+        "(imported)"
+    )
+    skipped = ok(
+        c.post(
+            f"{tbase}/import",
+            headers=csrf(c),
+            json={"bundle": bundle, "dry_run": False, "policy": "skip"},
+        )
+    )
+    assert {i["action"] for i in skipped["items"] if i["kind"] == "prompt"} == {"skipped"}
+
+
+@pytest.mark.parametrize(
+    ("bundle", "code"),
+    [
+        ({"format": "forge.bundle", "schema_version": 99, "items": []}, "bundle_too_new"),
+        ({"format": "something", "schema_version": 1, "items": []}, "not_a_bundle"),
+        ({"format": "forge.bundle", "items": []}, "bundle_invalid"),
+    ],
+)
+def test_invalid_bundles_are_refused(
+    env: dict[str, Any],  # noqa: F811
+    bundle: dict[str, Any],
+    code: str,
+) -> None:
+    c = env["owner"]
+    r = c.post(f"{env['base']}/import", headers=csrf(c), json={"bundle": bundle})
+    assert r.status_code == 422
+    assert r.json()["code"] == code
+
+
+def test_unknown_items_and_fields_from_newer_versions_are_ignored(
+    env: dict[str, Any],  # noqa: F811
+) -> None:
+    c = env["owner"]
+    name = f"Tolerant {uid()}"
+    bundle = {
+        "format": "forge.bundle",
+        "schema_version": 1,
+        "items": [
+            {"kind": "agent", "name": "from the future"},
+            {
+                "kind": "prompt",
+                "name": name,
+                "description": "d",
+                "future_field": True,
+                "versions": [
+                    {"version": 1, "model": "default-chat", "system_template": "Hi", "future": 1}
+                ],
+            },
+        ],
+    }
+    report = ok(
+        c.post(f"{env['base']}/import", headers=csrf(c), json={"bundle": bundle, "dry_run": False})
+    )
+    assert {(i["kind"], i["action"]) for i in report["items"]} == {
+        ("agent", "skipped"),
+        ("prompt", "created"),
+    }

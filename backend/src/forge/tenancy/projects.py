@@ -6,7 +6,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from sqlalchemy import delete, func, select, text, update
+from sqlalchemy import delete, func, select, text, true, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from forge.admin.service import audit
@@ -15,7 +15,15 @@ from forge.core.crypto import constant_time_equals, random_token, sha256
 from forge.core.db import admin_scope, project_scope
 from forge.core.errors import ProblemError
 from forge.core.models import utcnow
-from forge.tenancy.models import ApiKey, Membership, Project, RoleName, RoleType
+from forge.tenancy.models import (
+    ApiKey,
+    Membership,
+    Project,
+    RoleName,
+    RoleType,
+    UserGroup,
+    UserGroupMember,
+)
 
 DEFAULT_ROLE_NAMES = {
     "project_admin": "Project Admin",
@@ -64,6 +72,24 @@ class MemberRow:
     role_name: str
     role_type: str
     last_active_at: datetime | None
+    group_ids: list[uuid.UUID]
+
+
+@dataclass
+class GroupRow:
+    id: uuid.UUID
+    name: str
+    description: str
+    member_ids: list[uuid.UUID]
+    created_at: datetime
+
+
+@dataclass
+class AclPrincipals:
+    """Groups and roles of a project, for document ACLs (id -> name)."""
+
+    groups: dict[uuid.UUID, str]
+    roles: dict[uuid.UUID, str]
 
 
 @dataclass
@@ -302,7 +328,10 @@ class TenancyService:
         async with project_scope(self._sessions, project_id, user_id) as s:
             sql = """
                 SELECT u.id, u.username, u.full_name, u.email,
-                       rn.id, rn.name, rt.key, u.last_active_at
+                       rn.id, rn.name, rt.key, u.last_active_at,
+                       coalesce(array(SELECT g.group_id FROM user_group_member g
+                                      WHERE g.project_id = m.project_id AND g.user_id = u.id),
+                                '{}') AS group_ids
                 FROM membership m
                 JOIN app_user u ON u.id = m.user_id
                 JOIN role_name rn ON rn.id = m.role_name_id
@@ -373,10 +402,14 @@ class TenancyService:
         return results
 
     async def update_member(
-        self, actor: Actor, project_id: uuid.UUID, user_id: uuid.UUID, role_name_id: uuid.UUID
+        self,
+        actor: Actor,
+        project_id: uuid.UUID,
+        user_id: uuid.UUID,
+        role_name_id: uuid.UUID | None = None,
+        group_ids: list[uuid.UUID] | None = None,
     ) -> None:
         async with project_scope(self._sessions, project_id, actor.id) as s:
-            await self._role_in_project(s, project_id, role_name_id)
             m = (
                 await s.execute(
                     select(Membership).where(
@@ -386,17 +419,210 @@ class TenancyService:
             ).scalar_one_or_none()
             if m is None:
                 raise ProblemError(404, "not_found", "Member not found")
-            before, m.role_name_id = m.role_name_id, role_name_id
-            await self._keep_one_admin(s, project_id)
+            diff: dict[str, object] = {}
+            if role_name_id is not None and role_name_id != m.role_name_id:
+                await self._role_in_project(s, project_id, role_name_id)
+                diff["role"] = [str(m.role_name_id), str(role_name_id)]
+                m.role_name_id = role_name_id
+                await self._keep_one_admin(s, project_id)
+            if group_ids is not None:
+                wanted = set(group_ids)
+                known = set(
+                    (
+                        await s.execute(
+                            select(UserGroup.id).where(
+                                UserGroup.project_id == project_id, UserGroup.id.in_(wanted)
+                            )
+                        )
+                    ).scalars()
+                )
+                if wanted - known:
+                    raise ProblemError(422, "unknown_group", "Unknown group for this project")
+                current = set(
+                    (
+                        await s.execute(
+                            select(UserGroupMember.group_id).where(
+                                UserGroupMember.project_id == project_id,
+                                UserGroupMember.user_id == user_id,
+                            )
+                        )
+                    ).scalars()
+                )
+                for gid in current - wanted:
+                    await s.execute(
+                        delete(UserGroupMember).where(
+                            UserGroupMember.group_id == gid, UserGroupMember.user_id == user_id
+                        )
+                    )
+                for gid in wanted - current:
+                    s.add(UserGroupMember(group_id=gid, user_id=user_id, project_id=project_id))
+                if current != wanted:
+                    diff["groups"] = [sorted(map(str, current)), sorted(map(str, wanted))]
+            if diff:
+                await audit.record(
+                    s, actor, "member.update", "user", user_id, diff, project_id=project_id
+                )
+
+    # ------------------------------------------------------------ user groups
+    async def list_groups(self, project_id: uuid.UUID, user_id: uuid.UUID | None) -> list[GroupRow]:
+        async with project_scope(self._sessions, project_id, user_id) as s:
+            groups = list(
+                (
+                    await s.execute(
+                        select(UserGroup)
+                        .where(UserGroup.project_id == project_id)
+                        .order_by(func.lower(UserGroup.name))
+                    )
+                ).scalars()
+            )
+            members: dict[uuid.UUID, list[uuid.UUID]] = {g.id: [] for g in groups}
+            for gid, uid in (
+                await s.execute(
+                    select(UserGroupMember.group_id, UserGroupMember.user_id).where(
+                        UserGroupMember.project_id == project_id
+                    )
+                )
+            ).all():
+                members.setdefault(gid, []).append(uid)
+            return [
+                GroupRow(g.id, g.name, g.description, members[g.id], g.created_at) for g in groups
+            ]
+
+    async def save_group(
+        self,
+        actor: Actor,
+        project_id: uuid.UUID,
+        name: str,
+        description: str,
+        group_id: uuid.UUID | None = None,
+    ) -> uuid.UUID:
+        async with project_scope(self._sessions, project_id, actor.id) as s:
+            clash = (
+                await s.execute(
+                    select(UserGroup.id).where(
+                        UserGroup.project_id == project_id,
+                        func.lower(UserGroup.name) == name.lower(),
+                        UserGroup.id != group_id if group_id else true(),
+                    )
+                )
+            ).first()
+            if clash:
+                raise ProblemError(409, "name_taken", f"A group named '{name}' already exists")
+            if group_id is None:
+                group = UserGroup(
+                    project_id=project_id, name=name, description=description, created_by=actor.id
+                )
+                s.add(group)
+                await s.flush()
+                action = "group.create"
+            else:
+                existing = await s.get(UserGroup, group_id)
+                if existing is None or existing.project_id != project_id:
+                    raise ProblemError(404, "not_found", "Group not found")
+                group = existing
+                group.name, group.description = name, description
+                action = "group.update"
+            await audit.record(
+                s, actor, action, "user_group", group.id, {"name": name}, project_id=project_id
+            )
+            return group.id
+
+    async def set_group_members(
+        self, actor: Actor, project_id: uuid.UUID, group_id: uuid.UUID, user_ids: list[uuid.UUID]
+    ) -> None:
+        async with project_scope(self._sessions, project_id, actor.id) as s:
+            group = await s.get(UserGroup, group_id)
+            if group is None or group.project_id != project_id:
+                raise ProblemError(404, "not_found", "Group not found")
+            wanted = set(user_ids)
+            members = set(
+                (
+                    await s.execute(
+                        select(Membership.user_id).where(
+                            Membership.project_id == project_id, Membership.user_id.in_(wanted)
+                        )
+                    )
+                ).scalars()
+            )
+            if wanted - members:
+                raise ProblemError(422, "not_a_member", "Only project members can join a group")
+            await s.execute(delete(UserGroupMember).where(UserGroupMember.group_id == group_id))
+            for uid in wanted:
+                s.add(UserGroupMember(group_id=group_id, user_id=uid, project_id=project_id))
             await audit.record(
                 s,
                 actor,
-                "member.update",
-                "user",
-                user_id,
-                {"before": str(before), "after": str(role_name_id)},
+                "group.members",
+                "user_group",
+                group_id,
+                {"user_ids": sorted(map(str, wanted))},
                 project_id=project_id,
             )
+
+    async def delete_group(self, actor: Actor, project_id: uuid.UUID, group_id: uuid.UUID) -> None:
+        """Documents that listed only this group become readable by nobody (fail closed)."""
+        async with project_scope(self._sessions, project_id, actor.id) as s:
+            group = await s.get(UserGroup, group_id)
+            if group is None or group.project_id != project_id:
+                raise ProblemError(404, "not_found", "Group not found")
+            await audit.record(
+                s,
+                actor,
+                "group.delete",
+                "user_group",
+                group.id,
+                {"name": group.name},
+                project_id=project_id,
+            )
+            await s.delete(group)
+
+    async def acl_principals(self, project_id: uuid.UUID) -> AclPrincipals:
+        async with project_scope(self._sessions, project_id) as s:
+            groups = {
+                gid: name
+                for gid, name in (
+                    await s.execute(
+                        select(UserGroup.id, UserGroup.name).where(
+                            UserGroup.project_id == project_id
+                        )
+                    )
+                ).all()
+            }
+            roles = {
+                rid: name
+                for rid, name in (
+                    await s.execute(
+                        select(RoleName.id, RoleName.name).where(RoleName.project_id == project_id)
+                    )
+                ).all()
+            }
+            return AclPrincipals(groups, roles)
+
+    async def acl_terms(self, project_id: uuid.UUID, user_id: uuid.UUID | None) -> list[str]:
+        """What a reader matches in document ACLs (US-1.16.2): `group:<id>` for each of their
+        groups and `role:<role_name_id>` for their role. None for non-members and API keys."""
+        if user_id is None:
+            return []
+        async with project_scope(self._sessions, project_id, user_id) as s:
+            role = (
+                await s.execute(
+                    select(Membership.role_name_id).where(
+                        Membership.project_id == project_id, Membership.user_id == user_id
+                    )
+                )
+            ).scalar_one_or_none()
+            groups = (
+                await s.execute(
+                    select(UserGroupMember.group_id).where(
+                        UserGroupMember.project_id == project_id,
+                        UserGroupMember.user_id == user_id,
+                    )
+                )
+            ).scalars()
+            terms = [f"group:{g}" for g in groups]
+            if role is not None:
+                terms.append(f"role:{role}")
+            return sorted(terms)
 
     async def remove_member(self, actor: Actor, project_id: uuid.UUID, user_id: uuid.UUID) -> None:
         async with project_scope(self._sessions, project_id, actor.id) as s:

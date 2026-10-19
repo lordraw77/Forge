@@ -105,7 +105,7 @@ test.describe('US-1.11.2 prompt lifecycle (M1.3)', () => {
     await page.getByTestId('save-draft').click();
     await expect(page.getByTestId('editor-message')).toContainText('version 2');
     await page.getByTestId('open-versions').click();
-    await page.getByRole('button', { name: 'v1' }).click();
+    await page.getByRole('button', { name: 'v1', exact: true }).click();
     await expect(page.getByTestId('version-view')).toContainText('Answer {customer} about {topic}');
     await expect(page.getByTestId('version-view')).toContainText('prod');
     await page.keyboard.press('Escape');

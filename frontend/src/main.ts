@@ -1,10 +1,12 @@
 import { loadTranslations } from '@angular/localize';
 
 import { currentLocale } from './app/core/locale';
+import { applyTheme } from './app/core/theme-mode';
 
 // Translations must be loaded before any module that calls $localize at import time
 // (menu, labels), so the application is imported dynamically afterwards.
 async function start(): Promise<void> {
+  applyTheme(); // before the first render: no flash of the light theme
   const locale = currentLocale();
   document.documentElement.lang = locale;
   if (locale !== 'en') {

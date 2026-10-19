@@ -22,11 +22,19 @@ import { Observable } from 'rxjs';
 import { OpenApiHttpParams, QueryParamStyle } from '../query.params';
 
 // @ts-ignore
+import { AclPrincipalsOut } from '../model/aclPrincipalsOut';
+// @ts-ignore
 import { ApiKeyCreateIn } from '../model/apiKeyCreateIn';
 // @ts-ignore
 import { ApiKeyCreatedOut } from '../model/apiKeyCreatedOut';
 // @ts-ignore
 import { ApiKeyOut } from '../model/apiKeyOut';
+// @ts-ignore
+import { GroupIn } from '../model/groupIn';
+// @ts-ignore
+import { GroupMembersIn } from '../model/groupMembersIn';
+// @ts-ignore
+import { GroupOut } from '../model/groupOut';
 // @ts-ignore
 import { HTTPValidationError } from '../model/hTTPValidationError';
 // @ts-ignore
@@ -53,6 +61,15 @@ import { BASE_PATH, COLLECTION_FORMATS } from '../variables';
 import { Configuration } from '../configuration';
 import { BaseService } from '../api.base.service';
 
+export interface AclPrincipalsRequestParams {
+  projectId: string;
+}
+
+export interface CreateGroupRequestParams {
+  projectId: string;
+  groupIn: GroupIn;
+}
+
 export interface CreateKeyRequestParams {
   projectId: string;
   apiKeyCreateIn: ApiKeyCreateIn;
@@ -63,9 +80,18 @@ export interface CreateRoleRequestParams {
   roleCreateIn: RoleCreateIn;
 }
 
+export interface DeleteGroupRequestParams {
+  groupId: string;
+  projectId: string;
+}
+
 export interface InviteMembersRequestParams {
   projectId: string;
   inviteIn: InviteIn;
+}
+
+export interface ListGroupsRequestParams {
+  projectId: string;
 }
 
 export interface ListKeysRequestParams {
@@ -95,6 +121,18 @@ export interface RevokeKeyRequestParams {
   projectId: string;
 }
 
+export interface SetGroupMembersRequestParams {
+  groupId: string;
+  projectId: string;
+  groupMembersIn: GroupMembersIn;
+}
+
+export interface UpdateGroupRequestParams {
+  groupId: string;
+  projectId: string;
+  groupIn: GroupIn;
+}
+
 export interface UpdateMemberRequestParams {
   userId: string;
   projectId: string;
@@ -117,6 +155,202 @@ export class ProjectsService extends BaseService {
     @Optional() configuration?: Configuration,
   ) {
     super(basePath, configuration);
+  }
+
+  /**
+   * Acl Principals
+   * Groups and roles that document ACLs can name (Builders choose them when uploading).
+   * @endpoint get /api/v1/projects/{project_id}/acl-principals
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public aclPrincipals(
+    requestParameters: AclPrincipalsRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<AclPrincipalsOut>;
+  public aclPrincipals(
+    requestParameters: AclPrincipalsRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<AclPrincipalsOut>>;
+  public aclPrincipals(
+    requestParameters: AclPrincipalsRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<AclPrincipalsOut>>;
+  public aclPrincipals(
+    requestParameters: AclPrincipalsRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error(
+        'Required parameter projectId was null or undefined when calling aclPrincipals.',
+      );
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/acl-principals`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<AclPrincipalsOut>('get', `${basePath}${localVarPath}`, {
+      context: localVarHttpContext,
+      responseType: <any>responseType_,
+      ...(withCredentials ? { withCredentials } : {}),
+      headers: localVarHeaders,
+      observe: observe,
+      ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+      reportProgress: reportProgress,
+    });
+  }
+
+  /**
+   * Create Group
+   * @endpoint post /api/v1/projects/{project_id}/groups
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public createGroup(
+    requestParameters: CreateGroupRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<GroupOut>;
+  public createGroup(
+    requestParameters: CreateGroupRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<GroupOut>>;
+  public createGroup(
+    requestParameters: CreateGroupRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<GroupOut>>;
+  public createGroup(
+    requestParameters: CreateGroupRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error(
+        'Required parameter projectId was null or undefined when calling createGroup.',
+      );
+    }
+    const groupIn = requestParameters?.groupIn;
+    if (groupIn === null || groupIn === undefined) {
+      throw new Error('Required parameter groupIn was null or undefined when calling createGroup.');
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    // to determine the Content-Type header
+    const consumes: string[] = ['application/json'];
+    const httpContentTypeSelected: string | undefined =
+      this.configuration.selectHeaderContentType(consumes);
+    if (httpContentTypeSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Content-Type', httpContentTypeSelected);
+    }
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/groups`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<GroupOut>('post', `${basePath}${localVarPath}`, {
+      context: localVarHttpContext,
+      body: groupIn,
+      responseType: <any>responseType_,
+      ...(withCredentials ? { withCredentials } : {}),
+      headers: localVarHeaders,
+      observe: observe,
+      ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+      reportProgress: reportProgress,
+    });
   }
 
   /**
@@ -330,6 +564,101 @@ export class ProjectsService extends BaseService {
   }
 
   /**
+   * Delete Group
+   * @endpoint delete /api/v1/projects/{project_id}/groups/{group_id}
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public deleteGroup(
+    requestParameters: DeleteGroupRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any>;
+  public deleteGroup(
+    requestParameters: DeleteGroupRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<any>>;
+  public deleteGroup(
+    requestParameters: DeleteGroupRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<any>>;
+  public deleteGroup(
+    requestParameters: DeleteGroupRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const groupId = requestParameters?.groupId;
+    if (groupId === null || groupId === undefined) {
+      throw new Error('Required parameter groupId was null or undefined when calling deleteGroup.');
+    }
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error(
+        'Required parameter projectId was null or undefined when calling deleteGroup.',
+      );
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/groups/${this.configuration.encodeParam({ name: 'groupId', value: groupId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<any>('delete', `${basePath}${localVarPath}`, {
+      context: localVarHttpContext,
+      responseType: <any>responseType_,
+      ...(withCredentials ? { withCredentials } : {}),
+      headers: localVarHeaders,
+      observe: observe,
+      ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+      reportProgress: reportProgress,
+    });
+  }
+
+  /**
    * Invite Members
    * @endpoint post /api/v1/projects/{project_id}/members
    * @param requestParameters
@@ -426,6 +755,97 @@ export class ProjectsService extends BaseService {
     return this.httpClient.request<Array<InviteResultOut>>('post', `${basePath}${localVarPath}`, {
       context: localVarHttpContext,
       body: inviteIn,
+      responseType: <any>responseType_,
+      ...(withCredentials ? { withCredentials } : {}),
+      headers: localVarHeaders,
+      observe: observe,
+      ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+      reportProgress: reportProgress,
+    });
+  }
+
+  /**
+   * List Groups
+   * @endpoint get /api/v1/projects/{project_id}/groups
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public listGroups(
+    requestParameters: ListGroupsRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<Array<GroupOut>>;
+  public listGroups(
+    requestParameters: ListGroupsRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<Array<GroupOut>>>;
+  public listGroups(
+    requestParameters: ListGroupsRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<Array<GroupOut>>>;
+  public listGroups(
+    requestParameters: ListGroupsRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error(
+        'Required parameter projectId was null or undefined when calling listGroups.',
+      );
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/groups`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<Array<GroupOut>>('get', `${basePath}${localVarPath}`, {
+      context: localVarHttpContext,
       responseType: <any>responseType_,
       ...(withCredentials ? { withCredentials } : {}),
       headers: localVarHeaders,
@@ -1065,6 +1485,226 @@ export class ProjectsService extends BaseService {
     const { basePath, withCredentials } = this.configuration;
     return this.httpClient.request<any>('delete', `${basePath}${localVarPath}`, {
       context: localVarHttpContext,
+      responseType: <any>responseType_,
+      ...(withCredentials ? { withCredentials } : {}),
+      headers: localVarHeaders,
+      observe: observe,
+      ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+      reportProgress: reportProgress,
+    });
+  }
+
+  /**
+   * Set Group Members
+   * @endpoint put /api/v1/projects/{project_id}/groups/{group_id}/members
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public setGroupMembers(
+    requestParameters: SetGroupMembersRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any>;
+  public setGroupMembers(
+    requestParameters: SetGroupMembersRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<any>>;
+  public setGroupMembers(
+    requestParameters: SetGroupMembersRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<any>>;
+  public setGroupMembers(
+    requestParameters: SetGroupMembersRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const groupId = requestParameters?.groupId;
+    if (groupId === null || groupId === undefined) {
+      throw new Error(
+        'Required parameter groupId was null or undefined when calling setGroupMembers.',
+      );
+    }
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error(
+        'Required parameter projectId was null or undefined when calling setGroupMembers.',
+      );
+    }
+    const groupMembersIn = requestParameters?.groupMembersIn;
+    if (groupMembersIn === null || groupMembersIn === undefined) {
+      throw new Error(
+        'Required parameter groupMembersIn was null or undefined when calling setGroupMembers.',
+      );
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    // to determine the Content-Type header
+    const consumes: string[] = ['application/json'];
+    const httpContentTypeSelected: string | undefined =
+      this.configuration.selectHeaderContentType(consumes);
+    if (httpContentTypeSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Content-Type', httpContentTypeSelected);
+    }
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/groups/${this.configuration.encodeParam({ name: 'groupId', value: groupId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/members`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<any>('put', `${basePath}${localVarPath}`, {
+      context: localVarHttpContext,
+      body: groupMembersIn,
+      responseType: <any>responseType_,
+      ...(withCredentials ? { withCredentials } : {}),
+      headers: localVarHeaders,
+      observe: observe,
+      ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+      reportProgress: reportProgress,
+    });
+  }
+
+  /**
+   * Update Group
+   * @endpoint put /api/v1/projects/{project_id}/groups/{group_id}
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public updateGroup(
+    requestParameters: UpdateGroupRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<GroupOut>;
+  public updateGroup(
+    requestParameters: UpdateGroupRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<GroupOut>>;
+  public updateGroup(
+    requestParameters: UpdateGroupRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<GroupOut>>;
+  public updateGroup(
+    requestParameters: UpdateGroupRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const groupId = requestParameters?.groupId;
+    if (groupId === null || groupId === undefined) {
+      throw new Error('Required parameter groupId was null or undefined when calling updateGroup.');
+    }
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error(
+        'Required parameter projectId was null or undefined when calling updateGroup.',
+      );
+    }
+    const groupIn = requestParameters?.groupIn;
+    if (groupIn === null || groupIn === undefined) {
+      throw new Error('Required parameter groupIn was null or undefined when calling updateGroup.');
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    // to determine the Content-Type header
+    const consumes: string[] = ['application/json'];
+    const httpContentTypeSelected: string | undefined =
+      this.configuration.selectHeaderContentType(consumes);
+    if (httpContentTypeSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Content-Type', httpContentTypeSelected);
+    }
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/groups/${this.configuration.encodeParam({ name: 'groupId', value: groupId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<GroupOut>('put', `${basePath}${localVarPath}`, {
+      context: localVarHttpContext,
+      body: groupIn,
       responseType: <any>responseType_,
       ...(withCredentials ? { withCredentials } : {}),
       headers: localVarHeaders,

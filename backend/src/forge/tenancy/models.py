@@ -68,3 +68,24 @@ class ApiKey(Base):
     revoked_at: Mapped[datetime | None]
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     created_by: Mapped[uuid.UUID | None]
+
+
+class UserGroup(Base):
+    """A named set of project members; document ACLs reference groups and roles (US-1.16.2)."""
+
+    __tablename__ = "user_group"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("project.id"))
+    name: Mapped[str]
+    description: Mapped[str] = mapped_column(default="")
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    created_by: Mapped[uuid.UUID | None]
+    updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
+
+
+class UserGroupMember(Base):
+    __tablename__ = "user_group_member"
+    group_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_group.id"), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    project_id: Mapped[uuid.UUID]
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)

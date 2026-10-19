@@ -5,6 +5,7 @@ import { Router, RouterLink } from '@angular/router';
 import { A11yModule } from '@angular/cdk/a11y';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzDatePickerModule } from 'ng-zorro-antd/date-picker';
 import { NzDropdownModule } from 'ng-zorro-antd/dropdown';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
@@ -31,6 +32,7 @@ type StatusFilter = 'draft' | 'published' | null;
     RouterLink,
     NzAlertModule,
     NzButtonModule,
+    NzDatePickerModule,
     NzDropdownModule,
     NzIconModule,
     NzInputModule,
@@ -73,12 +75,19 @@ type StatusFilter = 'draft' | 'published' | null;
         i18n-aria-label
         data-testid="prompt-range"
         [(ngModel)]="range"
-        (ngModelChange)="reload()"
+        (ngModelChange)="pickPreset()"
       >
         @for (r of ranges; track r.days) {
           <nz-option [nzValue]="r.days" [nzLabel]="r.label" />
         }
       </nz-select>
+      <nz-range-picker
+        aria-label="Custom date range"
+        i18n-aria-label
+        [nzPlaceHolder]="rangeLabels"
+        [(ngModel)]="custom"
+        (ngModelChange)="pickCustom()"
+      />
       <span class="spacer"></span>
       <a nz-button nzType="primary" routerLink="../new" data-testid="new-prompt">
         <nz-icon nzType="plus" /><span i18n>New Prompt</span>
@@ -304,8 +313,10 @@ export class PromptLibrary {
   ];
   protected query = '';
   protected status: StatusFilter = null;
-  /** Updated within the last N days; 0 = any time. */
+  /** Updated within the last N days; 0 = any time. A custom range replaces the preset. */
   protected range = 0;
+  protected custom: Date[] = [];
+  protected readonly rangeLabels = [$localize`Updated from`, $localize`to`];
   protected duplicateName = '';
   private seq = 0;
 
@@ -315,13 +326,32 @@ export class PromptLibrary {
     });
   }
 
+  protected pickPreset(): void {
+    this.custom = [];
+    void this.reload();
+  }
+
+  protected pickCustom(): void {
+    this.range = 0;
+    void this.reload();
+  }
+
   private params(cursor: string | null) {
-    const since = this.range ? new Date(Date.now() - this.range * 86_400_000).toISOString() : null;
+    let since = this.range ? new Date(Date.now() - this.range * 86_400_000).toISOString() : null;
+    let until: string | null = null;
+    if (this.custom?.length === 2) {
+      const [from, to] = this.custom.map((d) => new Date(d));
+      from.setHours(0, 0, 0, 0);
+      to.setHours(23, 59, 59, 999);
+      since = from.toISOString();
+      until = to.toISOString();
+    }
     return {
       projectId: this.projectId()!,
       status: this.status,
       q: this.query.trim() || null,
       since,
+      until,
       cursor,
       limit: 50,
     };

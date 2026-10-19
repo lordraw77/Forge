@@ -23,7 +23,7 @@ test.describe('platform core (M1.1)', () => {
   test('wrong password shows a generic error; admin signs in and out', async ({ page }) => {
     await login(page, 'nobody-' + uniqueName('x'), 'wrong-password');
     await expect(page.getByTestId('login-error')).toContainText('Invalid credentials');
-    await loginAsAdmin(page);
+    await loginAsAdmin(page, { fresh: true });
     await expect(page.locator('h1')).toContainText('Welcome');
     await page.getByTestId('profile-menu').click();
     await page.getByRole('menuitem', { name: 'Log out' }).click();
@@ -35,7 +35,7 @@ test.describe('platform core (M1.1)', () => {
 
   test('new user created in the console completes the first-login steps', async ({ page }) => {
     const username = uniqueName('user');
-    await loginAsAdmin(page);
+    await loginAsAdmin(page, { fresh: true });
     await page.goto('/admin/users');
     await page.getByTestId('new-user').click();
     // The dialog focuses its first field when the open animation ends; filling earlier races it.

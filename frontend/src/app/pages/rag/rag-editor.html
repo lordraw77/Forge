@@ -1,0 +1,481 @@
+<div class="editor">
+  <div class="title-row">
+    @if (editingName) {
+      <input
+        nz-input
+        class="name-input"
+        aria-label="RAG name"
+        i18n-aria-label
+        maxlength="120"
+        cdkFocusInitial
+        data-testid="rag-name-input"
+        [(ngModel)]="name"
+        (blur)="commitName()"
+        (keydown.enter)="commitName()"
+      />
+    } @else {
+      <h2
+        tabindex="0"
+        role="button"
+        title="Click to rename"
+        i18n-title
+        data-testid="rag-name"
+        (click)="editingName = true"
+        (keydown.enter)="editingName = true"
+      >
+        {{ name }}
+      </h2>
+    }
+    @if (pipeline(); as p) {
+      <nz-tag [nzColor]="p.status === 'published' ? 'success' : 'default'">
+        @if (p.status === 'published') {
+          <span i18n>Published v{{ p.published_version }}</span>
+        } @else {
+          <span i18n>Draft</span>
+        }
+      </nz-tag>
+      <nz-tag
+        [nzColor]="p.version.kb_status === 'ready' ? 'success' : 'processing'"
+        data-testid="rag-index-status"
+      >
+        @if (p.version.kb_status === 'ready') {
+          <span i18n>Index ready</span>
+        } @else {
+          <span i18n>Index {{ p.version.kb_status }}</span>
+        }
+      </nz-tag>
+    }
+    <span class="spacer"></span>
+    @if (pipeline()) {
+      <button nz-button (click)="openVersions()">
+        <nz-icon nzType="history" /><span i18n>Versions</span>
+      </button>
+      <button nz-button (click)="test()" data-testid="rag-open-test">
+        <nz-icon nzType="play-circle" /><span i18n>Test</span>
+      </button>
+    }
+  </div>
+
+  @if (message(); as m) {
+    <nz-alert
+      [nzType]="m.ok ? 'success' : 'error'"
+      [nzMessage]="m.text"
+      nzShowIcon
+      data-testid="rag-message"
+    />
+  }
+
+  <nz-card nzSize="small" nzTitle="Data and models" i18n-nzTitle>
+    <div class="params">
+      <div class="field grow">
+        <label for="re-source">
+          <span i18n>Data Source</span>
+          <nz-icon
+            nzType="info-circle"
+            class="info"
+            nz-tooltip
+            nzTooltipTitle="A Data Collection of this project. Upload files in Projects Studio → Data."
+            i18n-nzTooltipTitle
+          />
+        </label>
+        <nz-select
+          nzId="re-source"
+          data-testid="rag-source"
+          [(ngModel)]="draft.collection_id"
+          [nzNotFoundContent]="noCollections"
+        >
+          @for (c of collections(); track c.id) {
+            <nz-option [nzValue]="c.id" [nzLabel]="c.name" />
+          }
+        </nz-select>
+        <ng-template #noCollections>
+          <a routerLink="/projects/data" i18n>Create a Data Collection first</a>
+        </ng-template>
+      </div>
+      <div class="field grow">
+        <label for="re-llm">
+          <span i18n>LLM</span>
+          <nz-icon
+            nzType="info-circle"
+            class="info"
+            nz-tooltip
+            nzTooltipTitle="The model that writes the answer from the retrieved chunks."
+            i18n-nzTooltipTitle
+          />
+        </label>
+        <nz-select nzId="re-llm" nzShowSearch data-testid="rag-llm" [(ngModel)]="draft.llm">
+          @for (o of chatModels(); track o.value) {
+            <nz-option [nzValue]="o.value" [nzLabel]="o.label" />
+          }
+        </nz-select>
+      </div>
+      <div class="field grow">
+        <label for="re-emb">
+          <span i18n>Embedding Model</span>
+          <nz-icon
+            nzType="info-circle"
+            class="info"
+            nz-tooltip
+            nzTooltipTitle="Turns chunks and questions into vectors. Changing it builds a new index."
+            i18n-nzTooltipTitle
+          />
+        </label>
+        <nz-select
+          nzId="re-emb"
+          nzShowSearch
+          data-testid="rag-embedding"
+          [(ngModel)]="draft.embedding_model"
+        >
+          @for (o of embeddingModels(); track o.value) {
+            <nz-option [nzValue]="o.value" [nzLabel]="o.label" />
+          }
+        </nz-select>
+      </div>
+    </div>
+  </nz-card>
+
+  <nz-card nzSize="small" nzTitle="Retrieval" i18n-nzTitle>
+    <div class="params">
+      <div class="field">
+        <label for="re-method">
+          <span i18n>Search Method</span>
+          <nz-icon
+            nzType="info-circle"
+            class="info"
+            nz-tooltip
+            nzTooltipTitle="Vector: similarity only. Semantic: vector + reranker. Hybrid: vector + keyword (BM25), fused, then reranker."
+            i18n-nzTooltipTitle
+          />
+        </label>
+        <nz-select nzId="re-method" data-testid="rag-method" [(ngModel)]="draft.search_method">
+          @for (o of searchMethods; track o.value) {
+            <nz-option [nzValue]="o.value" [nzLabel]="o.label" />
+          }
+        </nz-select>
+      </div>
+      <div class="field grow">
+        <label for="re-rerank">
+          <span i18n>Reranker</span>
+          <nz-icon
+            nzType="info-circle"
+            class="info"
+            nz-tooltip
+            nzTooltipTitle="Reorders candidates by relevance (0–1); the threshold applies to its score. Without one, cosine similarity is used."
+            i18n-nzTooltipTitle
+          />
+        </label>
+        <nz-select
+          nzId="re-rerank"
+          [(ngModel)]="draft.reranker"
+          [nzDisabled]="draft.search_method === 'vector'"
+        >
+          <nz-option [nzValue]="null" nzLabel="None" i18n-nzLabel />
+          @for (o of rerankers(); track o.value) {
+            <nz-option [nzValue]="o.value" [nzLabel]="o.label" />
+          }
+        </nz-select>
+      </div>
+      <div class="field">
+        <label for="re-topk">
+          <span i18n>Top_k</span>
+          <nz-icon
+            nzType="info-circle"
+            class="info"
+            nz-tooltip
+            nzTooltipTitle="Chunks sent to the LLM."
+            i18n-nzTooltipTitle
+          />
+        </label>
+        <nz-input-number nzId="re-topk" [nzMin]="1" [nzMax]="50" [(ngModel)]="draft.top_k" />
+      </div>
+      <div class="field">
+        <label for="re-threshold">
+          <span i18n>Similarity Threshold</span>
+          <nz-icon
+            nzType="info-circle"
+            class="info"
+            nz-tooltip
+            nzTooltipTitle="Minimum score (0–1) for a chunk to be used. If none passes, the answer says no relevant information was found."
+            i18n-nzTooltipTitle
+          />
+        </label>
+        <nz-input-number
+          nzId="re-threshold"
+          [nzMin]="0"
+          [nzMax]="1"
+          [nzStep]="0.05"
+          data-testid="rag-threshold"
+          [(ngModel)]="draft.similarity_threshold"
+        />
+      </div>
+      <div class="field">
+        <label for="re-candidates">
+          <span i18n>Candidates</span>
+          <nz-icon
+            nzType="info-circle"
+            class="info"
+            nz-tooltip
+            nzTooltipTitle="Chunks fetched by each retriever before fusion and reranking."
+            i18n-nzTooltipTitle
+          />
+        </label>
+        <nz-input-number
+          nzId="re-candidates"
+          [nzMin]="5"
+          [nzMax]="200"
+          [(ngModel)]="draft.candidates"
+        />
+      </div>
+    </div>
+  </nz-card>
+
+  <nz-card nzSize="small" nzTitle="Chunking" i18n-nzTitle>
+    @if (reindexes()) {
+      <nz-alert
+        nzType="info"
+        nzShowIcon
+        data-testid="rag-reindex"
+        nzMessage="Saving builds a new index in the background; tests use the previous index until it is ready."
+        i18n-nzMessage
+      />
+    }
+    <div class="params">
+      <div class="field grow">
+        <label for="re-parser">
+          <span i18n>Node Parser</span>
+          <nz-icon
+            nzType="info-circle"
+            class="info"
+            nz-tooltip
+            nzTooltipTitle="How documents are split into chunks."
+            i18n-nzTooltipTitle
+          />
+        </label>
+        <nz-select nzId="re-parser" [(ngModel)]="draft.node_parser">
+          @for (o of parsers; track o.value) {
+            <nz-option [nzValue]="o.value" [nzLabel]="o.label" />
+          }
+        </nz-select>
+      </div>
+      <div class="field">
+        <label for="re-size">
+          <span i18n>Chunk Size</span>
+          <nz-icon
+            nzType="info-circle"
+            class="info"
+            nz-tooltip
+            nzTooltipTitle="In tokens, typically 100–1000."
+            i18n-nzTooltipTitle
+          />
+        </label>
+        <nz-input-number
+          nzId="re-size"
+          [nzMin]="100"
+          [nzMax]="2000"
+          [nzStep]="64"
+          data-testid="rag-chunk-size"
+          [(ngModel)]="draft.chunk_size"
+        />
+      </div>
+      <div class="field">
+        <label for="re-overlap">
+          <span i18n>Chunk Overlap</span>
+          <nz-icon
+            nzType="info-circle"
+            class="info"
+            nz-tooltip
+            nzTooltipTitle="In tokens, typically 10–20% of the chunk size."
+            i18n-nzTooltipTitle
+          />
+        </label>
+        <nz-input-number
+          nzId="re-overlap"
+          [nzMin]="0"
+          [nzMax]="1000"
+          [(ngModel)]="draft.chunk_overlap"
+        />
+      </div>
+    </div>
+  </nz-card>
+
+  <nz-card nzSize="small" nzTitle="Answer" i18n-nzTitle>
+    <div class="params">
+      <div class="field grow">
+        <label for="re-prompt">
+          <span i18n>Prompt</span>
+          <nz-icon
+            nzType="info-circle"
+            class="info"
+            nz-tooltip
+            nzTooltipTitle="Optional, from the Prompt Library: tells the LLM how to use the chunks. Its published version is used; {context} and {question} are filled in."
+            i18n-nzTooltipTitle
+          />
+        </label>
+        <nz-select nzId="re-prompt" nzAllowClear [(ngModel)]="draft.prompt_id">
+          <nz-option [nzValue]="null" nzLabel="Default instructions" i18n-nzLabel />
+          @for (p of promptList(); track p.id) {
+            <nz-option [nzValue]="p.id" [nzLabel]="p.name" />
+          }
+        </nz-select>
+      </div>
+      <div class="field grow">
+        <label for="re-mode">
+          <span i18n>Response Mode</span>
+          <nz-icon
+            nzType="info-circle"
+            class="info"
+            nz-tooltip
+            nzTooltipTitle="Compact: one prompt with all chunks. Refine: one chunk at a time, for long or mixed context."
+            i18n-nzTooltipTitle
+          />
+        </label>
+        <nz-select nzId="re-mode" [(ngModel)]="draft.response_mode">
+          @for (o of responseModes; track o.value) {
+            <nz-option [nzValue]="o.value" [nzLabel]="o.label" />
+          }
+        </nz-select>
+      </div>
+      <div class="field">
+        <label for="re-budget">
+          <span i18n>Context budget</span>
+          <nz-icon
+            nzType="info-circle"
+            class="info"
+            nz-tooltip
+            nzTooltipTitle="Maximum tokens of chunks in the prompt; lower-ranked chunks are dropped."
+            i18n-nzTooltipTitle
+          />
+        </label>
+        <nz-input-number
+          nzId="re-budget"
+          [nzMin]="500"
+          [nzMax]="100000"
+          [nzStep]="500"
+          [(ngModel)]="draft.context_budget"
+        />
+      </div>
+      <div class="field">
+        <label for="re-temp" i18n>Temperature</label>
+        <nz-input-number
+          nzId="re-temp"
+          [nzMin]="0"
+          [nzMax]="2"
+          [nzStep]="0.1"
+          [(ngModel)]="draft.temperature"
+        />
+      </div>
+      <div class="field grow">
+        <label for="re-note" i18n>Version note</label>
+        <input nz-input id="re-note" maxlength="500" [(ngModel)]="note" />
+      </div>
+    </div>
+  </nz-card>
+
+  <div class="bar">
+    <button
+      nz-button
+      [disabled]="!canSave()"
+      [nzLoading]="saving()"
+      (click)="save('stay')"
+      data-testid="rag-save"
+      i18n
+    >
+      Save Configuration
+    </button>
+    <button
+      nz-button
+      nzType="primary"
+      [disabled]="!canSave()"
+      [nzLoading]="saving()"
+      (click)="save('test')"
+      data-testid="rag-save-test"
+      i18n
+    >
+      Save Configuration &amp; Test RAG
+    </button>
+  </div>
+</div>
+
+<nz-modal [(nzVisible)]="describeOpen" nzTitle="Describe the RAG" i18n-nzTitle [nzFooter]="null">
+  <ng-container *nzModalContent>
+    <form class="form" (ngSubmit)="confirmDescription()">
+      <label for="re-desc" i18n>Write a few lines about the RAG</label>
+      <textarea
+        nz-input
+        id="re-desc"
+        name="description"
+        cdkFocusInitial
+        required
+        maxlength="2000"
+        data-testid="rag-description"
+        cdkTextareaAutosize
+        cdkAutosizeMinRows="3"
+        [(ngModel)]="description"
+      ></textarea>
+      <div class="dialog-actions">
+        <button nz-button type="button" (click)="describeOpen = false" i18n>Cancel</button>
+        <button
+          nz-button
+          nzType="primary"
+          type="submit"
+          [disabled]="!description.trim()"
+          data-testid="rag-description-save"
+          i18n
+        >
+          Save
+        </button>
+      </div>
+    </form>
+  </ng-container>
+</nz-modal>
+
+<nz-drawer
+  [(nzVisible)]="versionsOpen"
+  nzTitle="Versions"
+  i18n-nzTitle
+  [nzWidth]="640"
+  (nzOnClose)="versionsOpen = false"
+>
+  <ng-container *nzDrawerContent>
+    <nz-table [nzData]="versions()" nzSize="small" [nzShowPagination]="false" [nzPageSize]="1000">
+      <thead>
+        <tr>
+          <th i18n>Version</th>
+          <th i18n>Tags</th>
+          <th i18n>Index</th>
+          <th i18n>Saved</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (v of versions(); track v.version) {
+          <tr>
+            <td>
+              v{{ v.version }}
+              @if (v.note) {
+                <div class="muted small">{{ v.note }}</div>
+              }
+            </td>
+            <td>
+              @for (t of v.tags; track t) {
+                <nz-tag [nzColor]="t === 'prod' ? 'success' : 'default'">{{ t }}</nz-tag>
+              }
+            </td>
+            <td>
+              {{ v.config.embedding_model }} · {{ v.config.chunk_size }}/{{
+                v.config.chunk_overlap
+              }}
+              <nz-tag [nzColor]="v.kb_status === 'ready' ? 'success' : 'processing'">{{
+                v.kb_status
+              }}</nz-tag>
+            </td>
+            <td>{{ v.created_at | date: 'short' }}</td>
+            <td class="actions">
+              <button nz-button nzType="link" nzSize="small" (click)="restore(v)" i18n>Load</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </nz-table>
+  </ng-container>
+</nz-drawer>

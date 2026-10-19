@@ -13,7 +13,7 @@ import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTagModule } from 'ng-zorro-antd/tag';
 import { firstValueFrom } from 'rxjs';
 
-import { ApiKeyOut, MemberOut, ProjectsService, RoleOut } from '../../api-client';
+import { ApiKeyOut, GroupOut, MemberOut, ProjectsService, RoleOut } from '../../api-client';
 import { problemMessage } from '../../core/http';
 import { Session } from '../../core/session';
 
@@ -31,8 +31,15 @@ type Notice = { severity: 'success' | 'error' | 'info'; text: string } | null;
       <nav class="tabs">
         <a routerLink="info" routerLinkActive="active" i18n>Project Info</a>
         <a routerLink="models" routerLinkActive="active" i18n>Models</a>
+        @if (session.can('asset.write')) {
+          <a routerLink="data" routerLinkActive="active" data-testid="tab-data" i18n>Data</a>
+          <a routerLink="transfer" routerLinkActive="active" data-testid="tab-transfer" i18n
+            >Export / Import</a
+          >
+        }
         @if (session.can('project.manage')) {
           <a routerLink="users" routerLinkActive="active" i18n>Users</a>
+          <a routerLink="groups" routerLinkActive="active" data-testid="tab-groups" i18n>Groups</a>
           <a routerLink="roles" routerLinkActive="active" i18n>Roles</a>
         }
       </nav>
@@ -91,6 +98,7 @@ export class ProjectsStudio {
           <th i18n>Username</th>
           <th i18n>Email</th>
           <th i18n>Role Name</th>
+          <th i18n>Groups</th>
           <th i18n>Last Active</th>
           <th></th>
         </tr>
@@ -109,6 +117,22 @@ export class ProjectsStudio {
               >
                 @for (r of roles(); track r.id) {
                   <nz-option [nzValue]="r.id" [nzLabel]="r.name" />
+                }
+              </nz-select>
+            </td>
+            <td>
+              <nz-select
+                class="groups"
+                nzMode="multiple"
+                nzPlaceHolder="No groups"
+                i18n-nzPlaceHolder
+                [attr.aria-label]="groupsLabel"
+                [attr.data-testid]="'groups-' + m.username"
+                [ngModel]="m.group_ids"
+                (ngModelChange)="changeGroups(m, $event)"
+              >
+                @for (g of groups(); track g.id) {
+                  <nz-option [nzValue]="g.id" [nzLabel]="g.name" />
                 }
               </nz-select>
             </td>
@@ -164,6 +188,8 @@ export class ProjectUsers {
   protected readonly members = signal<MemberOut[]>([]);
   protected readonly roles = signal<RoleOut[]>([]);
   protected readonly notice = signal<Notice>(null);
+  protected readonly groupsLabel = $localize`Groups`;
+  protected readonly groups = signal<GroupOut[]>([]);
   protected query = '';
   protected inviteOpen = false;
   protected identifiers = '';
@@ -181,6 +207,7 @@ export class ProjectUsers {
     const roles = await firstValueFrom(this.api.listRoles({ projectId }));
     this.roles.set(roles.filter((r) => r.status === 'active'));
     this.inviteRole = roles.find((r) => r.role_type === 'end_user')?.id ?? roles[0]?.id ?? '';
+    this.groups.set(await firstValueFrom(this.api.listGroups({ projectId })));
     await this.load();
   }
 
@@ -237,6 +264,27 @@ export class ProjectUsers {
       this.notice.set({
         severity: 'success',
         text: $localize`Role updated for ${m.username}:name:`,
+      });
+    } catch (e) {
+      this.notice.set({ severity: 'error', text: problemMessage(e) });
+    }
+    await this.load();
+  }
+
+  protected async changeGroups(m: MemberOut, groups: string[]): Promise<void> {
+    const projectId = this.projectId();
+    if (!projectId) return;
+    try {
+      await firstValueFrom(
+        this.api.updateMember({
+          projectId,
+          userId: m.user_id,
+          memberUpdateIn: { group_ids: groups },
+        }),
+      );
+      this.notice.set({
+        severity: 'success',
+        text: $localize`Groups updated for ${m.username}:name:`,
       });
     } catch (e) {
       this.notice.set({ severity: 'error', text: problemMessage(e) });

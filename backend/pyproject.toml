@@ -26,10 +26,27 @@ dependencies = [
     "email-validator>=2.3.0",
     "litellm==1.105.1",
     "jinja2>=3.1.6",
+    "pgvector>=0.4",
+    "boto3>=1.40",
+    "python-multipart>=0.0.20",
 ]
+
+[project.optional-dependencies]
+# Document parsing for the ingestion worker only (image forge-backend-ingest, ADR-013):
+# Docling with CPU-only PyTorch. The API image and the dev environment do not install it.
+ingest = ["docling>=2.140", "torch>=2.2", "torchvision>=0.17"]
 
 [project.scripts]
 forge = "forge.cli:main"
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", extra = "ingest" }]
+torchvision = [{ index = "pytorch-cpu", extra = "ingest" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [dependency-groups]
 dev = [
@@ -73,7 +90,15 @@ mypy_path = "src"
 packages = ["forge"]
 
 [[tool.mypy.overrides]]
-module = ["temporalio.*", "asyncpg.*"]
+module = [
+    "temporalio.*",
+    "asyncpg.*",
+    "boto3.*",
+    "botocore.*",
+    "docling.*",
+    "docling_core.*",
+    "pgvector.*",
+]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
@@ -101,6 +126,7 @@ modules = [
     "forge.gateway",
     "forge.prompts",
     "forge.rag",
+    "forge.bundles",
     "forge.tools",
     "forge.agents",
     "forge.usecases",
@@ -125,6 +151,7 @@ forbidden_modules = [
     "forge.gateway",
     "forge.prompts",
     "forge.rag",
+    "forge.bundles",
     "forge.tools",
     "forge.agents",
     "forge.usecases",
@@ -145,6 +172,7 @@ source_modules = [
     "forge.admin",
     "forge.prompts",
     "forge.rag",
+    "forge.bundles",
     "forge.tools",
     "forge.agents",
     "forge.usecases",

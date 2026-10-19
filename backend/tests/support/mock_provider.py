@@ -8,13 +8,18 @@ Behaviour comes from the requested model name (suffixes can be combined, e.g. `a
   -tools    answers with a tool call -nousage  never reports usage
   -echo     answers with the received messages as JSON
   -assist   answers like Help Me Write (JSON with framework and prompts)
-Embedding models named `emb-<n>` return n dimensions (default 8).
+Embedding models named `emb-<n>` return n dimensions (default 8); with `-bow` (e.g.
+`emb-64-bow`) the vector is a hashed bag of words, so cosine similarity follows shared words.
+`POST /v1/rerank` scores documents by the share of query words they contain (0..1).
 """
 
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
+import math
+import re
 import socket
 import threading
 import time
@@ -125,11 +130,51 @@ async def embeddings(request: Request) -> Any:
     dims = int(model.split("-")[1]) if model.startswith("emb-") else 8
     inputs = body["input"] if isinstance(body["input"], list) else [body["input"]]
     data = [
-        {"object": "embedding", "index": i, "embedding": [0.1 * (i + 1)] * dims}
-        for i in range(len(inputs))
+        {
+            "object": "embedding",
+            "index": i,
+            "embedding": _bow(text, dims) if "-bow" in model else [0.1 * (i + 1)] * dims,
+        }
+        for i, text in enumerate(inputs)
     ]
     usage = {"prompt_tokens": 3 * len(inputs), "total_tokens": 3 * len(inputs)}
     return {"object": "list", "data": data, "model": model, "usage": usage}
+
+
+def _words(text: str) -> list[str]:
+    return [w for w in re.findall(r"[a-z0-9]+", text.lower()) if len(w) > 2]
+
+
+def _bow(text: str, dims: int) -> list[float]:
+    vec = [0.0] * dims
+    for word in _words(text):
+        vec[int(hashlib.md5(word.encode()).hexdigest(), 16) % dims] += 1.0  # noqa: S324
+    norm = math.sqrt(sum(v * v for v in vec)) or 1.0
+    return [v / norm if any(vec) else 1.0 / math.sqrt(dims) for v in vec]
+
+
+@app.post("/v1/rerank")
+@app.post("/rerank")
+async def rerank(request: Request) -> Any:
+    body = await request.json()
+    RECORDS.append({"path": request.url.path, "body": body})
+    if err := await _failure(body["model"]):
+        return err
+    query = set(_words(body["query"]))
+    docs = [d if isinstance(d, str) else d.get("text", "") for d in body["documents"]]
+    results = [
+        {"index": i, "relevance_score": len(query & set(_words(d))) / (len(query) or 1)}
+        for i, d in enumerate(docs)
+    ]
+    results.sort(key=lambda r: r["relevance_score"], reverse=True)
+    if body.get("top_n"):
+        results = results[: body["top_n"]]
+    return {
+        "id": "rerank-1",
+        "model": body["model"],
+        "results": results,
+        "usage": {"total_tokens": 10},
+    }
 
 
 def _sse(payload: dict[str, Any]) -> str:

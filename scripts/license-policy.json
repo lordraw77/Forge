@@ -22,7 +22,10 @@
     "LGPL-3.0-or-later",
     "HPND",
     "Unicode-3.0",
-    "CNRI-Python"
+    "CNRI-Python",
+    "MIT-CMU",
+    "BSL-1.0",
+    "Apache-2.0 WITH LLVM-exception"
   ],
   "aliases": {
     "MIT License": "MIT",
@@ -44,7 +47,13 @@
     "LGPL-3.0": "LGPL-3.0-only",
     "GNU LGPL v3": "LGPL-3.0-only",
     "LGPL": "LGPL-2.1-or-later",
-    "Modified BSD License": "BSD-3-Clause"
+    "Modified BSD License": "BSD-3-Clause",
+    "Apache 2.0 License": "Apache-2.0"
   },
-  "exceptions": {}
+  "exceptions": {
+    "python:pypdfium2": {
+      "license": "BSD-3-Clause OR Apache-2.0",
+      "reason": "Own code BSD-3-Clause or Apache-2.0; bundled PDFium binaries are BSD-3-Clause/Apache-2.0 (metadata lists 'dependency licenses' as free text). Ingestion image only."
+    }
+  }
 }

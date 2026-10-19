@@ -23,3 +23,6 @@ plugins.security.nodes_dn:
 plugins.security.audit.type: noop
 plugins.security.restapi.roles_enabled: ["all_access"]
 plugins.security.system_indices.enabled: true
+# Forge creates its indices explicitly (versioned index + alias); a write to a missing alias
+# must fail instead of silently creating an index with dynamic mappings.
+action.auto_create_index: "-forge-*,+*"

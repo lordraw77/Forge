@@ -11,6 +11,7 @@
 export interface MemberOut {
   email: string;
   full_name: string;
+  group_ids: Array<string>;
   last_active_at: string | null;
   role_name: string;
   role_name_id: string;

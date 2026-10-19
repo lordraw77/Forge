@@ -18,8 +18,9 @@ Format: one file per decision, `NNN-title.md`, with Status / Context / Decision 
 | [012](012-frontend-architecture.md) | Frontend architecture | Accepted |
 | [013](013-guardrail-models.md) | Guardrail models as external endpoints | Accepted |
 | [014](014-frontend-licensing.md) | Angular 21 + PrimeNG 21 (MIT) instead of PrimeNG 22 | Superseded by 017 |
-| [015](015-object-storage.md) | S3 API for object storage; SeaweedFS in Compose | Provisional, needs PO |
+| [015](015-object-storage.md) | S3 API for object storage; SeaweedFS in Compose | Accepted (PO, 2026-10-19) |
 | [016](016-external-bm25-opensearch.md) | BM25 full-text search in OpenSearch | Accepted |
 | [017](017-ng-zorro-angular-22.md) | NG-ZORRO on the latest Angular instead of PrimeNG | Accepted |
+| [018](018-bundle-format.md) | Export/import bundles: a versioned JSON format | Accepted, format to be confirmed |
 
-PO decisions behind 003, 004, 007, 009, 013 and the Phase 1 schedule were confirmed on 2026-10-16 (see [analysis §6](../planning/01-spec-analysis.md#6-questions-for-the-product-owner)). UI languages confirmed: Italian and English. On 2026-10-18 the PO replaced pg_search with an external engine (016) and PrimeNG with NG-ZORRO (017). Still open: object store (015).
+PO decisions behind 003, 004, 007, 009, 013 and the Phase 1 schedule were confirmed on 2026-10-16 (see [analysis §6](../planning/01-spec-analysis.md#6-questions-for-the-product-owner)). UI languages confirmed: Italian and English. On 2026-10-18 the PO replaced pg_search with an external engine (016) and PrimeNG with NG-ZORRO (017). On 2026-10-19 the PO accepted SeaweedFS instead of MinIO and both external S3 and SeaweedFS in the Helm chart (015). On the same day the PO asked for export/import with multi-version support (018), a dark theme, corporate proxy support, exact tokenizers and groups-and-roles document access. Open: confirm the bundle format (018).

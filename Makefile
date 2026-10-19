@@ -5,8 +5,12 @@ SHELL := /usr/bin/env bash
 
 VERSION ?= $(shell cat VERSION 2>/dev/null || echo 0.0.0-dev)
 NAMESPACE ?= docker.io/lordraw
-COMPOSE := docker compose -f deploy/compose/docker-compose.yml --project-directory . \
-           --env-file .env --env-file deploy/compose/infra.env
+# MODELS=embedded (default: model files baked into the images, works air-gapped) or
+# MODELS=download (`-slim` images that download Docling models and tokenizers at start).
+MODELS ?= embedded
+COMPOSE := docker compose -f deploy/compose/docker-compose.yml \
+           $(if $(filter download,$(MODELS)),-f deploy/compose/models-download.yml) \
+           --project-directory . --env-file .env --env-file deploy/compose/infra.env
 NODE_IMAGE := node:24.22.0-trixie-slim
 NPM := docker run --rm -u $$(id -u):$$(id -g) -e HOME=/tmp -v $(CURDIR)/frontend:/app -w /app $(NODE_IMAGE) npm
 

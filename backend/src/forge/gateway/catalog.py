@@ -316,6 +316,7 @@ class Catalog:
             timeout_s=m.timeout_s,
             max_retries=m.max_retries,
             rpm_limit=m.rpm_limit,
+            tokenizer=m.tokenizer,
             all_projects=m.all_projects,
             enabled_project_ids=sorted(enabled),
             status=m.status,
@@ -379,6 +380,7 @@ class Catalog:
             "timeout_s",
             "max_retries",
             "rpm_limit",
+            "tokenizer",
             "all_projects",
             "status",
         ):

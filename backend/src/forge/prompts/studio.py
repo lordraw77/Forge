@@ -10,7 +10,7 @@ import base64
 import binascii
 import time
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from datetime import datetime
 from decimal import Decimal
@@ -53,6 +53,7 @@ from forge.prompts.schemas import (
 )
 
 CHAT_KINDS = frozenset({"chat"})
+ReferenceCheck = Callable[[AsyncSession, uuid.UUID], Awaitable[list[ReferenceOut]]]
 TAG_ORDER = ("draft", "staging", "prod")
 NOT_FOUND = ProblemError(404, "not_found", "Prompt not found")
 
@@ -71,6 +72,20 @@ def _decode_cursor(cursor: str) -> tuple[datetime, uuid.UUID]:
         raise ProblemError(400, "invalid_cursor", "Invalid pagination cursor") from exc
 
 
+def _version_fields(v: dict[str, Any]) -> dict[str, Any]:
+    """The editable fields of an exported version (unknown keys from newer Forge are ignored)."""
+    keys = (
+        "model",
+        "system_template",
+        "user_template",
+        "variables",
+        "examples",
+        "model_params",
+        "note",
+    )
+    return {k: v[k] for k in keys if k in v}
+
+
 def _issues(system: str, user: str) -> tuple[list[str], list[TemplateIssue]]:
     names: list[str] = []
     issues: list[TemplateIssue] = []
@@ -87,6 +102,11 @@ class PromptStudio:
     def __init__(self, sessions: async_sessionmaker[AsyncSession], gateway: Gateway) -> None:
         self._sessions = sessions
         self._gateway = gateway
+        self._reference_checks: list[ReferenceCheck] = []
+
+    def add_reference_check(self, check: ReferenceCheck) -> None:
+        """Modules that use prompts (RAG pipelines, agents) register who references one."""
+        self._reference_checks.append(check)
 
     @asynccontextmanager
     async def _session(self, actor: Actor, project_id: uuid.UUID) -> AsyncIterator[AsyncSession]:
@@ -360,9 +380,21 @@ class PromptStudio:
             return await self._detail(s, prompt)
 
     async def references(self, s: AsyncSession, prompt_id: uuid.UUID) -> list[ReferenceOut]:
-        """Resources that use the prompt. Agents (E1.18) and RAG pipelines (E1.17) add
-        their lookups here when they arrive; until then nothing can reference a prompt."""
-        return []
+        """Resources that use the prompt, from the checks other modules registered."""
+        refs: list[ReferenceOut] = []
+        for check in self._reference_checks:
+            refs += await check(s, prompt_id)
+        return refs
+
+    async def for_use(
+        self, actor: Actor, project_id: uuid.UUID, prompt_id: uuid.UUID
+    ) -> tuple[str, VersionOut]:
+        """The version other modules run: the published one (`prod`), else the latest."""
+        async with self._session(actor, project_id) as s:
+            prompt = await self._prompt(s, prompt_id)
+            tags = (await self._tags(s, [prompt.id]))[prompt.id]
+            row = await self._version(s, prompt, tags.get("prod"))
+            return prompt.name, self._version_out(row, tags)
 
     async def delete(self, actor: Actor, project_id: uuid.UUID, prompt_id: uuid.UUID) -> None:
         async with self._session(actor, project_id) as s:
@@ -479,6 +511,149 @@ class PromptStudio:
                 )
                 await s.flush()
             return await self._detail(s, prompt)
+
+    # ------------------------------------------------------------ export / import (bundles)
+    @staticmethod
+    def _select_versions(
+        rows: list[PromptVersion], tags: dict[str, int], scope: str
+    ) -> list[PromptVersion]:
+        if scope == "all":
+            return rows
+        if scope == "published":
+            wanted = tags.get("prod")
+            return [r for r in rows if r.version == wanted] or rows[-1:]
+        return rows[-1:]  # latest
+
+    async def export_prompt(
+        self, actor: Actor, project_id: uuid.UUID, prompt_id: uuid.UUID, scope: str = "all"
+    ) -> dict[str, Any]:
+        """A prompt with the chosen versions (`all`, `published`, `latest`) and their tags."""
+        async with self._session(actor, project_id) as s:
+            prompt = await self._prompt(s, prompt_id)
+            tags = (await self._tags(s, [prompt.id]))[prompt.id]
+            rows = list(
+                (
+                    await s.execute(
+                        select(PromptVersion)
+                        .where(PromptVersion.prompt_id == prompt.id)
+                        .order_by(PromptVersion.version)
+                    )
+                ).scalars()
+            )
+            chosen = self._select_versions(rows, tags, scope)
+            numbers = {r.version for r in chosen}
+            return {
+                "kind": "prompt",
+                "name": prompt.name,
+                "description": prompt.description,
+                "versions": [
+                    {
+                        "version": r.version,
+                        "model": r.model,
+                        "system_template": r.system_template,
+                        "user_template": r.user_template,
+                        "variables": r.variables,
+                        "examples": r.examples,
+                        "model_params": r.model_params,
+                        "note": r.note,
+                        "created_at": r.created_at.isoformat(),
+                    }
+                    for r in chosen
+                ],
+                "tags": {t: v for t, v in tags.items() if v in numbers and t != "draft"},
+            }
+
+    async def find_prompt(self, actor: Actor, project_id: uuid.UUID, name: str) -> uuid.UUID | None:
+        async with self._session(actor, project_id) as s:
+            row = (
+                await s.execute(select(Prompt.id).where(func.lower(Prompt.name) == name.lower()))
+            ).scalar_one_or_none()
+            return row
+
+    async def import_prompt(
+        self,
+        actor: Actor,
+        project_id: uuid.UUID,
+        item: dict[str, Any],
+        policy: str,
+        *,
+        dry_run: bool = False,
+        source: str = "bundle",
+        assume_models: frozenset[str] = frozenset(),
+    ) -> dict[str, Any]:
+        """Import one exported prompt. Existing name: `new_version` appends the versions,
+        `rename` creates "<name> (imported N)", `skip` leaves it. Tags (prod, staging) are
+        applied only to prompts created by the import, never moved on existing ones."""
+        name = str(item["name"])
+        result: dict[str, Any] = {"kind": "prompt", "name": name, "versions": 0, "warnings": []}
+        versions = [VersionIn.model_validate(_version_fields(v)) for v in item.get("versions", [])]
+        if not versions:
+            return result | {"action": "error", "error": "no versions in the bundle"}
+        for v in versions:  # templates and models must work in this project
+            try:
+                if v.model.lower() in assume_models:  # an alias this bundle creates (dry run)
+                    _, issues = _issues(v.system_template, v.user_template)
+                    if issues:
+                        return result | {"action": "error", "error": issues[0].message}
+                else:
+                    self._prepare(project_id, v)
+            except ProblemError as exc:
+                return result | {"action": "error", "error": f"{exc.code}: {exc.title}"}
+        existing = await self.find_prompt(actor, project_id, name)
+        target, action = name, "created"
+        if existing is not None:
+            if policy == "skip":
+                return result | {"action": "skipped", "target": name}
+            if policy == "rename":
+                target, action = await self._free_copy_name(actor, project_id, name), "renamed"
+            else:
+                action = "new_versions"
+        result |= {"action": action, "target": target, "versions": len(versions)}
+        if dry_run:
+            return result
+        old_numbers = [int(v.get("version", i + 1)) for i, v in enumerate(item["versions"])]
+        async with self._session(actor, project_id) as s:
+            if action == "new_versions":
+                assert existing is not None
+                prompt = await self._prompt(s, existing, lock=True)
+            else:
+                prompt = Prompt(
+                    project_id=project_id,
+                    name=target,
+                    description=str(item.get("description") or "Imported")[:2000],
+                    created_by=actor.id,
+                    updated_by=actor.id,
+                )
+                await self._insert_prompt(s, prompt)
+            mapping: dict[int, int] = {}
+            for old, body in zip(old_numbers, versions, strict=True):
+                body.note = (body.note + f" (imported from {source} v{old})").strip()[:500]
+                row = await self._add_version(s, actor, prompt, body)
+                mapping[old] = row.version
+            if action != "new_versions":
+                for tag, old in (item.get("tags") or {}).items():
+                    if tag in ("staging", "prod") and old in mapping:
+                        await self._move_tag(s, actor, prompt, tag, mapping[old])
+            elif item.get("tags"):
+                result["warnings"].append("tags not applied to an existing prompt; publish it")
+            await audit.record(
+                s,
+                actor,
+                "prompt.import",
+                "prompt",
+                prompt.id,
+                {"source": source, "versions": sorted(mapping.values()), "action": action},
+                project_id=project_id,
+            )
+            result["id"] = str(prompt.id)
+        return result
+
+    async def _free_copy_name(self, actor: Actor, project_id: uuid.UUID, name: str) -> str:
+        for n in range(1, 1000):
+            candidate = f"{name} (imported{'' if n == 1 else f' {n}'})"[:120]
+            if await self.find_prompt(actor, project_id, candidate) is None:
+                return candidate
+        raise ProblemError(409, "name_taken", "No free name for the imported prompt")
 
     async def duplicate(
         self, actor: Actor, project_id: uuid.UUID, prompt_id: uuid.UUID, name: str

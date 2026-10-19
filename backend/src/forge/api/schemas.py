@@ -119,6 +119,7 @@ class MemberOut(Out):
     role_name: str
     role_type: str
     last_active_at: datetime | None
+    group_ids: list[uuid.UUID]
 
 
 class InviteIn(In):
@@ -133,7 +134,38 @@ class InviteResultOut(Out):
 
 
 class MemberUpdateIn(In):
-    role_name_id: uuid.UUID
+    role_name_id: uuid.UUID | None = None
+    # The member's user groups, used by document ACLs (US-1.16.2).
+    group_ids: list[uuid.UUID] | None = Field(default=None, max_length=200)
+
+
+class GroupIn(In):
+    name: str = Field(min_length=1, max_length=80)
+    description: str = Field(default="", max_length=500)
+
+
+class GroupOut(Out):
+    id: uuid.UUID
+    name: str
+    description: str
+    member_ids: list[uuid.UUID]
+    created_at: datetime
+
+
+class GroupMembersIn(In):
+    user_ids: list[uuid.UUID] = Field(max_length=5000)
+
+
+class AclPrincipal(Out):
+    id: uuid.UUID
+    name: str
+
+
+class AclPrincipalsOut(Out):
+    """Groups and roles a document ACL can name."""
+
+    groups: list[AclPrincipal]
+    roles: list[AclPrincipal]
 
 
 class RoleOut(Out):

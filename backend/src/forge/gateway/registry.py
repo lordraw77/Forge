@@ -69,6 +69,7 @@ class ModelConfig:
     enabled_projects: frozenset[uuid.UUID]
     status: str
     provider: Provider
+    tokenizer: str | None = None
 
     def usable_by(self, project_id: uuid.UUID) -> bool:
         if self.status != "active" or self.provider.status != "active":
@@ -199,6 +200,7 @@ class Registry:
                     timeout_s=m.timeout_s,
                     max_retries=m.max_retries,
                     rpm_limit=m.rpm_limit,
+                    tokenizer=m.tokenizer,
                     all_projects=m.all_projects,
                     enabled_projects=frozenset(enabled.get(m.id, set())),
                     status=m.status,

@@ -2,6 +2,7 @@ import {
   ApartmentOutline,
   ApiOutline,
   AppstoreOutline,
+  BgColorsOutline,
   ArrowDownOutline,
   ArrowUpOutline,
   BookOutline,
@@ -28,6 +29,7 @@ import {
   SettingOutline,
   ThunderboltOutline,
   ToolOutline,
+  UploadOutline,
   UserAddOutline,
   UserOutline,
 } from '@ant-design/icons-angular/icons';
@@ -43,6 +45,7 @@ export const FORGE_ICONS = [
   ApartmentOutline,
   ApiOutline,
   AppstoreOutline,
+  BgColorsOutline,
   ArrowDownOutline,
   ArrowUpOutline,
   BookOutline,
@@ -69,6 +72,7 @@ export const FORGE_ICONS = [
   SettingOutline,
   ThunderboltOutline,
   ToolOutline,
+  UploadOutline,
   UserAddOutline,
   UserOutline,
 ];

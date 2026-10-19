@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from types import ModuleType
 from typing import Any, Literal, Protocol
 
+from forge.gateway import tokenizers
 from forge.gateway.registry import ModelConfig
 
 ErrorKind = Literal[
@@ -306,7 +307,17 @@ class LiteLLMAdapter:
         return _clean(resp.model_dump() if hasattr(resp, "model_dump") else dict(resp))  # type: ignore[no-any-return]
 
     def count_tokens(self, model: ModelConfig, messages: Any = None, text: str = "") -> int:
-        """Tokenizer estimate (ADR-005: usage is not assumed to be present in streams)."""
+        """The model's own tokenizer when the registry names one; otherwise LiteLLM's estimate
+        (ADR-005: usage is not assumed to be present in streams)."""
+        if model.tokenizer:
+            exact = tokenizers.load(model.tokenizer)
+            if exact is not None:
+                if messages is None:
+                    return exact(text)
+                parts = [
+                    str(m.get("content") or "") if isinstance(m, dict) else str(m) for m in messages
+                ]
+                return sum(exact(p) for p in parts) + 4 * len(parts)  # role framing overhead
         ll = load_litellm()
         try:
             if messages is not None:

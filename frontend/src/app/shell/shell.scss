@@ -14,8 +14,8 @@
   flex-direction: column;
   gap: 0.5rem;
   padding: 1rem 0.75rem;
-  background: #0b1220; // brand navy (docs/brand)
-  color: var(--forge-surface-0);
+  background: var(--forge-nav-bg); // brand navy (docs/brand)
+  color: var(--forge-nav-text-strong);
   overflow-y: auto;
 }
 
@@ -48,12 +48,12 @@ nav {
     gap: 0.75rem;
     padding: 0.6rem 0.75rem;
     border-radius: var(--forge-border-radius-md);
-    color: var(--forge-surface-300);
+    color: var(--forge-nav-text);
     text-decoration: none;
 
     &:hover {
-      background: var(--forge-surface-800);
-      color: var(--forge-surface-0);
+      background: var(--forge-nav-hover);
+      color: var(--forge-nav-text-strong);
     }
 
     &.active {
@@ -68,7 +68,7 @@ nav {
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem;
-  border-top: 1px solid var(--forge-surface-700);
+  border-top: 1px solid var(--forge-nav-border);
 
   .who {
     display: flex;
@@ -77,7 +77,7 @@ nav {
     flex: 1;
 
     small {
-      color: var(--forge-surface-400);
+      color: var(--forge-nav-text-muted);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -161,7 +161,7 @@ nav {
 }
 
 .on-dark {
-  color: var(--forge-surface-300);
+  color: var(--forge-nav-text);
 }
 
 .project-select {

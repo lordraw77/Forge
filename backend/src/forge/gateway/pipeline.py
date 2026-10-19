@@ -588,14 +588,14 @@ class GatewayService:
             for i, d in enumerate(response.get("data") or [])
         ]
         await self._limiter.reconcile(reservation, prompt_tokens)
-        self._record(call, "ok", 200, tokens=(prompt_tokens, 0), usage_source=source)
+        info = self._record(call, "ok", 200, tokens=(prompt_tokens, 0), usage_source=source)
         body = {
             "object": "list",
             "data": data,
             "model": model.name,
             "usage": {"prompt_tokens": prompt_tokens, "total_tokens": prompt_tokens},
         }
-        return GatewayResponse({"x-forge-model": model.name}, body=body)
+        return GatewayResponse({"x-forge-model": model.name}, body=body, info=info)
 
     # ---------------------------------------------------------------- rerank
     async def rerank(
@@ -608,7 +608,7 @@ class GatewayService:
     ) -> dict[str, Any]:
         """Internal, for the RAG retriever (E1.16).
 
-        Returns `{"model", "results": [{"index", "relevance_score"}]}`.
+        Returns `{"model", "results": [{"index", "relevance_score"}], "info": CallInfo}`.
         """
         call = _Call(caller, "rerank", requested)
         try:
@@ -625,8 +625,8 @@ class GatewayService:
             self._record_failure(call, exc)
             raise
         await self._limiter.reconcile(reservation, estimate)
-        self._record(call, "ok", 200, tokens=(estimate, 0), usage_source="estimated")
-        return {"model": model.name, "results": response.get("results", [])}
+        info = self._record(call, "ok", 200, tokens=(estimate, 0), usage_source="estimated")
+        return {"model": model.name, "results": response.get("results", []), "info": info}
 
     # ------------------------------------------------------- test connection
     async def test_connection(self, model: ModelConfig) -> TestResult:

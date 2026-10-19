@@ -43,9 +43,27 @@ export const routes: Routes = [
               import('./pages/projects/project-models').then((m) => m.ProjectModels),
           },
           {
+            path: 'data',
+            loadComponent: () => import('./pages/projects/project-data').then((m) => m.ProjectData),
+          },
+          {
+            path: 'transfer',
+            loadComponent: () =>
+              import('./pages/projects/project-bundles').then((m) => m.ProjectBundles),
+          },
+          {
+            path: 'data/:id',
+            loadComponent: () => import('./pages/projects/project-data').then((m) => m.ProjectData),
+          },
+          {
             path: 'users',
             loadComponent: () =>
               import('./pages/projects/projects-studio').then((m) => m.ProjectUsers),
+          },
+          {
+            path: 'groups',
+            loadComponent: () =>
+              import('./pages/projects/project-groups').then((m) => m.ProjectGroups),
           },
           {
             path: 'roles',
@@ -113,18 +131,44 @@ export const routes: Routes = [
         ],
       },
       {
+        path: 'rag',
+        title: 'RAG Studio · Forge',
+        loadComponent: () => import('./pages/rag/rag-studio').then((m) => m.RagStudio),
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'library' },
+          {
+            path: 'library',
+            loadComponent: () => import('./pages/rag/rag-library').then((m) => m.RagLibrary),
+          },
+          {
+            path: 'new',
+            loadComponent: () => import('./pages/rag/rag-editor').then((m) => m.RagEditor),
+          },
+          {
+            path: ':id/edit',
+            loadComponent: () => import('./pages/rag/rag-editor').then((m) => m.RagEditor),
+          },
+          {
+            path: ':id/test',
+            loadComponent: () => import('./pages/rag/rag-test').then((m) => m.RagTest),
+          },
+        ],
+      },
+      {
         // Phase 0 spike E0.5c, not in the menu: graph use-case editor on Foblex Flow.
         path: 'spikes/graph-editor',
         title: 'Graph editor spike · Forge',
         loadComponent: () =>
           import('./spikes/graph-editor/graph-editor').then((m) => m.GraphEditor),
       },
-      ...MENU.filter((entry) => !['projects', 'prompts'].includes(entry.path)).map((entry) => ({
-        path: entry.path,
-        component: Placeholder,
-        title: `${entry.label} · Forge`,
-        data: { title: entry.label, phase: entry.phase },
-      })),
+      ...MENU.filter((entry) => !['projects', 'prompts', 'rag'].includes(entry.path)).map(
+        (entry) => ({
+          path: entry.path,
+          component: Placeholder,
+          title: `${entry.label} · Forge`,
+          data: { title: entry.label, phase: entry.phase },
+        }),
+      ),
     ],
   },
   { path: '**', redirectTo: '' },

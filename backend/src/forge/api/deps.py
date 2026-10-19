@@ -9,12 +9,14 @@ from dataclasses import dataclass
 from fastapi import Request
 
 from forge.admin.service import SettingsStore
+from forge.bundles.service import Bundles
 from forge.core.context import Actor, RequestContext
 from forge.core.errors import ProblemError
 from forge.core.settings import Settings
 from forge.gateway.service import Gateway
 from forge.iam.service import AuthService, Flags, TokenError, User, actor_for
 from forge.prompts.service import PromptStudio
+from forge.rag.service import Rag
 from forge.tenancy.service import ProjectAccess, TenancyService
 
 ACCESS_COOKIE = "forge_access"
@@ -34,6 +36,8 @@ class Services:
     tenancy: TenancyService
     gateway: Gateway
     prompts: PromptStudio
+    rag: Rag
+    bundles: Bundles
 
 
 @dataclass

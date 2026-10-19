@@ -33,6 +33,7 @@ export interface ModelOut {
   scope: ModelOut.ScopeEnum;
   status: string;
   timeout_s: number;
+  tokenizer: string | null;
   updated_at: string;
   vector_storage: ModelOut.VectorStorageEnum | null;
 }

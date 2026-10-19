@@ -1,0 +1,33 @@
+# Model files downloaded at start instead of baked into the images (the `-slim` variant).
+# Use: make docker/build docker/run MODELS=download
+# The ingestion worker downloads the Docling models into a volume on its first start; the API
+# and the worker download tokenizers on first use. Both honour FORGE_HTTP(S)_PROXY.
+
+x-slim-backend: &slim-backend
+  image: ${FORGE_BACKEND_IMAGE:-forge-backend:dev-slim}
+  build:
+    context: ./backend
+    args: { MODELS: download }
+
+services:
+  migrate: *slim-backend
+  worker-runs: *slim-backend
+  api:
+    <<: *slim-backend
+    volumes:
+      - ./deploy/compose/search/certs/root-ca.pem:/etc/forge/search-ca.pem:ro
+      - ./deploy/compose/extra-ca:/etc/forge/extra-ca:ro
+      - api-models:/app/models
+  worker-ingest:
+    image: ${FORGE_INGEST_IMAGE:-forge-backend-ingest:dev-slim}
+    build:
+      context: ./backend
+      args: { EXTRAS: ingest, MODELS: download }
+    volumes:
+      - ./deploy/compose/search/certs/root-ca.pem:/etc/forge/search-ca.pem:ro
+      - ./deploy/compose/extra-ca:/etc/forge/extra-ca:ro
+      - ingest-models:/app/models
+
+volumes:
+  api-models:
+  ingest-models:

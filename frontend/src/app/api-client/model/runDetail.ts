@@ -22,7 +22,7 @@ export interface RunDetail {
   kind: RunDetail.KindEnum;
   latency_ms: number;
   llm_call_id: string | null;
-  messages: Array<{ [key: string]: any } | null>;
+  messages: Array<{ [key: string]: any }>;
   model: string;
   model_name: string | null;
   output: string | null;

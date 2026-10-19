@@ -4,9 +4,45 @@ All notable changes to Forge are recorded here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
-Phase 1 milestones M1.2 (LLM gateway) and M1.3 (Prompt Studio), the closing items of Phase 0, and two PO decisions of 2026-10-18: NG-ZORRO on Angular 22 instead of PrimeNG (ADR-017), and OpenSearch for BM25 instead of pg_search (ADR-016).
+Phase 1 milestones M1.2 (LLM gateway), M1.3 (Prompt Studio) and M1.4 (RAG on upload), the closing items of Phase 0, SeaweedFS confirmed as object store (ADR-015, 2026-10-19), and two PO decisions of 2026-10-18: NG-ZORRO on Angular 22 instead of PrimeNG (ADR-017), and OpenSearch for BM25 instead of pg_search (ADR-016).
 
 ### Added
+
+**Export / Import**
+- Projects Studio → Export / Import: prompts, RAG pipelines and collection definitions, with all versions, the published one or the latest, tags included; optionally model aliases, limits and group names. Dependencies (prompts and collections used by a pipeline) can be added automatically.
+- Import shows a preview first. When a name exists: add the versions, import under a new name, or skip. Bundles from older Forge versions are upgraded automatically; bundles from newer versions are refused ([ADR-018](docs/adr/018-bundle-format.md)). No secrets, files or documents are exported.
+
+**Dark theme**
+- Light, dark or system theme from the profile menu, remembered per browser; accessible contrast in both (orange adjusted for dark backgrounds).
+
+**Corporate networks**
+- `FORGE_HTTP_PROXY`, `FORGE_HTTPS_PROXY`, `FORGE_NO_PROXY` for calls to model providers, S3 and model downloads; `FORGE_EXTRA_CA_FILE` adds a corporate root CA. Tested with a forwarding proxy.
+
+**Exact token counts**
+- A tokenizer per model (`hf:<repo>` or `tiktoken:<encoding>`) used for chunking, the context budget and quotas; without one, counts are estimated and the trace says so.
+- Model files (Docling models, tokenizers) are baked into the images, or downloaded at start with the `-slim` images (`MODELS=download`); both are published.
+
+**Groups and roles for documents**
+- Projects Studio → Groups: named sets of members. A file lists the groups and roles allowed to read it; empty means the whole project. Deleting a group leaves its restricted files unreadable until their access is changed.
+- Library time filters offer presets and a calendar range.
+
+**Data Collections (Projects Studio → Data)**
+- Collections of files per project; upload of files or whole folders (PDF, DOCX, PPTX, XLSX, HTML, Markdown, text, PNG/JPG with OCR), up to 100 MB per request. The type is detected from the content; other files are rejected one by one with the reason.
+- Status per file and per collection (Success, In progress, Failed) with the failure time and reason, Retry, download, delete, rename; deleting a collection removes its files, chunks and embeddings.
+- Access per file by group and role; a member only receives chunks of files they are allowed to read; files without groups or roles are visible to the whole project.
+
+**Ingestion**
+- Automatic parsing, chunking and embedding on a Temporal worker: Docling for PDF, Office files and images (layout, tables as Markdown, OCR), built-in parsers for text, Markdown and HTML; structure-aware chunks of 512 tokens with 64 of overlap, prefixed with the title and heading path; embedding in batches of 32 through the gateway.
+- Re-uploading an identical file changes nothing; an edited file re-embeds only the chunks that changed. A worker stopped mid-way resumes without duplicate chunks.
+- One index per collection, embedding model and chunking setting, shared by the pipelines that use it; changing these settings builds a new index in the background while queries keep using the previous one.
+- New worker image `forge-backend-ingest` with Docling, CPU PyTorch and the parsing models included (works without internet access).
+
+**RAG Studio**
+- New RAG with every parameter of the spec: data source, LLM, embedding model, search method (vector, semantic, hybrid), reranker, optional prompt from the Prompt Library, chunk size and overlap, node parser, response mode (compact, refine), top_k, similarity threshold, candidates and context budget.
+- Save Configuration & Test RAG: the answer cites its sources with document name, page and a link that opens the file at that page; if nothing relevant is found, the answer says so. The trace shows the retrieval ranking with scores, timings, the prompt, cost and usage.
+- Hybrid retrieval: PostgreSQL vector search and OpenSearch BM25 in parallel, fused with RRF, then reranked.
+- Versions, Publish and the RAG Library (status, time range and name filters; Try, Edit, Duplicate, Delete).
+- A prompt used by a RAG pipeline cannot be deleted; the error names the pipeline.
 
 **Prompt Studio**
 - New Prompt editor: inline name, model (alias or model), System and User Prompt, variables (Name, Value, Is File Input, Is Required) created inline by typing `{name}`, few-shot examples, temperature and max tokens. The description is asked on first save; template errors show their line.
@@ -43,7 +79,13 @@ Phase 1 milestones M1.2 (LLM gateway) and M1.3 (Prompt Studio), the closing item
 - The project token created with a project now includes the `llm.invoke` scope; Project Admin and Builder roles gain the `llm.invoke` permission.
 - Validation errors in the UI now show why a value was refused.
 
+### Fixed
+- The SeaweedFS shipped in Compose could not store objects (too few volume slots for a new bucket); it now uses 512 MB volumes and an explicit maximum.
+- OpenSearch no longer creates `forge-*` indices implicitly; Forge creates its chunk index and alias at startup.
+
 ### Security
+- Uploaded files are typed from their content; archives with too many entries or an extreme compression ratio are refused. Uploaded HTML, Markdown and text are never served as web pages (`text/plain`, `nosniff`, sandbox CSP).
+- BM25 queries are built in one place and always carry the project, index and access-group filters; a test checks that another project gets nothing.
 - Prompt templates render in a Jinja2 sandbox: no imports, includes or macros; allowlisted filters, globals and methods; capped `range`, repetition, concatenation and powers; a step, time and size budget per render. A suite of known injection and exhaustion payloads runs in CI.
 - Prompt versions cannot be changed or deleted by the application's database roles.
 - Provider base URLs: http(s) only; link-local, multicast and cloud metadata addresses refused; plain HTTP only with the explicit per-provider option (on-prem endpoints).
@@ -52,7 +94,9 @@ Phase 1 milestones M1.2 (LLM gateway) and M1.3 (Prompt Studio), the closing item
 ### Upgrade notes
 - **Before** starting this version on a database volume created by 0.1.0-dev, run `scripts/db-from-paradedb.sh` with the old stack running. It removes the ParadeDB extensions and preloaded libraries that the new PostgreSQL image does not have.
 - `make env` generates the OpenSearch certificates (`deploy/compose/search/certs/`), the users file and the `OPENSEARCH_ADMIN_PASSWORD` and `FORGE_SEARCH_PASSWORD` entries in `infra.env`.
-- Migration `0004` runs automatically with `make docker/run`.
+- Migrations `0004`–`0008` run automatically with `make docker/run`. `0007` replaces the free-text document access groups of `0006` (never released) with managed groups; re-set the access of files uploaded with the earlier build.
+- `make docker/build` also builds `forge-backend-ingest` (about 3.7 GB, models included); `worker-ingest` now uses it.
+- Restart OpenSearch after updating (`docker compose … restart search`) so it reads the new `opensearch.yml`; recreate `s3` so SeaweedFS gets the new volume settings.
 - Existing project tokens keep their scopes. Create a new token with `llm.invoke` to call `/v1`.
 - `make env` adds `GRAFANA_ADMIN_PASSWORD` to an existing `deploy/compose/infra.env`.
 

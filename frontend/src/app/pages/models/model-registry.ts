@@ -143,6 +143,7 @@ interface ModelDraft {
   timeout_s: number;
   max_retries: number;
   rpm_limit: number | null;
+  tokenizer: string;
   params: string;
   all_projects: boolean;
   enabled_project_ids: string[];
@@ -427,6 +428,7 @@ export class ModelRegistry {
       timeout_s: 60,
       max_retries: 2,
       rpm_limit: null,
+      tokenizer: '',
       params: '',
       all_projects: false,
       enabled_project_ids: [],
@@ -453,6 +455,7 @@ export class ModelRegistry {
           timeout_s: m.timeout_s,
           max_retries: m.max_retries,
           rpm_limit: m.rpm_limit,
+          tokenizer: m.tokenizer ?? '',
           params: Object.keys(m.params).length ? JSON.stringify(m.params, null, 2) : '',
           all_projects: m.all_projects,
           enabled_project_ids: [...m.enabled_project_ids],
@@ -488,6 +491,7 @@ export class ModelRegistry {
       timeout_s: d.timeout_s,
       max_retries: d.max_retries,
       rpm_limit: d.rpm_limit || null,
+      tokenizer: d.tokenizer.trim() || null,
       params,
       all_projects: this.projectId() ? false : d.all_projects,
       enabled_project_ids: this.projectId() ? [] : d.enabled_project_ids,

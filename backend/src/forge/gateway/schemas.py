@@ -41,6 +41,9 @@ BASE_URL_REQUIRED = frozenset({"vllm", "llamacpp", "ollama", "azure", "openai_co
 RERANK_PROVIDERS = frozenset({"vllm", "llamacpp", "nim", "openai_compatible"})
 HALFVEC_FROM = 2001  # pgvector `vector` indexes stop at 2000 dimensions (ADR-008)
 NAME_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,99}$"
+TOKENIZER_PATTERN = (
+    r"^(hf:[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*|tiktoken:[a-z0-9_]+)$"
+)
 _BLOCKED_HOSTS = frozenset({"metadata.google.internal", "metadata"})
 
 
@@ -165,6 +168,9 @@ class ModelIn(ModelDraft):
     capabilities: list[Capability] = Field(default_factory=list)
     max_retries: int = Field(default=2, ge=0, le=10)
     rpm_limit: int | None = Field(default=None, ge=1)
+    # Exact token counts (chunking, context budget, quotas): `hf:<org>/<repo>` (tokenizer.json
+    # from Hugging Face) or `tiktoken:<encoding>`. Unset: estimated.
+    tokenizer: str | None = Field(default=None, max_length=200, pattern=TOKENIZER_PATTERN)
     # Platform models only: which projects may use the model (F1.2 "Enabled projects").
     all_projects: bool = False
     enabled_project_ids: list[uuid.UUID] = Field(default_factory=list, max_length=1000)
@@ -210,6 +216,7 @@ class ModelOut(Out):
     timeout_s: int
     max_retries: int
     rpm_limit: int | None
+    tokenizer: str | None
     all_projects: bool
     enabled_project_ids: list[uuid.UUID]
     status: str

@@ -16,7 +16,7 @@ _Owner: Security Engineer. Method: STRIDE per trust boundary. Scope: Phase 1–2
 ## 2. Trust boundaries
 
 ```text
-[Browser / API client] ──TB1──► [forge-api] ──TB2──► [PostgreSQL, Redis, MinIO, Temporal]
+[Browser / API client] ──TB1──► [forge-api] ──TB2──► [PostgreSQL, Redis, S3 (SeaweedFS), Temporal, OpenSearch]
                                      │                         ▲
                                      ▼                         │
                               [forge-workers] ─────────────────┘
@@ -62,7 +62,7 @@ Status: **P1** = control delivered in Phase 1, **P2** / **P3** later phases.
 | T | Audit log tampering | No UPDATE/DELETE grants for `forge_app`; periodic hash chain checkpoint | P1 (grants) / P2 (hash chain) |
 | I | Object storage access across projects | Server-side access only, per-project key prefix, presigned URLs ≤ 5 min after authorization check | P1 |
 | S | Infra credentials default | Compose/Helm generate random credentials; no default passwords in images | P1 |
-| I | Cross-tenant read through the search engine (no RLS in OpenSearch) | One query builder in `forge.rag` always adds project, KB and ACL filters plus project routing; no caller-supplied query DSL; CI isolation test (spike E0.5e: 0 leaks) | P1 (M1.4) |
+| I | Cross-tenant read through the search engine (no RLS in OpenSearch) | One query builder in `forge.rag` always adds project, KB and ACL filters plus project routing; no caller-supplied query DSL; CI isolation test (spike E0.5e and `test_rag.py`: 0 leaks) | P1 ✅ M1.4 |
 | S/I | Access to the search engine from the network | Security plugin on, TLS (deployment CA), user `forge` limited to `forge-*` indices without cluster admin; port bound to localhost in Compose (ADR-016) | P1 ✅ |
 
 ### TB3 – Gateway → external model endpoints
@@ -94,7 +94,11 @@ Status: **P1** = control delivered in Phase 1, **P2** / **P3** later phases.
 | T | Indirect prompt injection from documents/tool output | Content delimiting in prompts, injection guardrail on retrieved/tool content, tool HITL for side effects, no auto-execution of URLs | P2 |
 | I | Exfiltration via rendered links/images in answers | No remote image loading in chat; URL guardrail; CSP `img-src` self + data | P1 (CSP) / P2 |
 | I | Data from restricted documents | ACL filter at retrieval (AC4), chunks never cross projects | P1 |
-| T | Malicious files (parser exploits, zip bombs) | MIME sniffing, size and page limits, Docling in worker with resource limits, decompression ratio checks | P1 |
+| T | Malicious files (parser exploits, zip bombs) | Content sniffing with per-file rejection, 100 MB request limit, ZIP entry and ratio checks, Docling only in the ingestion worker (read-only filesystem, no runtime downloads); uploaded HTML/text never served as HTML ([M1.4](../architecture/m1.4-rag.md#9-threat-model-delta)). Page limits for huge PDFs: E2.13 | P1 ✅ M1.4 (page limits P2) |
+| S | Client chooses its address (login rate limit, audit) by sending `X-Forwarded-For` | nginx believes `X-Forwarded-For`/`-Proto` only from `FORGE_TRUSTED_PROXIES`; by default the connection address is used; checked by `scripts/test-proxy-headers.sh` | P1 ✅ |
+| T | Egress through a TLS-inspecting corporate proxy weakens certificate checks | Verification stays on; the corporate root CA is added to the trust store (`FORGE_EXTRA_CA_FILE`), never disabled | P1 ✅ |
+| I | Secrets or documents leave in an exported bundle | Bundles hold no secrets, files, documents, run history or members; references by name ([ADR-018](../adr/018-bundle-format.md)) | P1 ✅ |
+| E | Import changes more than the importer may | Configuration kinds need `project.manage`; dry run by default; every import audited | P1 ✅ |
 | E | Jinja2 template injection in prompts | `ImmutableSandboxedEnvironment` without loader; allowlisted filters, globals, methods and statements; capped operators and `range`; step/time/size budget per render; payload suite in CI ([M1.3 design](../architecture/m1.3-prompt-studio.md#3-templates-and-the-sandbox)) | P1 ✅ M1.3 |
 
 ## 4. Security requirements for every epic

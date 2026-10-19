@@ -27,6 +27,7 @@ export interface ModelIn {
   rpm_limit?: number | null;
   status?: ModelIn.StatusEnum;
   timeout_s?: number;
+  tokenizer?: string | null;
 }
 export namespace ModelIn {
   export const CapabilitiesEnum = {

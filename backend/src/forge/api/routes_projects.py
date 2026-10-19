@@ -9,9 +9,14 @@ from fastapi import APIRouter, Depends, Request, status
 
 from forge.api.deps import Principal, ProjectContext, project_permission, ready_principal, services
 from forge.api.schemas import (
+    AclPrincipal,
+    AclPrincipalsOut,
     ApiKeyCreatedOut,
     ApiKeyCreateIn,
     ApiKeyOut,
+    GroupIn,
+    GroupMembersIn,
+    GroupOut,
     InviteIn,
     InviteResultOut,
     MemberOut,
@@ -26,6 +31,7 @@ from forge.api.schemas import (
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
 Member = Annotated[ProjectContext, Depends(project_permission())]
 Manager = Annotated[ProjectContext, Depends(project_permission("project.manage"))]
+Builder = Annotated[ProjectContext, Depends(project_permission("asset.write"))]
 Ready = Annotated[Principal, Depends(ready_principal)]
 
 
@@ -82,7 +88,7 @@ async def update_member(
     user_id: uuid.UUID, body: MemberUpdateIn, ctx: Manager, request: Request
 ) -> None:
     await services(request).tenancy.update_member(
-        ctx.actor, ctx.project_id, user_id, body.role_name_id
+        ctx.actor, ctx.project_id, user_id, body.role_name_id, body.group_ids
     )
 
 
@@ -134,3 +140,64 @@ async def create_key(body: ApiKeyCreateIn, ctx: Manager, request: Request) -> Ap
 @router.delete("/{project_id}/api-keys/{key_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def revoke_key(key_id: uuid.UUID, ctx: Manager, request: Request) -> None:
     await services(request).tenancy.revoke_key(ctx.actor, ctx.project_id, key_id)
+
+
+# ---- user groups (document access, US-1.16.2)
+@router.get("/{project_id}/groups", response_model=list[GroupOut])
+async def list_groups(ctx: Manager, request: Request) -> list[GroupOut]:
+    rows = await services(request).tenancy.list_groups(ctx.project_id, ctx.actor.id)
+    return [GroupOut.model_validate(r) for r in rows]
+
+
+@router.post("/{project_id}/groups", response_model=GroupOut, status_code=status.HTTP_201_CREATED)
+async def create_group(body: GroupIn, ctx: Manager, request: Request) -> GroupOut:
+    tenancy = services(request).tenancy
+    gid = await tenancy.save_group(ctx.actor, ctx.project_id, body.name, body.description)
+    return next(
+        GroupOut.model_validate(g)
+        for g in await tenancy.list_groups(ctx.project_id, ctx.actor.id)
+        if g.id == gid
+    )
+
+
+@router.put("/{project_id}/groups/{group_id}", response_model=GroupOut)
+async def update_group(
+    group_id: uuid.UUID, body: GroupIn, ctx: Manager, request: Request
+) -> GroupOut:
+    tenancy = services(request).tenancy
+    await tenancy.save_group(ctx.actor, ctx.project_id, body.name, body.description, group_id)
+    return next(
+        GroupOut.model_validate(g)
+        for g in await tenancy.list_groups(ctx.project_id, ctx.actor.id)
+        if g.id == group_id
+    )
+
+
+@router.put("/{project_id}/groups/{group_id}/members", status_code=status.HTTP_204_NO_CONTENT)
+async def set_group_members(
+    group_id: uuid.UUID, body: GroupMembersIn, ctx: Manager, request: Request
+) -> None:
+    await services(request).tenancy.set_group_members(
+        ctx.actor, ctx.project_id, group_id, body.user_ids
+    )
+
+
+@router.delete("/{project_id}/groups/{group_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_group(group_id: uuid.UUID, ctx: Manager, request: Request) -> None:
+    await services(request).tenancy.delete_group(ctx.actor, ctx.project_id, group_id)
+
+
+@router.get("/{project_id}/acl-principals", response_model=AclPrincipalsOut)
+async def acl_principals(ctx: Builder, request: Request) -> AclPrincipalsOut:
+    """Groups and roles that document ACLs can name (Builders choose them when uploading)."""
+    p = await services(request).tenancy.acl_principals(ctx.project_id)
+    return AclPrincipalsOut(
+        groups=[
+            AclPrincipal(id=i, name=n)
+            for i, n in sorted(p.groups.items(), key=lambda x: x[1].lower())
+        ],
+        roles=[
+            AclPrincipal(id=i, name=n)
+            for i, n in sorted(p.roles.items(), key=lambda x: x[1].lower())
+        ],
+    )

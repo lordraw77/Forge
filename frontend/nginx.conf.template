@@ -1,4 +1,19 @@
 # Served by nginx-unprivileged on :8080. TLS terminates at the edge proxy (threat model §4).
+# Behind a reverse proxy or load balancer, name it in FORGE_TRUSTED_PROXIES (comma-separated
+# CIDRs or addresses, e.g. "10.0.0.0/8,192.168.1.10"): only from those does nginx believe
+# X-Forwarded-For / X-Forwarded-Proto. By default none is trusted, so a client cannot choose
+# the address used for login rate limiting and the audit log.
+# Generated from FORGE_TRUSTED_PROXIES by docker-entrypoint.d/40-forge-proxies.sh.
+geo $realip_remote_addr $from_trusted_proxy {
+    default 0;
+${FORGE_GEO_ENTRIES}
+}
+map "$from_trusted_proxy:$http_x_forwarded_proto" $forwarded_proto {
+    default $scheme;
+    "1:https" https;
+    "1:http" http;
+}
+
 server {
     listen 8080;
     server_name _;
@@ -12,6 +27,10 @@ server {
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
     add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
 
+    real_ip_header X-Forwarded-For;
+    real_ip_recursive on;
+${FORGE_REAL_IP_DIRECTIVES}
+
     # Docker's embedded DNS: re-resolve the api service so a recreated container is followed.
     resolver 127.0.0.11 valid=10s ipv6=off;
     set $api_upstream api:8000;
@@ -21,8 +40,9 @@ server {
         proxy_pass http://$api_upstream;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        # The client address as nginx resolved it (see realip below), not what the client sent.
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
         proxy_set_header X-Request-Id $request_id;
         proxy_set_header Connection "";
         proxy_buffering off;
@@ -35,6 +55,13 @@ server {
         add_header Referrer-Policy "strict-origin-when-cross-origin" always;
         add_header X-Frame-Options "DENY" always;
         add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+    }
+
+    # The dark theme is loaded by name (not hashed): revalidate it so upgrades take effect.
+    location = /theme-dark.css {
+        add_header Cache-Control "no-cache" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        try_files $uri =404;
     }
 
     # Hashed bundles are immutable.

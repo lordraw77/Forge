@@ -9,5 +9,6 @@
  */
 
 export interface MemberUpdateIn {
-  role_name_id: string;
+  group_ids?: Array<string> | null;
+  role_name_id?: string | null;
 }

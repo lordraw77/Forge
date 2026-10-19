@@ -2,7 +2,9 @@
 
 from forge.tenancy.projects import (
     DEFAULT_KEY_SCOPES,
+    AclPrincipals,
     ApiKeyPrincipal,
+    GroupRow,
     InviteResult,
     MemberRow,
     ProjectAccess,
@@ -12,7 +14,9 @@ from forge.tenancy.projects import (
 
 __all__ = [
     "DEFAULT_KEY_SCOPES",
+    "AclPrincipals",
     "ApiKeyPrincipal",
+    "GroupRow",
     "InviteResult",
     "MemberRow",
     "ProjectAccess",

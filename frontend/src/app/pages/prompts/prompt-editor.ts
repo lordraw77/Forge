@@ -148,20 +148,25 @@ export class PromptEditor {
   }
 
   private async load(projectId: string, id: string | undefined): Promise<void> {
+    // Saving a new item navigates to its edit URL, which re-runs this: do not reload (and wipe the
+    // draft and the "saved" message) for the item that is already open.
+    if (id && this.prompt()?.id === id) return;
     this.message.set(null);
     this.issues.set([]);
+    if (!id) {
+      // Defaults first: the user may type before the model options arrive.
+      this.prompt.set(null);
+      this.name = $localize`Untitled Prompt`;
+      this.draft = emptyDraft();
+      this.autoAdded.clear();
+      this.detected = [];
+    }
     try {
       const options = await this.modelOptions.load(projectId);
       this.models.set(options);
       if (!id) {
-        this.prompt.set(null);
-        this.name = $localize`Untitled Prompt`;
-        this.draft = emptyDraft();
-        if (!options.some((o) => o.value === DEFAULT_MODEL) && options.length) {
-          this.draft.model = options[0].value;
-        }
-        this.autoAdded.clear();
-        this.detected = [];
+        const chosen = options.some((o) => o.value === this.draft.model);
+        if (!chosen && options.length) this.draft.model = options[0].value;
         return;
       }
       const prompt = await firstValueFrom(this.api.getPrompt({ projectId, promptId: id }));

@@ -31,6 +31,12 @@ The spec's RAG design uses one `rag_chunk` table with pgvector HNSW and ParadeDB
 - Scale-out path: `PARTITION BY LIST (project_id)` for large projects, or pgvectorscale.
 - **Resolved (2026-10-18):** the PO rejected AGPL; BM25 moves to OpenSearch ([ADR-016](016-external-bm25-opensearch.md)). The pg_search notes below are kept for history; vector search is unchanged.
 
+## Implementation notes (M1.4, 2026-10-19)
+
+- A **knowledge base** is the set of chunks of one data collection for one (embedding model, chunk size, overlap, node parser). The model is pinned to a concrete model name at creation; pipelines with the same parameters share it ([M1.4 design](../architecture/m1.4-rag.md#2-data-model-migration-0006_rag)).
+- The partial HNSW index is created by the SECURITY DEFINER function `rag_kb_index(kb)`, because the application role does not own `rag_chunk`; indexes of deleted knowledge bases are left for index maintenance (E2.13).
+- Without a reranker the similarity threshold applies to cosine similarity.
+
 ## Consequences
 
 - Single database, transactional consistency between documents and chunks.

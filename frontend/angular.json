@@ -35,7 +35,12 @@
             "styles": [
               "node_modules/ng-zorro-antd/ng-zorro-antd.variable.min.css",
               "node_modules/@foblex/flow/styles/default.scss",
-              "src/styles.scss"
+              "src/styles.scss",
+              {
+                "input": "src/themes/dark.less",
+                "bundleName": "theme-dark",
+                "inject": false
+              }
             ],
             "polyfills": [
               "@angular/localize/init"
