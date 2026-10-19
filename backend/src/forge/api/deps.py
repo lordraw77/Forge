@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from fastapi import Request
 
 from forge.admin.service import SettingsStore
+from forge.agents.service import AgentStudio, RunEvents
 from forge.bundles.service import Bundles
 from forge.core.context import Actor, RequestContext
 from forge.core.errors import ProblemError
@@ -37,6 +38,8 @@ class Services:
     gateway: Gateway
     prompts: PromptStudio
     rag: Rag
+    agents: AgentStudio
+    run_events: RunEvents
     bundles: Bundles
 
 

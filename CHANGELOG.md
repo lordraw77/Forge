@@ -4,9 +4,25 @@ All notable changes to Forge are recorded here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
-Phase 1 milestones M1.2 (LLM gateway), M1.3 (Prompt Studio) and M1.4 (RAG on upload), the closing items of Phase 0, SeaweedFS confirmed as object store (ADR-015, 2026-10-19), and two PO decisions of 2026-10-18: NG-ZORRO on Angular 22 instead of PrimeNG (ADR-017), and OpenSearch for BM25 instead of pg_search (ADR-016).
+Phase 1 milestones M1.2 (LLM gateway), M1.3 (Prompt Studio), M1.4 (RAG on upload) and M1.5 (single agent and tracing), the closing items of Phase 0, SeaweedFS confirmed as object store (ADR-015, 2026-10-19), and two PO decisions of 2026-10-18: NG-ZORRO on Angular 22 instead of PrimeNG (ADR-017), and OpenSearch for BM25 instead of pg_search (ADR-016).
 
 ### Added
+
+**Agentic AI Studio (M1.5)**
+- New Agent: an agent is a Library prompt (system prompt and examples are its instructions) plus a model alias, tools, RAG pipelines and limits. Every save is an immutable version; the prompt and the pipelines are pinned to versions on save. Save Configuration, Save Configuration & Test Agent, Versions, Publish, and an Agent Library with the usual status, time and name filters, Try, Edit, Duplicate and Delete.
+- Tools: each RAG pipeline becomes a search tool that applies the caller's document access (groups and roles); built-in `http_get` (only hosts the agent allows, never private addresses, redirects re-checked, size and time capped) and `current_time`.
+- Limits per run: model calls, tokens, cost and time. A run that exceeds one ends as failed with the reason. Switching the alias's target model changes the provider with no change to the agent.
+- Runs execute as a LangGraph loop inside a Temporal activity with PostgreSQL checkpoints: a worker killed mid-run resumes from the last checkpoint, and a tool does not run twice.
+- Chat: streaming answers over SSE, collapsible tool steps, clickable citations, a Stop button that cancels the run, thumbs up/down with an optional comment, conversations kept per user. Builders can chat with drafts; others with published agents.
+- Runs: a run view with every step (model, tokens, cost, latency, time to first token, input and output), totals that equal the sums of the steps and of the gateway's records, citations and the failure reason; a run list with filters and 30-day totals. End users see only their own runs; Viewers and Operators see all.
+- Agents travel in export/import bundles with their prompt and pipelines by name.
+
+**Telemetry**
+- OpenTelemetry spans across API, workflow, activity, gateway call and tool call; JSON logs carry `trace_id` and `span_id`; Prometheus `/metrics` on an internal port of every process (`FORGE_METRICS_PORT`, default 9100) with run, step, tool, gateway and HTTP metrics; the `observability` profile scrapes them.
+- Optional Langfuse profile (`make obs/langfuse`), off by default; set `FORGE_OTLP_ENDPOINT` to send spans to the collector.
+
+**Prompt-injection test set (E1.21)**
+- `forge injection run`: block rate and false-positive rate of a detector on a versioned dataset of 440 attacks and 440 benign texts in English and Italian (plus a hand-written held-out set), by language and category, with CI gates. Detectors: `none`, a `heuristic` baseline, and any command. The baseline blocks 94 % of the generated set but only 2.5 % of the held-out attacks.
 
 **Export / Import**
 - Projects Studio → Export / Import: prompts, RAG pipelines and collection definitions, with all versions, the published one or the latest, tags included; optionally model aliases, limits and group names. Dependencies (prompts and collections used by a pipeline) can be added automatically.

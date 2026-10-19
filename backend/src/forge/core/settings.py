@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     temporal_address: str = "localhost:7233"
     temporal_namespace: str = "default"
     temporal_ingest_queue: str = "ingest"
+    temporal_runs_queue: str = "runs"
     # BM25 full-text engine (ADR-016); the CA file verifies its TLS certificate.
     search_url: str = "https://localhost:9200"
     search_username: str = "forge"
@@ -53,6 +54,13 @@ class Settings(BaseSettings):
     search_ca_file: str | None = None
     # Alias of the chunk index; the physical index is `<alias>-v<N>` (ADR-016).
     search_index: str = "forge-chunks"
+
+    # Observability (ADR-009): OTLP/HTTP endpoint of the collector (spans are exported only when
+    # set) and the internal port of the Prometheus `/metrics` server (0 = off).
+    otlp_endpoint: str | None = None
+    metrics_port: int = Field(default=9100, ge=0, le=65535)
+    # Agent `http_get` may reach private addresses only when this deployment flag is on (labs).
+    agent_allow_private_hosts: bool = False
 
     # Boot-time log level, used until the GUI setting is loaded from the database.
     log_level: str = "INFO"

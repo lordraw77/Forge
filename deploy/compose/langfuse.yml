@@ -1,0 +1,123 @@
+# Optional Langfuse (PO decision 2026-10-19, ADR-009): traces of Forge runs, also shown in
+# Langfuse. Forge keeps its own run records and works without this file.
+# Use: make obs/langfuse   (starts the observability profile with this override; open
+# http://localhost:3001, sign in with LANGFUSE_INIT_USER_EMAIL / LANGFUSE_INIT_USER_PASSWORD
+# from deploy/compose/infra.env).
+# Forge processes export spans to the collector when FORGE_OTLP_ENDPOINT=http://otel-collector:4318
+# is set in .env; the collector forwards traces here. Prompt and completion text is not in the
+# spans (ADR-009). Images are on the `4` line: pin an exact tag when adopting.
+
+x-langfuse-env: &langfuse-env
+  DATABASE_URL: postgresql://langfuse:${LANGFUSE_DB_PASSWORD}@langfuse-db:5432/langfuse
+  NEXTAUTH_URL: http://localhost:3001
+  NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET}
+  SALT: ${LANGFUSE_SALT}
+  ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_KEY}
+  TELEMETRY_ENABLED: "false"
+  CLICKHOUSE_URL: http://langfuse-clickhouse:8123
+  CLICKHOUSE_MIGRATION_URL: clickhouse://langfuse-clickhouse:9000
+  CLICKHOUSE_USER: langfuse
+  CLICKHOUSE_PASSWORD: ${LANGFUSE_CLICKHOUSE_PASSWORD}
+  CLICKHOUSE_CLUSTER_ENABLED: "false"
+  REDIS_CONNECTION_STRING: redis://:${VALKEY_PASSWORD}@valkey:6379/5
+  LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+  LANGFUSE_S3_EVENT_UPLOAD_REGION: us-east-1
+  LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://s3:8333
+  LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+  LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: ${S3_ACCESS_KEY}
+  LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${S3_SECRET_KEY}
+
+services:
+  langfuse-db:
+    image: postgres:17-trixie
+    profiles: [observability]
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: langfuse
+      POSTGRES_PASSWORD: ${LANGFUSE_DB_PASSWORD}
+      POSTGRES_DB: langfuse
+    volumes: [langfuse-db-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langfuse -d langfuse"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  langfuse-clickhouse:
+    image: clickhouse/clickhouse-server:25.8
+    profiles: [observability]
+    restart: unless-stopped
+    user: "101:101"
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: langfuse
+      CLICKHOUSE_PASSWORD: ${LANGFUSE_CLICKHOUSE_PASSWORD}
+    volumes:
+      - langfuse-clickhouse-data:/var/lib/clickhouse
+      - langfuse-clickhouse-logs:/var/log/clickhouse-server
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Creates the bucket Langfuse writes events to (SeaweedFS does not create buckets on demand).
+  langfuse-bucket:
+    image: amazon/aws-cli:2.27.0
+    profiles: [observability]
+    restart: "no"
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY}
+      AWS_DEFAULT_REGION: us-east-1
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["aws --endpoint-url http://s3:8333 s3api head-bucket --bucket langfuse || aws --endpoint-url http://s3:8333 s3 mb s3://langfuse"]
+    depends_on:
+      s3: { condition: service_healthy }
+
+  langfuse-worker:
+    image: docker.langfuse.com/langfuse/langfuse-worker:4
+    profiles: [observability]
+    restart: unless-stopped
+    environment: *langfuse-env
+    depends_on:
+      langfuse-db: { condition: service_healthy }
+      langfuse-clickhouse: { condition: service_healthy }
+      valkey: { condition: service_healthy }
+      langfuse-bucket: { condition: service_completed_successfully }
+
+  langfuse-web:
+    image: docker.langfuse.com/langfuse/langfuse:4
+    profiles: [observability]
+    restart: unless-stopped
+    environment:
+      <<: *langfuse-env
+      # Headless initialisation: an organisation, a project with fixed API keys (the collector
+      # uses them) and a first user. Do not quote these values (Langfuse issue).
+      LANGFUSE_INIT_ORG_ID: forge
+      LANGFUSE_INIT_ORG_NAME: Forge
+      LANGFUSE_INIT_PROJECT_ID: forge
+      LANGFUSE_INIT_PROJECT_NAME: Forge
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY}
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_SECRET_KEY}
+      LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL:-admin@example.com}
+      LANGFUSE_INIT_USER_NAME: Forge admin
+      LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD}
+    ports: ["127.0.0.1:3001:3000"]
+    depends_on:
+      langfuse-worker: { condition: service_started }
+
+  # The collector forwards traces to Langfuse as well (same receivers as the base profile).
+  otel-collector:
+    volumes:
+      - ./deploy/compose/observability/otel-collector-langfuse.yaml:/etc/otelcol/config.yaml:ro
+    environment:
+      LANGFUSE_AUTH: ${LANGFUSE_AUTH}
+    depends_on:
+      loki: { condition: service_started }
+      langfuse-web: { condition: service_started }
+
+volumes:
+  langfuse-db-data:
+  langfuse-clickhouse-data:
+  langfuse-clickhouse-logs:

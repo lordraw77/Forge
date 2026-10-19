@@ -33,6 +33,7 @@ from forge.gateway.limits import Limiter, Reservation, ResponseCache
 from forge.gateway.models import LlmCall
 from forge.gateway.registry import ModelConfig, Registry, Resolution
 from forge.gateway.schemas import EffectiveLimits, TestResult, UsageOut
+from forge.observability.service import record_gateway_call
 
 log = get_logger(__name__)
 
@@ -88,6 +89,9 @@ class GatewayResponse:
     body: dict[str, Any] | None = None
     stream: AsyncIterator[bytes] | None = None
     info: CallInfo | None = None
+    # Streaming: resolves with the recorded call once the stream has ended (accounting for
+    # internal callers such as agents, E1.20).
+    done: asyncio.Future[CallInfo] | None = None
 
 
 @dataclass
@@ -186,7 +190,7 @@ class GatewayService:
                 call, "ok", 200, tokens=(0, 0), usage_source="cache", cache_hit=True
             )
             if stream:
-                return GatewayResponse(headers, stream=self._replay(body, client_usage))
+                return GatewayResponse(headers, stream=self._replay(body, client_usage), info=info)
             return GatewayResponse(headers, body=body, info=info)
         if cache_key:
             headers["x-forge-cache"] = "miss"
@@ -406,11 +410,13 @@ class GatewayService:
             raise
         call.ttft_ms = call.elapsed_ms()
         headers["x-forge-model"] = model.name
+        done: asyncio.Future[CallInfo] = asyncio.get_running_loop().create_future()
         return GatewayResponse(
             headers,
             stream=self._relay(
-                call, model, agen, first, reservation, prompt_estimate, client_usage
+                call, model, agen, first, reservation, prompt_estimate, client_usage, done
             ),
+            done=done,
         )
 
     async def _relay(
@@ -422,6 +428,7 @@ class GatewayService:
         reservation: Reservation,
         prompt_estimate: int,
         client_usage: bool,
+        done: asyncio.Future[CallInfo] | None = None,
     ) -> AsyncIterator[bytes]:
         """Re-emit chunks under one id and Forge's model name. The chunk carrying
         `finish_reason` is held back so the final usage can be attached to it (US-1.6.1 #2)."""
@@ -507,7 +514,7 @@ class GatewayService:
                 )
                 source = "estimated"
             self._spawn(self._limiter.reconcile(reservation, sum(tokens)))
-            self._record(
+            recorded = self._record(
                 call,
                 status,
                 200,
@@ -515,6 +522,8 @@ class GatewayService:
                 usage_source=source,
                 error_code=error_code,
             )
+            if done is not None and not done.done():
+                done.set_result(recorded)
         final_usage = {
             "prompt_tokens": tokens[0],
             "completion_tokens": tokens[1],
@@ -744,6 +753,15 @@ class GatewayService:
             trace_id=call.caller.trace_id,
         )
         self._spawn(self._insert(row))
+        record_gateway_call(
+            row.endpoint,
+            row.model_name,
+            row.status,
+            row.tokens_in,
+            row.tokens_out,
+            row.cost,
+            row.latency_ms,
+        )
         return CallInfo(
             call_id=row.id,
             model_name=row.model_name,

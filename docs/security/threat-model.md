@@ -81,7 +81,10 @@ Status: **P1** = control delivered in Phase 1, **P2** / **P3** later phases.
 | STRIDE | Threat | Control | Phase |
 | --- | --- | --- | --- |
 | E | Agent misuses a tool (prompt-injected) | `requires_approval` HITL, per-project egress allowlist, tool argument guardrails, least-privilege tool credentials | P1 (allowlist) / P2 |
-| E | SSRF through HTTP tools | Egress allowlist enforced in an egress proxy, DNS rebinding protection (resolve then connect to the resolved IP), block private ranges unless allowlisted | P1 |
+| E | SSRF through HTTP tools | Per-agent host allowlist (empty = nothing); every address a host resolves to must be public (private, loopback, link-local and metadata ranges refused, also IPv4-mapped IPv6); the request connects to the address that was checked (no second lookup), redirects re-checked, 3 redirects, 10 s, 256 KB, text content types only; `FORGE_AGENT_ALLOW_PRIVATE_HOSTS` is a deployment flag for labs, off by default. With a corporate proxy the proxy resolves the name (`forge.agents.egress`, unit and integration tests) | P1 ✅ M1.5 |
+| E | Agent calls a tool twice after a crash | Idempotency key `{thread_id}:{tool_call_id}` in `tool_call_log`; a repeat returns the stored result (test with a killed worker) | P1 ✅ M1.5 |
+| D | Runaway agent loop or cost | Per-run limits (model calls, tokens, cost, time) with platform ceilings; the run ends `failed` with the reason; gateway quotas still apply to every call | P1 ✅ M1.5 |
+| I | Reading another user's run, answer or stream | RLS on every run table; `run.read.own` filtered in the query; the SSE endpoint checks the run first; stream keys hold the run id only | P1 ✅ M1.5 |
 | E | Malicious MCP server | MCP servers registered by B/PA only; stdio servers run in sandbox; tool descriptions treated as untrusted | P2/P3 |
 | E | Sandbox escape (Python tools) | gVisor, no network except allowlist, CPU/mem/time limits, read-only FS | P3 |
 | S | LDAP injection / OIDC token forgery | Escaped LDAP filters, LDAPS/StartTLS required; OIDC: Authlib, issuer + audience + nonce + PKCE, JWKS rotation | P2 |
@@ -91,7 +94,7 @@ Status: **P1** = control delivered in Phase 1, **P2** / **P3** later phases.
 
 | STRIDE | Threat | Control | Phase |
 | --- | --- | --- | --- |
-| T | Indirect prompt injection from documents/tool output | Content delimiting in prompts, injection guardrail on retrieved/tool content, tool HITL for side effects, no auto-execution of URLs | P2 |
+| T | Indirect prompt injection from documents/tool output | Content delimiting in prompts, injection guardrail on retrieved/tool content, tool HITL for side effects, no auto-execution of URLs. Phase 1: passages and web content are delimited and declared data in the tool result and the agent's rules; the injection dataset (E1.21, `forge injection run`) gives the baseline the Phase 2 guardrails must beat | P1 (delimiting, dataset) / P2 |
 | I | Exfiltration via rendered links/images in answers | No remote image loading in chat; URL guardrail; CSP `img-src` self + data | P1 (CSP) / P2 |
 | I | Data from restricted documents | ACL filter at retrieval (AC4), chunks never cross projects | P1 |
 | T | Malicious files (parser exploits, zip bombs) | Content sniffing with per-file rejection, 100 MB request limit, ZIP entry and ratio checks, Docling only in the ingestion worker (read-only filesystem, no runtime downloads); uploaded HTML/text never served as HTML ([M1.4](../architecture/m1.4-rag.md#9-threat-model-delta)). Page limits for huge PDFs: E2.13 | P1 ✅ M1.4 (page limits P2) |

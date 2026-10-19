@@ -1,0 +1,435 @@
+<div class="editor">
+  <div class="title-row">
+    @if (editingName) {
+      <input
+        nz-input
+        class="name-input"
+        aria-label="Agent name"
+        i18n-aria-label
+        maxlength="120"
+        cdkFocusInitial
+        data-testid="agent-name-input"
+        [(ngModel)]="name"
+        (blur)="commitName()"
+        (keydown.enter)="commitName()"
+      />
+    } @else {
+      <h2
+        tabindex="0"
+        role="button"
+        title="Click to rename"
+        i18n-title
+        data-testid="agent-name"
+        (click)="editingName = true"
+        (keydown.enter)="editingName = true"
+      >
+        {{ name }}
+      </h2>
+    }
+    @if (agent(); as a) {
+      <nz-tag
+        [nzColor]="a.status === 'published' ? 'success' : 'default'"
+        data-testid="agent-status-tag"
+      >
+        @if (a.status === 'published') {
+          <span i18n>Published v{{ a.published_version }}</span>
+        } @else {
+          <span i18n>Draft</span>
+        }
+      </nz-tag>
+    }
+    <span class="spacer"></span>
+    @if (agent(); as a) {
+      <button nz-button (click)="openVersions()" data-testid="agent-versions">
+        <nz-icon nzType="history" /><span i18n>Versions</span>
+      </button>
+      @if (a.status === 'published') {
+        <button nz-button (click)="unpublish()" data-testid="agent-unpublish" i18n>
+          Unpublish
+        </button>
+      }
+      <button nz-button (click)="publish()" data-testid="agent-publish">
+        <nz-icon nzType="cloud-upload" /><span i18n>Publish latest</span>
+      </button>
+      <button nz-button (click)="chat()" data-testid="agent-open-chat">
+        <nz-icon nzType="message" /><span i18n>Chat</span>
+      </button>
+    }
+  </div>
+
+  @if (message(); as m) {
+    <nz-alert
+      [nzType]="m.ok ? 'success' : 'error'"
+      [nzMessage]="m.text"
+      nzShowIcon
+      data-testid="agent-message"
+    />
+  }
+
+  <nz-card nzSize="small" nzTitle="Instructions and model" i18n-nzTitle>
+    <div class="params">
+      <div class="field grow">
+        <label for="ae-prompt">
+          <span i18n>Prompt</span>
+          <nz-icon
+            nzType="info-circle"
+            class="info"
+            nz-tooltip
+            nzTooltipTitle="A prompt from the Prompt Library. Its system prompt and examples are the agent's instructions; the chat message is the user turn."
+            i18n-nzTooltipTitle
+          />
+        </label>
+        <nz-select
+          nzId="ae-prompt"
+          nzShowSearch
+          data-testid="agent-prompt"
+          [(ngModel)]="draft.promptId"
+          (ngModelChange)="pickPrompt()"
+          [nzNotFoundContent]="noPrompts"
+        >
+          @for (p of promptList(); track p.id) {
+            <nz-option [nzValue]="p.id" [nzLabel]="p.name" />
+          }
+        </nz-select>
+        <ng-template #noPrompts>
+          <a routerLink="/prompts/new" i18n>Create a prompt first</a>
+        </ng-template>
+      </div>
+      <div class="field">
+        <label for="ae-prompt-version">
+          <span i18n>Prompt version</span>
+          <nz-icon
+            nzType="info-circle"
+            class="info"
+            nz-tooltip
+            nzTooltipTitle="Pinned when the agent version is saved. Empty: the published version, else the latest."
+            i18n-nzTooltipTitle
+          />
+        </label>
+        <nz-input-number
+          nzId="ae-prompt-version"
+          [nzMin]="1"
+          [nzPlaceHolder]="promptVersionPlaceholder"
+          data-testid="agent-prompt-version"
+          [(ngModel)]="draft.promptVersion"
+        />
+      </div>
+      <div class="field grow">
+        <label for="ae-model">
+          <span i18n>Model alias</span>
+          <nz-icon
+            nzType="info-circle"
+            class="info"
+            nz-tooltip
+            nzTooltipTitle="Looked up on every call: change what the alias points to and the agent uses another provider with no change here."
+            i18n-nzTooltipTitle
+          />
+        </label>
+        <nz-select nzId="ae-model" nzShowSearch data-testid="agent-model" [(ngModel)]="draft.model">
+          @for (o of chatModels(); track o.value) {
+            <nz-option [nzValue]="o.value" [nzLabel]="o.label" />
+          }
+        </nz-select>
+      </div>
+      <div class="field">
+        <label for="ae-temp" i18n>Temperature</label>
+        <nz-input-number
+          nzId="ae-temp"
+          [nzMin]="0"
+          [nzMax]="2"
+          [nzStep]="0.1"
+          [(ngModel)]="draft.temperature"
+        />
+      </div>
+      <div class="field">
+        <label for="ae-max-out" i18n>Max output tokens</label>
+        <nz-input-number
+          nzId="ae-max-out"
+          [nzMin]="16"
+          [nzMax]="64000"
+          [nzStep]="256"
+          [(ngModel)]="draft.maxOutputTokens"
+        />
+      </div>
+    </div>
+    @if (promptVariables().length) {
+      <h4 i18n>Prompt variables</h4>
+      <div class="params" data-testid="agent-variables">
+        @for (v of promptVariables(); track v.name) {
+          <div class="field grow">
+            <label [for]="'ae-var-' + v.name">{{ v.name }}</label>
+            <input
+              nz-input
+              [id]="'ae-var-' + v.name"
+              [placeholder]="v.value"
+              [ngModel]="draft.variables[v.name] ?? ''"
+              (ngModelChange)="draft.variables[v.name] = $event"
+            />
+          </div>
+        }
+      </div>
+    }
+  </nz-card>
+
+  <nz-card nzSize="small" nzTitle="Tools" i18n-nzTitle>
+    <h4 i18n>RAG pipelines</h4>
+    <p class="muted small" i18n>
+      Each pipeline becomes a search tool. The agent sees only the documents the person chatting is
+      allowed to read.
+    </p>
+    @for (pick of draft.pipelines; track pick.pipelineId) {
+      <div class="pipeline-row" [attr.data-testid]="'agent-pipeline-' + pipelineName(pick)">
+        <span>{{ pipelineName(pick) }}</span>
+        @if (pick.version) {
+          <nz-tag i18n>pinned v{{ pick.version }}</nz-tag>
+          <button nz-button nzType="link" nzSize="small" (click)="pick.version = null" i18n>
+            Use published
+          </button>
+        } @else {
+          <nz-tag nzColor="processing" i18n>published version</nz-tag>
+        }
+        <span class="spacer"></span>
+        <button
+          nz-button
+          nzType="text"
+          nzDanger
+          aria-label="Remove"
+          i18n-aria-label
+          (click)="removePipeline(pick)"
+        >
+          <nz-icon nzType="delete" />
+        </button>
+      </div>
+    }
+    <div class="pipeline-add">
+      <nz-select
+        class="grow"
+        nzShowSearch
+        nzAllowClear
+        nzPlaceHolder="Add a RAG pipeline"
+        i18n-nzPlaceHolder
+        nzId="ae-pipeline"
+        aria-label="Add a RAG pipeline"
+        i18n-aria-label
+        data-testid="agent-pipeline-add"
+        [(ngModel)]="pipelineToAdd"
+        [nzNotFoundContent]="noPipelines"
+      >
+        @for (p of availablePipelines(); track p.id) {
+          <nz-option [nzValue]="p.id" [nzLabel]="p.name" />
+        }
+      </nz-select>
+      <ng-template #noPipelines>
+        <a routerLink="/rag/new" i18n>Create a RAG pipeline first</a>
+      </ng-template>
+      <button
+        nz-button
+        [disabled]="!pipelineToAdd"
+        (click)="addPipeline()"
+        data-testid="agent-pipeline-add-button"
+        i18n
+      >
+        Add
+      </button>
+    </div>
+
+    <h4 i18n>Built-in tools</h4>
+    <div class="builtin">
+      <label
+        nz-checkbox
+        nzId="ae-time"
+        [(ngModel)]="draft.currentTime"
+        data-testid="agent-tool-time"
+      >
+        <span i18n>Current time</span>
+      </label>
+      <label nz-checkbox nzId="ae-http" [(ngModel)]="draft.httpGet" data-testid="agent-tool-http">
+        <span i18n>HTTP GET</span>
+      </label>
+    </div>
+    @if (draft.httpGet) {
+      <div class="field">
+        <label for="ae-hosts">
+          <span i18n>Allowed hosts</span>
+          <nz-icon
+            nzType="info-circle"
+            class="info"
+            nz-tooltip
+            nzTooltipTitle="Hosts the agent may fetch: example.com, or *.example.com for subdomains. Empty: the tool refuses everything. Private addresses are always refused."
+            i18n-nzTooltipTitle
+          />
+        </label>
+        <nz-select
+          nzId="ae-hosts"
+          nzMode="tags"
+          nzPlaceHolder="example.com"
+          data-testid="agent-hosts"
+          [nzTokenSeparators]="[',', ' ']"
+          [(ngModel)]="draft.hosts"
+        />
+        @if (!draft.hosts.length) {
+          <nz-alert
+            nzType="warning"
+            nzShowIcon
+            nzMessage="No host is allowed yet: the tool will refuse every request."
+            i18n-nzMessage
+          />
+        }
+      </div>
+    }
+  </nz-card>
+
+  <nz-card nzSize="small" nzTitle="Limits" i18n-nzTitle>
+    <p class="muted small" i18n>
+      A run that exceeds any limit ends as failed, with the reason. Model calls count the agent's
+      reasoning steps.
+    </p>
+    <div class="params">
+      <div class="field">
+        <label for="ae-steps" i18n>Max model calls</label>
+        <nz-input-number
+          nzId="ae-steps"
+          [nzMin]="1"
+          [nzMax]="25"
+          data-testid="agent-max-steps"
+          [(ngModel)]="draft.maxSteps"
+        />
+      </div>
+      <div class="field">
+        <label for="ae-tokens" i18n>Max tokens</label>
+        <nz-input-number
+          nzId="ae-tokens"
+          [nzMin]="1000"
+          [nzMax]="500000"
+          [nzStep]="1000"
+          [(ngModel)]="draft.maxTokens"
+        />
+      </div>
+      <div class="field">
+        <label for="ae-timeout" i18n>Timeout (seconds)</label>
+        <nz-input-number
+          nzId="ae-timeout"
+          [nzMin]="10"
+          [nzMax]="900"
+          [nzStep]="10"
+          [(ngModel)]="draft.timeoutS"
+        />
+      </div>
+      <div class="field">
+        <label for="ae-cost" i18n>Max cost (USD)</label>
+        <nz-input-number
+          nzId="ae-cost"
+          [nzMin]="0.01"
+          [nzMax]="50"
+          [nzStep]="0.1"
+          [(ngModel)]="draft.maxCostUsd"
+        />
+      </div>
+      <div class="field grow">
+        <label for="ae-note" i18n>Version note</label>
+        <input nz-input id="ae-note" maxlength="500" [(ngModel)]="note" />
+      </div>
+    </div>
+  </nz-card>
+
+  <div class="bar">
+    <button
+      nz-button
+      [disabled]="!canSave()"
+      [nzLoading]="saving()"
+      (click)="save('stay')"
+      data-testid="agent-save"
+      i18n
+    >
+      Save Configuration
+    </button>
+    <button
+      nz-button
+      nzType="primary"
+      [disabled]="!canSave()"
+      [nzLoading]="saving()"
+      (click)="save('chat')"
+      data-testid="agent-save-test"
+      i18n
+    >
+      Save Configuration &amp; Test Agent
+    </button>
+  </div>
+</div>
+
+<nz-modal [(nzVisible)]="describeOpen" nzTitle="Describe the agent" i18n-nzTitle [nzFooter]="null">
+  <ng-container *nzModalContent>
+    <form class="form" (ngSubmit)="confirmDescription()">
+      <label for="ae-desc" i18n>Write a few lines about the agent</label>
+      <textarea
+        nz-input
+        id="ae-desc"
+        name="description"
+        cdkFocusInitial
+        required
+        maxlength="2000"
+        data-testid="agent-description"
+        cdkTextareaAutosize
+        cdkAutosizeMinRows="3"
+        [(ngModel)]="description"
+      ></textarea>
+      <div class="dialog-actions">
+        <button nz-button type="button" (click)="describeOpen = false" i18n>Cancel</button>
+        <button
+          nz-button
+          nzType="primary"
+          type="submit"
+          [disabled]="!description.trim()"
+          data-testid="agent-description-save"
+          i18n
+        >
+          Save
+        </button>
+      </div>
+    </form>
+  </ng-container>
+</nz-modal>
+
+<nz-drawer
+  [(nzVisible)]="versionsOpen"
+  nzTitle="Versions"
+  i18n-nzTitle
+  [nzWidth]="640"
+  (nzOnClose)="versionsOpen = false"
+>
+  <ng-container *nzDrawerContent>
+    <nz-table [nzData]="versions()" nzSize="small" [nzShowPagination]="false" [nzPageSize]="1000">
+      <thead>
+        <tr>
+          <th i18n>Version</th>
+          <th i18n>Tags</th>
+          <th i18n>Model</th>
+          <th i18n>Saved</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (v of versions(); track v.version) {
+          <tr>
+            <td>
+              v{{ v.version }}
+              @if (v.note) {
+                <div class="muted small">{{ v.note }}</div>
+              }
+            </td>
+            <td>
+              @for (t of v.tags; track t) {
+                <nz-tag [nzColor]="t === 'prod' ? 'success' : 'default'">{{ t }}</nz-tag>
+              }
+            </td>
+            <td>{{ v.config.model }}</td>
+            <td>{{ v.created_at | date: 'short' }}</td>
+            <td class="actions">
+              <button nz-button nzType="link" nzSize="small" (click)="restore(v)" i18n>Load</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </nz-table>
+  </ng-container>
+</nz-drawer>

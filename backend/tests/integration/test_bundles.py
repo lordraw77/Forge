@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.integration.test_gateway import ok, uid
+from tests.integration.test_gateway import model, ok, uid
 from tests.integration.test_platform_core import csrf
 from tests.integration.test_rag import (  # noqa: F401 - module fixtures
     MANUAL,
@@ -183,7 +183,7 @@ def test_unknown_items_and_fields_from_newer_versions_are_ignored(
         "format": "forge.bundle",
         "schema_version": 1,
         "items": [
-            {"kind": "agent", "name": "from the future"},
+            {"kind": "use_case", "name": "from the future"},
             {
                 "kind": "prompt",
                 "name": name,
@@ -199,6 +199,130 @@ def test_unknown_items_and_fields_from_newer_versions_are_ignored(
         c.post(f"{env['base']}/import", headers=csrf(c), json={"bundle": bundle, "dry_run": False})
     )
     assert {(i["kind"], i["action"]) for i in report["items"]} == {
-        ("agent", "skipped"),
+        ("use_case", "skipped"),
         ("prompt", "created"),
     }
+
+
+def test_agents_travel_in_bundles(
+    env: dict[str, Any],  # noqa: F811
+    admin: TestClient,  # noqa: F811
+) -> None:
+    """An agent is exported with its prompt and pipelines by name, and re-pinned to versions
+    of the target project on import (version numbers differ between projects)."""
+    c, base = env["owner"], env["base"]
+    prompt = _prompt(c, base, f"Agent style {uid()}")
+    cid = collection(env)["id"]
+    upload(env, cid, [("manual.md", MANUAL)])
+    rag = pipeline(env, cid)
+    ok(c.post(f"{base}/rag/{rag['id']}/publish", headers=csrf(c), json={}))
+    tools_model = model(
+        admin,
+        env["models"]["chat"]["provider_id"],
+        "r-echo",
+        all_projects=True,
+        capabilities=["streaming", "tools"],
+    )
+    config = {
+        "prompt": {"prompt_id": prompt["id"], "version": 1},
+        "model": tools_model["name"],
+        "tools": [
+            {"kind": "rag", "pipeline_id": rag["id"], "name": "search_manual"},
+            {"kind": "builtin", "name": "http_get", "allowed_hosts": ["example.com"]},
+        ],
+        "limits": {"max_steps": 5},
+    }
+    agent = ok(
+        c.post(
+            f"{base}/agents",
+            headers=csrf(c),
+            json={"name": f"Bundled {uid()}", "description": "ships in a bundle", "config": config},
+        ),
+        201,
+    )
+    ok(
+        c.post(
+            f"{base}/agents/{agent['id']}/versions",
+            headers=csrf(c),
+            json={"config": config | {"limits": {"max_steps": 6}}, "note": "more steps"},
+        ),
+        201,
+    )
+    ok(c.post(f"{base}/agents/{agent['id']}/publish", headers=csrf(c), json={"version": 1}))
+
+    bundle = ok(
+        c.post(
+            f"{base}/export",
+            headers=csrf(c),
+            json={"agents": [{"id": agent["id"], "versions": "all"}], "model_aliases": True},
+        )
+    )
+    kinds = {i["kind"] for i in bundle["items"]}
+    # The agent's dependencies follow it; aliases were asked for.
+    assert kinds == {"agent", "prompt", "rag_pipeline", "data_collection", "model_alias"}
+    item = next(i for i in bundle["items"] if i["kind"] == "agent")
+    assert [v["version"] for v in item["versions"]] == [1, 2]
+    assert item["tags"] == {"prod": 1}
+    text = str(item)
+    assert agent["id"] not in text
+    assert prompt["id"] not in text
+    assert rag["id"] not in text
+    first = item["versions"][0]["config"]
+    assert first["prompt"]["name"] == prompt["name"]
+    assert first["tools"][0]["pipeline"] == rag["name"]
+    assert "pipeline_id" not in first["tools"][0]
+    assert first["tools"][1] == {
+        "kind": "builtin",
+        "name": "http_get",
+        "allowed_hosts": ["example.com"],
+    }
+
+    target = ok(
+        admin.post(
+            "/api/v1/admin/projects",
+            headers=csrf(admin),
+            json={"name": f"Agents target {uid()}", "admin_user_id": env["project"]["owner"]["id"]},
+        ),
+        201,
+    )["project"]["id"]
+    tbase = f"/api/v1/projects/{target}"
+    dry = ok(c.post(f"{tbase}/import", headers=csrf(c), json={"bundle": bundle}))
+    assert [i["error"] for i in dry["items"] if i["action"] == "error"] == [], dry
+    assert ("agent", "created") in {(i["kind"], i["action"]) for i in dry["items"]}
+    assert ok(c.get(f"{tbase}/agents"))["items"] == []  # a dry run writes nothing
+
+    real = ok(c.post(f"{tbase}/import", headers=csrf(c), json={"bundle": bundle, "dry_run": False}))
+    assert [i for i in real["items"] if i["action"] == "error"] == [], real
+    imported = next(i for i in ok(c.get(f"{tbase}/agents"))["items"] if i["name"] == agent["name"])
+    assert imported["latest_version"] == 2
+    assert imported["published_version"] == 1
+    detail = ok(c.get(f"{tbase}/agents/{imported['id']}"))
+    t_prompt = next(
+        i for i in ok(c.get(f"{tbase}/prompts"))["items"] if i["name"] == prompt["name"]
+    )
+    t_rag = next(i for i in ok(c.get(f"{tbase}/rag"))["items"] if i["name"] == rag["name"])
+    cfg = detail["version"]["config"]
+    assert cfg["prompt"]["prompt_id"] == t_prompt["id"]  # this project's prompt, not the source's
+    assert cfg["tools"][0]["pipeline_id"] == t_rag["id"]
+    assert cfg["limits"]["max_steps"] == 6
+
+    # An existing name: a new version, a copy, or nothing.
+    again = ok(
+        c.post(f"{tbase}/import", headers=csrf(c), json={"bundle": bundle, "dry_run": False})
+    )
+    assert ("agent", "new_versions") in {(i["kind"], i["action"]) for i in again["items"]}
+    assert ok(c.get(f"{tbase}/agents/{imported['id']}"))["latest_version"] == 4
+    copy = ok(
+        c.post(
+            f"{tbase}/import",
+            headers=csrf(c),
+            json={"bundle": bundle, "dry_run": False, "policy": "rename"},
+        )
+    )
+    renamed = next(i for i in copy["items"] if i["kind"] == "agent")
+    assert renamed["action"] == "renamed"
+    assert renamed["target"].endswith("(imported)")
+    skipped = ok(
+        c.post(f"{tbase}/import", headers=csrf(c), json={"bundle": bundle, "policy": "skip"})
+    )
+    assert ("agent", "skipped") in {(i["kind"], i["action"]) for i in skipped["items"]}

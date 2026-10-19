@@ -41,6 +41,28 @@ for key in GRAFANA_ADMIN_PASSWORD OPENSEARCH_ADMIN_PASSWORD FORGE_SEARCH_PASSWOR
     echo "update  ${infra_file#"$root"/} (${key})"
   fi
 done
+# Langfuse profile (deploy/compose/langfuse.yml): secrets added after a file was generated.
+for key in LANGFUSE_DB_PASSWORD LANGFUSE_CLICKHOUSE_PASSWORD LANGFUSE_NEXTAUTH_SECRET LANGFUSE_SALT \
+  LANGFUSE_INIT_USER_PASSWORD; do
+  if ! grep -q "^${key}=" "$infra_file"; then
+    echo "${key}=$(rand 16)" >> "$infra_file"
+    echo "update  ${infra_file#"$root"/} (${key})"
+  fi
+done
+if ! grep -q "^LANGFUSE_ENCRYPTION_KEY=" "$infra_file"; then
+  echo "LANGFUSE_ENCRYPTION_KEY=$(rand 32)" >> "$infra_file"  # 64 hex characters, as Langfuse asks
+  echo "update  ${infra_file#"$root"/} (LANGFUSE_ENCRYPTION_KEY)"
+fi
+if ! grep -q "^LANGFUSE_PUBLIC_KEY=" "$infra_file"; then
+  pk="pk-lf-$(rand 12)"
+  sk="sk-lf-$(rand 12)"
+  {
+    echo "LANGFUSE_PUBLIC_KEY=$pk"
+    echo "LANGFUSE_SECRET_KEY=$sk"
+    echo "LANGFUSE_AUTH=$(printf '%s:%s' "$pk" "$sk" | base64 -w0)"
+  } >> "$infra_file"
+  echo "update  ${infra_file#"$root"/} (Langfuse API keys)"
+fi
 # shellcheck disable=SC1090
 source "$infra_file"
 

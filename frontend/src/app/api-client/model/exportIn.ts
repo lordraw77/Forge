@@ -10,6 +10,7 @@
 import { AssetRef } from './assetRef';
 
 export interface ExportIn {
+  agents?: Array<AssetRef>;
   collections?: Array<string>;
   gateway_config?: boolean;
   /**

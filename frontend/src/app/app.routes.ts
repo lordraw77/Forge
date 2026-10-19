@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 
-import { authGuard, guestGuard, signedInGuard, superAdminGuard } from './core/guards';
+import { authGuard, builderGuard, guestGuard, signedInGuard, superAdminGuard } from './core/guards';
 import { ChangePassword, Eula, TotpEnroll } from './pages/account/account-steps';
 import { Home } from './pages/home/home';
 import { Login } from './pages/login/login';
@@ -155,13 +155,53 @@ export const routes: Routes = [
         ],
       },
       {
+        path: 'agents',
+        title: 'Agentic AI Studio · Forge',
+        loadComponent: () => import('./pages/agents/agent-studio').then((m) => m.AgentStudio),
+        children: [
+          {
+            path: '',
+            pathMatch: 'full',
+            loadComponent: () => import('./pages/agents/agent-studio').then((m) => m.AgentsIndex),
+          },
+          {
+            path: 'library',
+            canActivate: [builderGuard],
+            loadComponent: () => import('./pages/agents/agent-library').then((m) => m.AgentLibrary),
+          },
+          {
+            path: 'new',
+            canActivate: [builderGuard],
+            loadComponent: () => import('./pages/agents/agent-editor').then((m) => m.AgentEditor),
+          },
+          {
+            path: 'chat',
+            loadComponent: () => import('./pages/agents/agent-chat').then((m) => m.AgentChat),
+          },
+          {
+            path: 'runs',
+            loadComponent: () => import('./pages/agents/agent-runs').then((m) => m.AgentRuns),
+          },
+          {
+            path: 'runs/:runId',
+            loadComponent: () =>
+              import('./pages/agents/agent-run-view').then((m) => m.AgentRunView),
+          },
+          {
+            path: ':id/edit',
+            canActivate: [builderGuard],
+            loadComponent: () => import('./pages/agents/agent-editor').then((m) => m.AgentEditor),
+          },
+        ],
+      },
+      {
         // Phase 0 spike E0.5c, not in the menu: graph use-case editor on Foblex Flow.
         path: 'spikes/graph-editor',
         title: 'Graph editor spike · Forge',
         loadComponent: () =>
           import('./spikes/graph-editor/graph-editor').then((m) => m.GraphEditor),
       },
-      ...MENU.filter((entry) => !['projects', 'prompts', 'rag'].includes(entry.path)).map(
+      ...MENU.filter((entry) => !['projects', 'prompts', 'rag', 'agents'].includes(entry.path)).map(
         (entry) => ({
           path: entry.path,
           component: Placeholder,

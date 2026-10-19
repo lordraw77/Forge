@@ -24,6 +24,7 @@ from temporalio.worker.workflow_sandbox import SandboxedWorkflowRunner, SandboxR
 
 from forge.core.logging import configure_logging, get_logger
 from forge.core.settings import Settings, get_settings
+from forge.observability.service import setup, start_metrics_server, temporal_interceptors
 
 log = get_logger(__name__)
 
@@ -64,10 +65,103 @@ def registrations(queue: str) -> QueueRegistration:
     return QueueRegistration(workflows=[PingWorkflow], activities=[ping])
 
 
+async def build_runs(reg: QueueRegistration, settings: Settings) -> QueueRegistration:
+    """`runs` executes agent runs (E1.18): the LangGraph loop with checkpoints, the gateway,
+    retriever tools and the event stream. No Docling and no object storage."""
+    import redis.asyncio as redis
+    from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+
+    from forge.admin.service import SettingsStore, listen_dsn
+    from forge.agents.service import (
+        WORKFLOWS as AGENT_WORKFLOWS,
+    )
+    from forge.agents.service import (
+        AgentActivities,
+        AgentRuntime,
+        RunEvents,
+        RuntimeDeps,
+        checkpoint_pool,
+        purge_checkpoints,
+    )
+    from forge.core.crypto import Envelope
+    from forge.core.db import create_engine, session_factory
+    from forge.gateway.service import Gateway
+    from forge.prompts.service import PromptStudio
+    from forge.rag.service import IngestStarter, RagStudio, Retriever, SearchClient
+    from forge.tenancy.service import TenancyService
+
+    if settings.master_key is None:
+        raise RuntimeError("FORGE_MASTER_KEY is required by the runs worker")
+    engine = create_engine(settings)
+    sessions = session_factory(engine)
+    store = SettingsStore(sessions, listen_dsn(settings.database_url.get_secret_value()))
+    await store.start()
+    cache = redis.from_url(settings.redis_url)
+    gateway = Gateway.build(
+        sessions, Envelope.from_master_key(settings.master_key.get_secret_value()), store, cache
+    )
+    await gateway.start(store)
+    search = SearchClient(settings)
+    prompts = PromptStudio(sessions, gateway)
+    tenancy = TenancyService(sessions)
+    rag = RagStudio(
+        sessions,
+        gateway,
+        prompts,
+        Retriever(sessions, search, gateway),
+        IngestStarter(settings),
+        tenancy.acl_terms,
+    )
+    pool = checkpoint_pool(settings)
+    await pool.open(wait=True)
+    runtime = AgentRuntime(
+        RuntimeDeps(
+            sessions=sessions,
+            gateway=gateway,
+            prompts=prompts,
+            rag=rag,
+            events=RunEvents(cache),
+            checkpointer=AsyncPostgresSaver(pool),  # type: ignore[arg-type]
+            allow_private_hosts=settings.agent_allow_private_hosts,
+        )
+    )
+
+    async def purge_loop() -> None:
+        while True:  # checkpoints of runs that ended a week ago (ADR-004)
+            try:
+                removed = await purge_checkpoints(sessions)
+                log.info("worker.checkpoints_purged", rows=removed)
+            except Exception as exc:
+                log.warning("worker.checkpoint_purge_failed", error=str(exc)[:200])
+            await asyncio.sleep(6 * 3600)
+
+    purger = asyncio.create_task(purge_loop())
+
+    async def stop_purger() -> None:
+        purger.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await purger
+
+    reg.workflows += AGENT_WORKFLOWS
+    reg.activities += AgentActivities(runtime).all()
+    reg.closers += [
+        stop_purger,
+        gateway.stop,
+        store.stop,
+        search.aclose,
+        cache.aclose,
+        pool.close,
+        engine.dispose,
+    ]
+    return reg
+
+
 async def build_registrations(queue: str, settings: Settings) -> QueueRegistration:
-    """`ingest` also runs RAG ingestion (E1.15), which needs the database, object storage,
-    OpenSearch and the gateway (embeddings) in this process."""
+    """`runs` runs agents (E1.18); `ingest` runs RAG ingestion (E1.15), which needs the
+    database, object storage, OpenSearch and the gateway (embeddings) in this process."""
     reg = registrations(queue)
+    if queue == "runs":
+        return await build_runs(reg, settings)
     if queue != "ingest":
         return reg
     import redis.asyncio as redis
@@ -142,6 +236,9 @@ def new_worker(client: Client, task_queue: str, reg: QueueRegistration) -> Worke
         workflows=reg.workflows,
         activities=reg.activities,
         max_concurrent_activities=8,
+        # ADR-004 rule 4: the SDK default (10 s) delays recovery after a worker crash.
+        sticky_queue_schedule_to_start_timeout=timedelta(seconds=3),
+        graceful_shutdown_timeout=timedelta(seconds=15),
         workflow_runner=SandboxedWorkflowRunner(
             restrictions=SandboxRestrictions.default.with_passthrough_modules(*PASSTHROUGH)
         ),
@@ -158,9 +255,18 @@ async def _heartbeat(stop: asyncio.Event) -> None:
 async def run_worker(queue: str, settings: Settings | None = None) -> None:
     settings = settings or get_settings()
     configure_logging(settings.log_level)
+    setup(f"forge-worker-{queue}", settings)
+    start_metrics_server(settings.metrics_port)
     reg = await build_registrations(queue, settings)
-    client = await Client.connect(settings.temporal_address, namespace=settings.temporal_namespace)
-    task_queue = settings.temporal_ingest_queue if queue == "ingest" else queue
+    client = await Client.connect(
+        settings.temporal_address,
+        namespace=settings.temporal_namespace,
+        interceptors=temporal_interceptors(),
+    )
+    task_queue = {
+        "ingest": settings.temporal_ingest_queue,
+        "runs": settings.temporal_runs_queue,
+    }.get(queue, queue)
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):

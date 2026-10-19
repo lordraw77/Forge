@@ -31,3 +31,10 @@ export const guestGuard: CanActivateFn = async () => {
   const me = session.me() ?? (await session.load());
   return me ? inject(Router).parseUrl(session.pendingStep(me.flags) ?? '/') : true;
 };
+
+/** Agent definitions (New Agent, Library) are for Builders and Project Admins; the others go to
+ * the first tab they may open. */
+export const builderGuard: CanActivateFn = () => {
+  const session = inject(Session);
+  return session.can('asset.write') ? true : inject(Router).parseUrl('/agents');
+};

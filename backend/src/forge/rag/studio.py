@@ -16,6 +16,7 @@ import time
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
@@ -64,6 +65,38 @@ RERANK_KINDS = frozenset({"reranker"})
 TAG_ORDER = ("draft", "staging", "prod")
 NOT_FOUND = ProblemError(404, "not_found", "RAG pipeline not found")
 GroupsLookup = Callable[[uuid.UUID, uuid.UUID | None], Awaitable[list[str]]]
+ReferenceCheck = Callable[[AsyncSession, uuid.UUID], Awaitable[list[ReferenceOut]]]
+
+
+@dataclass(frozen=True)
+class AgentPipeline:
+    """A pipeline version as an agent uses it: pinned, with what a retriever tool needs."""
+
+    id: uuid.UUID
+    name: str
+    description: str
+    version: int
+    collection_name: str | None
+
+
+@dataclass
+class AgentPassage:
+    chunk_id: uuid.UUID
+    document_id: uuid.UUID
+    document_name: str
+    page: int | None
+    heading_path: str
+    score: float
+    content: str
+    url: str
+
+
+@dataclass
+class AgentSearch:
+    passages: list[AgentPassage]
+    trace: dict[str, Any]
+    tokens: int = 0
+    cost: Decimal = Decimal(0)
 
 
 def _cursor(at: datetime, pid: uuid.UUID) -> str:
@@ -96,7 +129,12 @@ class RagStudio:
         self._synth = Synthesizer(gateway)
         self._starter = starter
         self._groups = groups
+        self._reference_checks: list[ReferenceCheck] = []
         prompts.add_reference_check(self.prompt_references)
+
+    def add_reference_check(self, check: ReferenceCheck) -> None:
+        """Other modules (agents, E1.18) list what uses a pipeline, so delete can refuse."""
+        self._reference_checks.append(check)
 
     @asynccontextmanager
     async def _session(self, actor: Actor, project_id: uuid.UUID) -> AsyncIterator[AsyncSession]:
@@ -430,9 +468,19 @@ class RagStudio:
             return await self._detail(s, p)
 
     async def delete(self, actor: Actor, project_id: uuid.UUID, pipeline_id: uuid.UUID) -> None:
-        """Agents that use the pipeline will block this (E1.18); chunks stay with the KB."""
+        """Blocked while an agent uses the pipeline (US-1.11.2 #3); chunks stay with the KB."""
         async with self._session(actor, project_id) as s:
             p = await self._pipeline(s, pipeline_id, lock=True)
+            refs: list[ReferenceOut] = []
+            for check in self._reference_checks:
+                refs += await check(s, p.id)
+            if refs:
+                raise ProblemError(
+                    409,
+                    "pipeline_in_use",
+                    "The pipeline is used by other resources",
+                    [r.model_dump(mode="json") for r in refs],
+                )
             await audit.record(
                 s,
                 actor,
@@ -784,6 +832,16 @@ class RagStudio:
                 return candidate
         raise ProblemError(409, "name_taken", "No free name for the imported pipeline")
 
+    async def find_pipeline(
+        self, actor: Actor, project_id: uuid.UUID, name: str
+    ) -> uuid.UUID | None:
+        async with self._session(actor, project_id) as s:
+            return (
+                await s.execute(
+                    select(Pipeline.id).where(func.lower(Pipeline.name) == name.lower())
+                )
+            ).scalar_one_or_none()
+
     async def collection_ids(self, actor: Actor, project_id: uuid.UUID) -> dict[str, uuid.UUID]:
         async with self._session(actor, project_id) as s:
             return {
@@ -922,6 +980,88 @@ class RagStudio:
         async with self._session(actor, project_id) as s:
             s.add(run)
         return self._run_out(run, detail=True)  # type: ignore[return-value]
+
+    async def agent_pipeline(
+        self,
+        actor: Actor,
+        project_id: uuid.UUID,
+        pipeline_id: uuid.UUID,
+        version: int | None = None,
+    ) -> AgentPipeline:
+        """Resolve the version an agent pins: the given one, else `prod`, else the latest."""
+        async with self._session(actor, project_id) as s:
+            p = await self._pipeline(s, pipeline_id)
+            if version is None:
+                tag = await s.get(PipelineTag, (p.id, "prod"))
+                version = tag.version if tag else p.latest_version
+            v = await self._version(s, p, version)
+            kb = await s.get(KnowledgeBase, v.kb_id)
+            coll = await s.get(DataCollection, kb.collection_id) if kb else None
+            name = coll.name if coll else None
+            return AgentPipeline(p.id, p.name, p.description, v.version, name)
+
+    async def agent_search(
+        self,
+        caller: Caller,
+        pipeline_id: uuid.UUID,
+        version: int,
+        query: str,
+    ) -> AgentSearch:
+        """Retrieval only, for an agent's retriever tool: the pinned pipeline version, the
+        caller's groups and roles (AC4), no synthesis (the agent writes the answer)."""
+        actor = Actor(id=caller.user_id, label="agent")
+        project_id = caller.project_id
+        async with self._session(actor, project_id) as s:
+            p = await self._pipeline(s, pipeline_id)
+            v = await self._version(s, p, version)
+            kb, warning = await self._serving_kb(s, p, v)
+            cfg = PipelineConfig.model_validate(v.config)
+            kb_snapshot = (kb.id, kb.embedding_model, kb.dims)
+        groups = await self._groups(project_id, caller.user_id)
+        llm_counter = await asyncio.to_thread(
+            self._gateway.token_counter, project_id, cfg.llm, CHAT_KINDS
+        )
+        retrieval = await self._retriever.retrieve(
+            caller,
+            RetrievalParams(
+                kb_id=kb_snapshot[0],
+                embedding_model=kb_snapshot[1],
+                dims=kb_snapshot[2],
+                method=cfg.search_method,
+                reranker=cfg.reranker,
+                top_k=cfg.top_k,
+                candidates=cfg.candidates,
+                threshold=cfg.similarity_threshold,
+                context_budget=cfg.context_budget,
+            ),
+            query,
+            groups,
+            llm_counter.count,
+        )
+        if warning:
+            retrieval.trace["warning"] = warning
+        return AgentSearch(
+            passages=[
+                AgentPassage(
+                    chunk_id=c.id,
+                    document_id=c.document_id,
+                    document_name=c.document_name,
+                    page=c.page,
+                    heading_path=c.heading_path,
+                    score=round(c.score, 4),
+                    content=c.content,
+                    url=(
+                        f"/api/v1/projects/{project_id}/collections/{c.collection_id}"
+                        f"/documents/{c.document_id}/content"
+                        + (f"#page={c.page}" if c.page else "")
+                    ),
+                )
+                for c in retrieval.chunks
+            ],
+            trace=retrieval.trace,
+            tokens=retrieval.tokens,
+            cost=retrieval.cost,
+        )
 
     async def _prompt_parts(
         self, actor: Actor, project_id: uuid.UUID, cfg: PipelineConfig

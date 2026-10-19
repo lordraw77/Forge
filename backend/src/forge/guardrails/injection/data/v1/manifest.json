@@ -1,0 +1,61 @@
+{
+  "dataset": "forge-injection",
+  "version": "1",
+  "seed": 20261019,
+  "files": {
+    "attacks.jsonl": {
+      "sha256": "b984a04396c05fd362ec61c5109f21b24211cad93f1a6c47f4ecceebdbc4eede",
+      "records": 440
+    },
+    "benign.jsonl": {
+      "sha256": "1645a949b57c320a15edf702b86b5e47b78260a585709d23e15602cb7943e9ed",
+      "records": 440
+    },
+    "holdout_attacks.jsonl": {
+      "sha256": "2754b506109ff560c3497e015ecf478c11a1ae9448e25c7fe65989a4e8da26ac",
+      "records": 40
+    },
+    "holdout_benign.jsonl": {
+      "sha256": "3d3d8c9d824fb359087882e85d53b7e633f216e85ce69006fe358529006c23fe",
+      "records": 40
+    }
+  },
+  "attacks": {
+    "total": 440,
+    "by_language": {
+      "en": 220,
+      "it": 220
+    },
+    "by_category": {
+      "delimiter_break": 50,
+      "direct_override": 80,
+      "encoding_obfuscation": 60,
+      "indirect_injection": 60,
+      "multi_turn_setup": 30,
+      "prompt_extraction": 60,
+      "role_play": 60,
+      "tool_misuse": 40
+    }
+  },
+  "benign": {
+    "total": 440,
+    "by_language": {
+      "en": 220,
+      "it": 220
+    },
+    "by_category": {
+      "business_document": 60,
+      "general_question": 100,
+      "instruction_lookalike": 80,
+      "legitimate_roleplay": 50,
+      "legitimate_tool_use": 40,
+      "prompt_craft": 40,
+      "security_discussion": 70
+    }
+  },
+  "holdout": {
+    "note": "hand-written, not used to build or tune any detector",
+    "attacks": 40,
+    "benign": 40
+  }
+}

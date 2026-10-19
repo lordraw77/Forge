@@ -4,17 +4,20 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from collections.abc import AsyncIterator
+import time
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 import redis.asyncio as redis
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 
 from forge import __version__
 from forge.admin.service import SettingsStore, listen_dsn
+from forge.agents.service import AgentStudio, RunEvents, RunStarter
 from forge.api import (
     health,
     routes_admin,
+    routes_agents,
     routes_auth,
     routes_bundles,
     routes_data,
@@ -33,6 +36,12 @@ from forge.core.logging import configure_logging, get_logger
 from forge.core.settings import Settings, get_settings
 from forge.gateway.service import Gateway
 from forge.iam.service import AuthService, TokenCodec
+from forge.observability.service import (
+    instrument_app,
+    metrics,
+    setup,
+    start_metrics_server,
+)
 from forge.prompts.service import PromptStudio
 from forge.rag.service import Rag, SearchClient
 from forge.tenancy.service import TenancyService
@@ -64,6 +73,25 @@ async def _initialise(app: FastAPI, svc: Services) -> None:
             delay = min(delay * 2, 30)
 
 
+async def _http_metrics(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
+    """RED metrics per route template (never the raw path: no ids in labels)."""
+    started = time.perf_counter()
+    status_code = 500
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        return response
+    finally:
+        route = request.scope.get("route")
+        template = getattr(route, "path", None) or "unmatched"
+        metrics.HTTP_REQUESTS.labels(request.method, template, str(status_code)).inc()
+        metrics.HTTP_DURATION.labels(request.method, template).observe(
+            time.perf_counter() - started
+        )
+
+
 def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0.5) -> FastAPI:
     settings = settings or get_settings()
 
@@ -75,6 +103,8 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
         master = settings.master_key.get_secret_value()
         app.state.settings = settings
         app.state.engine = create_engine(settings)
+        setup("forge-api", settings)
+        start_metrics_server(settings.metrics_port)
         app.state.sessions = session_factory(app.state.engine)
         app.state.redis = redis.from_url(settings.redis_url)
         app.state.search = SearchClient(settings)
@@ -101,6 +131,8 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
             tenancy.acl_terms,
             tenancy.acl_principals,
         )
+        run_events = RunEvents(app.state.redis)
+        agents = AgentStudio(app.state.sessions, gateway, prompts, rag, RunStarter(settings))
         svc = Services(
             settings=settings,
             store=store,
@@ -115,7 +147,9 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
             gateway=gateway,
             prompts=prompts,
             rag=rag,
-            bundles=Bundles(prompts, rag, gateway, tenancy),
+            agents=agents,
+            run_events=run_events,
+            bundles=Bundles(prompts, rag, gateway, tenancy, agents),
         )
         app.state.services = svc
         init = asyncio.create_task(_initialise(app, svc))
@@ -144,6 +178,8 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
         generate_unique_id_function=lambda route: route.name,
     )
     install_problem_handlers(app)
+    instrument_app(app)
+    app.middleware("http")(_http_metrics)
     app.include_router(health.router)
     app.include_router(routes_auth.router)
     app.include_router(routes_projects.router)
@@ -153,6 +189,7 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
     app.include_router(routes_prompts.router)
     app.include_router(routes_data.router)
     app.include_router(routes_rag.router)
+    app.include_router(routes_agents.router)
     app.include_router(routes_bundles.router)
     app.add_middleware(routes_data.BodyLimit)
     app.include_router(routes_v1.router)

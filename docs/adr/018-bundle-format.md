@@ -1,6 +1,6 @@
 # ADR-018 – Export/import bundles: a versioned JSON format
 
-- Status: Accepted (PO request, 2026-10-19; format to be confirmed)
+- Status: Accepted (PO request, 2026-10-19; format confirmed by the PO, 2026-10-19)
 - Date: 2026-10-19
 
 ## Context
@@ -18,10 +18,11 @@ The PO asked to export and import configurations and pieces of a project, with s
   | `rag_pipeline` | Versions with their configuration, tags | Collection and prompt are referenced **by name** |
   | `data_collection` | Name and description | Definition only: **files, chunks and embeddings are never exported** |
   | `model_alias` | Project aliases as lists of model names | Skipped when a model is missing here |
+  | `agent` | Versions with their configuration (E1.18); prompt and RAG pipelines referenced **by name**, built-in tools with their allowed hosts | Prompt and pipeline versions are re-pinned on import to the published (else latest) version of the target project, because version numbers differ between projects |
   | `gateway_config` | Project limits and cache settings | |
   | `user_group` | Name and description | No members |
 
-  Agents, tools and use cases join the same format when they exist (E1.18, E2.x); a bundle with kinds this Forge does not know imports the rest and reports the unknown ones as skipped.
+  Agents joined the format in M1.5 (an additive change: `schema_version` stays 1). Tools and use cases join it when they exist (E2.x); a bundle with kinds this Forge does not know imports the rest and reports the unknown ones as skipped. Exporting an agent adds its prompt, pipelines and collections when dependencies are included.
 - **Nothing sensitive.** No secrets, API keys, tokens, documents, run history or user data. Provider credentials and model definitions are installation configuration and are not part of a project bundle.
 - **References by name, not by id.** Ids differ between installations. Import resolves names in the target project and reports what is missing, instead of creating broken references.
 - **Versions.**

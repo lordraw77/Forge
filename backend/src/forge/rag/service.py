@@ -38,7 +38,7 @@ from forge.rag.search import SearchClient
 from forge.rag.sniff import MAX_UPLOAD_BYTES
 from forge.rag.starter import IngestStarter
 from forge.rag.storage import ObjectStore
-from forge.rag.studio import GroupsLookup, RagStudio
+from forge.rag.studio import AgentPassage, AgentPipeline, AgentSearch, GroupsLookup, RagStudio
 
 
 @dataclass
@@ -84,6 +84,9 @@ class Rag:
 __all__ = [
     "MAX_UPLOAD_BYTES",
     "WORKFLOWS",
+    "AgentPassage",
+    "AgentPipeline",
+    "AgentSearch",
     "CollectionIn",
     "CollectionOut",
     "CollectionUpdateIn",
@@ -91,6 +94,7 @@ __all__ = [
     "DocumentUpdateIn",
     "IngestActivities",
     "IngestDeps",
+    "IngestStarter",
     "KnowledgeBaseOut",
     "ObjectStore",
     "PipelineCreateIn",
@@ -106,6 +110,8 @@ __all__ = [
     "Rag",
     "RagRunDetail",
     "RagRunOut",
+    "RagStudio",
+    "Retriever",
     "SearchClient",
     "UploadFile",
     "UploadResult",

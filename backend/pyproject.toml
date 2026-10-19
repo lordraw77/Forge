@@ -29,6 +29,12 @@ dependencies = [
     "pgvector>=0.4",
     "boto3>=1.40",
     "python-multipart>=0.0.20",
+    "prometheus-client>=0.22",
+    "opentelemetry-sdk>=1.40",
+    "opentelemetry-exporter-otlp-proto-http>=1.40",
+    "opentelemetry-instrumentation-fastapi>=0.66b1",
+    "opentelemetry-instrumentation-httpx>=0.66b1",
+    "opentelemetry-instrumentation-redis>=0.66b1",
 ]
 
 [project.optional-dependencies]
@@ -79,6 +85,8 @@ ignore = ["S101"]  # assert is fine in tests; production code is checked by mypy
 
 [tool.ruff.lint.per-file-ignores]
 "migrations/**" = ["S608", "E501"]  # SQL DDL reads better unwrapped
+"src/forge/guardrails/injection/generate.py" = ["E501", "RUF001"]  # dataset text, one line each
+"src/forge/guardrails/injection/detectors.py" = ["E501", "RUF001"]  # long regular expressions
 "tests/**" = ["S105", "S106", "S608"]
 "spikes/**" = ["S608", "E501", "S603", "S311", "ASYNC230"]  # throwaway spike code, constant schema names
 

@@ -402,7 +402,12 @@ class IngestDocumentWorkflow:
         except ActivityError as err:
             return str(await _run("rag.finish_document", [pid, did, _reason(err)], "quick"))
         await asyncio.gather(*(_index(pid, did, kb) for kb in kb_ids))
-        return str(await _run("rag.finish_document", [pid, did, None], "quick"))
+        status = str(await _run("rag.finish_document", [pid, did, None], "quick"))
+        # A knowledge base created while this document was being parsed starts its own workflow,
+        # which may end before this index does and leave the base `building`: settle it here.
+        for kb in kb_ids:
+            await _run("rag.finish_kb", [pid, kb], "quick")
+        return status
 
 
 @workflow.defn(name="IndexKnowledgeBase")

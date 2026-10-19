@@ -2,6 +2,8 @@ export * from './admin.service';
 import { AdminService } from './admin.service';
 export * from './adminModels.service';
 import { AdminModelsService } from './adminModels.service';
+export * from './agents.service';
+import { AgentsService } from './agents.service';
 export * from './auth.service';
 import { AuthService } from './auth.service';
 export * from './bundles.service';
@@ -27,6 +29,7 @@ import { SystemService } from './system.service';
 export const APIS = [
   AdminService,
   AdminModelsService,
+  AgentsService,
   AuthService,
   BundlesService,
   DataService,

@@ -30,6 +30,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from forge import __version__
+from forge.agents.service import AgentStudio
 from forge.core.context import Actor
 from forge.core.errors import ProblemError
 from forge.gateway.service import Gateway, ProjectGatewayConfigIn
@@ -60,6 +61,7 @@ class AssetRef(In):
 class ExportIn(In):
     prompts: list[AssetRef] = Field(default_factory=list, max_length=500)
     rag_pipelines: list[AssetRef] = Field(default_factory=list, max_length=500)
+    agents: list[AssetRef] = Field(default_factory=list, max_length=500)
     collections: list[uuid.UUID] = Field(default_factory=list, max_length=500)
     include_dependencies: bool = Field(
         default=True, description="Add the prompts and collections used by the pipelines"
@@ -126,6 +128,7 @@ class Bundles:
     rag: Rag
     gateway: Gateway
     tenancy: TenancyService
+    agents: AgentStudio
 
     # ------------------------------------------------------------ export
     async def export(
@@ -146,6 +149,25 @@ class Bundles:
                 collection_ids |= cols
                 for pid in prompts:
                     prompt_scope.setdefault(pid, ref.versions)
+        agent_items: list[dict[str, Any]] = []
+        exported_pipelines = {ref.id for ref in body.rag_pipelines}
+        for ref in body.agents:
+            item, agent_prompts, agent_pipelines = await self.agents.export_agent(
+                actor, project_id, ref.id, ref.versions
+            )
+            agent_items.append(item)
+            if body.include_dependencies:
+                for pid in agent_prompts:
+                    prompt_scope.setdefault(pid, ref.versions)
+                for rid in agent_pipelines - exported_pipelines:
+                    exported_pipelines.add(rid)
+                    dep, cols, dep_prompts = await self.rag.studio.export_pipeline(
+                        actor, project_id, rid, ref.versions
+                    )
+                    pipelines.append(dep)
+                    collection_ids |= cols
+                    for pid in dep_prompts:
+                        prompt_scope.setdefault(pid, ref.versions)
         prompt_names: dict[str, str] = {}
         for pid, scope in prompt_scope.items():
             item = await self.prompts.export_prompt(actor, project_id, pid, scope)
@@ -163,6 +185,7 @@ class Bundles:
         for cid in sorted(collection_ids):
             items.append(await self.rag.studio.export_collection(actor, project_id, cid))
         items += pipelines
+        items += agent_items
         if body.model_aliases:
             for a in await self.gateway.catalog.list_aliases(actor, project_id):
                 if a.scope == "project" and a.model_names:
@@ -198,6 +221,7 @@ class Bundles:
             "data_collection",
             "prompt",
             "rag_pipeline",
+            "agent",
         ]
         items = sorted(
             (i for i in bundle["items"] if isinstance(i, dict) and i.get("kind") in order),
@@ -223,6 +247,7 @@ class Bundles:
             if i.get("kind") == "model_alias" and body.dry_run
         )
         prompt_ids: dict[str, uuid.UUID] = {}
+        pipeline_ids: dict[str, uuid.UUID] = {}
         for item in items:
             kind, name = item["kind"], str(item.get("name") or "")
             if kind in CONFIG_KINDS and not can_manage:
@@ -234,7 +259,15 @@ class Bundles:
                 continue
             try:
                 result = await self._import_one(
-                    actor, project_id, item, body, source, collections, prompt_ids, assumed
+                    actor,
+                    project_id,
+                    item,
+                    body,
+                    source,
+                    collections,
+                    prompt_ids,
+                    pipeline_ids,
+                    assumed,
                 )
             except ProblemError as exc:
                 result = {
@@ -273,6 +306,7 @@ class Bundles:
         source: str,
         collections: dict[str, uuid.UUID],
         prompt_ids: dict[str, uuid.UUID],
+        pipeline_ids: dict[str, uuid.UUID],
         assumed: frozenset[str],
     ) -> dict[str, Any]:
         kind, name, dry = item["kind"], str(item.get("name") or ""), body.dry_run
@@ -311,13 +345,49 @@ class Bundles:
                     found = await self.prompts.find_prompt(actor, project_id, pname)
                     if found:
                         known[pname.lower()] = found
-            return await self.rag.studio.import_pipeline(
+            result = await self.rag.studio.import_pipeline(
                 actor,
                 project_id,
                 item,
                 body.policy,
                 collections=collections,
                 prompts=known,
+                dry_run=dry,
+                source=source,
+                assume_models=assumed,
+            )
+            target = result.get("target") or name
+            if result.get("id"):
+                pipeline_ids[name.lower()] = uuid.UUID(result["id"])
+            elif result["action"] == "skipped":
+                existing = await self.rag.studio.find_pipeline(actor, project_id, target)
+                if existing:
+                    pipeline_ids[name.lower()] = existing
+            elif dry and result["action"] != "error":
+                pipeline_ids[name.lower()] = uuid.uuid4()
+            return result
+        if kind == "agent":
+            known_prompts, known_pipelines = dict(prompt_ids), dict(pipeline_ids)
+            for v in item.get("versions", []):
+                cfg = v.get("config") or {}
+                pname = str((cfg.get("prompt") or {}).get("name") or "")
+                if pname and pname.lower() not in known_prompts:
+                    found = await self.prompts.find_prompt(actor, project_id, pname)
+                    if found:
+                        known_prompts[pname.lower()] = found
+                for t in cfg.get("tools") or []:
+                    ref = str(t.get("pipeline") or "") if t.get("kind") == "rag" else ""
+                    if ref and ref.lower() not in known_pipelines:
+                        found_p = await self.rag.studio.find_pipeline(actor, project_id, ref)
+                        if found_p:
+                            known_pipelines[ref.lower()] = found_p
+            return await self.agents.import_agent(
+                actor,
+                project_id,
+                item,
+                body.policy,
+                prompts=known_prompts,
+                pipelines=known_pipelines,
                 dry_run=dry,
                 source=source,
                 assume_models=assumed,

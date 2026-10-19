@@ -221,6 +221,30 @@ def _test_providers(args: argparse.Namespace) -> int:
     return _with_gateway(run)
 
 
+def _injection_run(args: argparse.Namespace) -> int:
+    """Score a detector on the injection dataset (E1.21); exit 1 when a gate is missed."""
+    import json
+
+    from forge.guardrails.injection import detectors, runner
+
+    data = runner.load_dataset(args.dataset_version).subset(args.set)
+    report = runner.score(detectors.load(args.detector), args.detector, data, samples=args.samples)
+    if args.json:
+        print(json.dumps(report.as_dict(), indent=2, ensure_ascii=False))
+    else:
+        print(runner.format_report(report))
+    failed = []
+    if args.min_block_rate is not None and report.block_rate < args.min_block_rate:
+        failed.append(f"block rate {report.block_rate:.1%} < {args.min_block_rate:.1%}")
+    if args.max_fp_rate is not None and report.false_positive_rate > args.max_fp_rate:
+        failed.append(
+            f"false-positive rate {report.false_positive_rate:.1%} > {args.max_fp_rate:.1%}"
+        )
+    for line in failed:
+        print(f"GATE FAILED: {line}", file=sys.stderr)
+    return 1 if failed else 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="forge")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -282,6 +306,30 @@ def build_parser() -> argparse.ArgumentParser:
         "--if-missing", action="store_true", help="skip the Docling models if already present"
     )
     fetch.set_defaults(func=_fetch_models)
+
+    injection = sub.add_parser("injection", help="prompt-injection test set (E1.21)")
+    injection_sub = injection.add_subparsers(dest="injection_command", required=True)
+    inj_run = injection_sub.add_parser(
+        "run", help="block rate and false-positive rate of a detector on the dataset"
+    )
+    inj_run.add_argument(
+        "--detector",
+        default="heuristic",
+        help="none, heuristic, or command:<program> (text on stdin, 'block' or 'allow' out)",
+    )
+    inj_run.add_argument(
+        "--set",
+        choices=["main", "holdout", "all"],
+        default="main",
+        help="main = generated, covers the techniques; holdout = hand-written, measures "
+        "generalisation",
+    )
+    inj_run.add_argument("--dataset-version", default="1")
+    inj_run.add_argument("--min-block-rate", type=float, help="fail below this block rate (0-1)")
+    inj_run.add_argument("--max-fp-rate", type=float, help="fail above this false-positive rate")
+    inj_run.add_argument("--samples", type=int, default=5, help="missed/false-positive examples")
+    inj_run.add_argument("--json", action="store_true", help="machine-readable report")
+    inj_run.set_defaults(func=_injection_run)
 
     migrate = sub.add_parser("migrate", help="apply database migrations")
     migrate.add_argument("revision", nargs="?", default="head")

@@ -109,10 +109,16 @@ docker/smoke: ## End-to-end smoke test against the running stack
 	@scripts/smoke.sh
 
 ## ---- Observability profile (ADR-009)
-.PHONY: obs/up obs/down obs/smoke
+.PHONY: obs/up obs/langfuse obs/down obs/smoke
 obs/up: env ## Start Collector, Prometheus, Loki and Grafana (http://localhost:3000)
 	$(COMPOSE) --profile observability up -d --wait otel-collector prometheus loki grafana
 	@echo "Grafana: http://localhost:3000 (admin / GRAFANA_ADMIN_PASSWORD in deploy/compose/infra.env)"
+
+obs/langfuse: env ## Observability profile plus Langfuse (http://localhost:3001); set FORGE_OTLP_ENDPOINT=http://otel-collector:4318 in .env
+	docker compose -f deploy/compose/docker-compose.yml -f deploy/compose/langfuse.yml --project-directory . \
+	  --env-file .env --env-file deploy/compose/infra.env --profile observability up -d --wait \
+	  otel-collector prometheus loki grafana langfuse-web
+	@echo "Langfuse: http://localhost:3001 (LANGFUSE_INIT_USER_EMAIL / LANGFUSE_INIT_USER_PASSWORD in deploy/compose/infra.env)"
 
 obs/smoke: ## OTLP metric and log reach Prometheus and Loki
 	@scripts/smoke-observability.sh
