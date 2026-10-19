@@ -26,6 +26,7 @@ from forge.iam.service import (
 from forge.prompts.service import PromptStudio
 from forge.rag.service import Rag
 from forge.tenancy.service import GroupMappings, ProjectAccess, TenancyService
+from forge.tools.service import ToolStudio
 
 ACCESS_COOKIE = "forge_access"
 REFRESH_COOKIE = "forge_refresh"
@@ -48,6 +49,7 @@ class Services:
     prompts: PromptStudio
     rag: Rag
     agents: AgentStudio
+    tools: ToolStudio
     run_events: RunEvents
     bundles: Bundles
 

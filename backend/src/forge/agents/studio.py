@@ -54,6 +54,7 @@ from forge.agents.schemas import (
     ConversationOut,
     FeedbackIn,
     FeedbackOut,
+    LibraryTool,
     MessageOut,
     RagTool,
 )
@@ -66,6 +67,7 @@ from forge.gateway.service import Gateway
 from forge.observability.service import current_trace_id
 from forge.prompts.service import PromptStudio, ReferenceOut
 from forge.rag.service import Rag
+from forge.tools.service import ToolReferenceOut, ToolStudio
 
 CHAT_KINDS = frozenset({"chat"})
 TAG_ORDER = ("draft", "staging", "prod")
@@ -103,12 +105,15 @@ class AgentStudio:
         prompts: PromptStudio,
         rag: Rag,
         starter: RunStarter,
+        tools: ToolStudio,
     ) -> None:
         self._sessions = sessions
         self._gateway = gateway
         self._prompts = prompts
         self._rag = rag
         self._starter = starter
+        self._tools = tools
+        tools.add_reference_check(self.tool_references)
         prompts.add_reference_check(self.prompt_references)
         rag.studio.add_reference_check(self.pipeline_references)
 
@@ -251,6 +256,14 @@ class AgentStudio:
                 entry["name"] = tool.name or tool_name_for(p.name)
                 entry["description"] = tool.description or (
                     p.description or f"Search the documents of '{p.name}'"
+                )
+                tools.append(entry)
+            elif isinstance(tool, LibraryTool):
+                v = await self._tools.resolve_library(actor, project_id, tool.tool_id, tool.version)
+                entry = tool.model_dump(mode="json")
+                entry["version"] = v.version
+                entry["name"] = tool.name or await self._tools.tool_name(
+                    actor, project_id, tool.tool_id
                 )
                 tools.append(entry)
             else:
@@ -525,6 +538,26 @@ class AgentStudio:
             )
         ).all()
         return [ReferenceOut(kind="agent", id=i, name=n) for i, n in rows]
+
+    async def tool_references(self, s: AsyncSession, tool_id: uuid.UUID) -> list[ToolReferenceOut]:
+        tagged = select(AgentTag.version).where(AgentTag.agent_id == Agent.id)
+        rows = (
+            await s.execute(
+                select(Agent.id, Agent.name)
+                .join(AgentVersion, AgentVersion.agent_id == Agent.id)
+                .where(
+                    AgentVersion.config.contains(
+                        {"tools": [{"kind": "library", "tool_id": str(tool_id)}]}
+                    ),
+                    or_(
+                        AgentVersion.version == Agent.latest_version,
+                        AgentVersion.version.in_(tagged.scalar_subquery()),
+                    ),
+                )
+                .distinct()
+            )
+        ).all()
+        return [ToolReferenceOut(kind="agent", id=i, name=n) for i, n in rows]
 
     async def pipeline_references(
         self, s: AsyncSession, pipeline_id: uuid.UUID

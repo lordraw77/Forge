@@ -25,7 +25,10 @@ import {
   AgentVersionOut,
   AgentsService,
   BuiltinToolRef,
+  LibraryTool,
   PipelineOut,
+  ToolOut,
+  ToolsService,
   PromptOut,
   PromptsService,
   RagService,
@@ -43,12 +46,20 @@ interface PipelinePick {
   name?: string | null;
 }
 
+interface ToolPick {
+  toolId: string;
+  /** null = follow the published version when the agent version is saved. */
+  version: number | null;
+  name?: string | null;
+}
+
 interface Draft {
   promptId: string | null;
   promptVersion: number | null;
   variables: Record<string, string>;
   model: string;
   pipelines: PipelinePick[];
+  libraryTools: ToolPick[];
   httpGet: boolean;
   hosts: string[];
   currentTime: boolean;
@@ -68,6 +79,7 @@ function defaults(): Draft {
     variables: {},
     model: 'default-chat',
     pipelines: [],
+    libraryTools: [],
     httpGet: false,
     hosts: [],
     currentTime: false,
@@ -94,6 +106,9 @@ function fromConfig(cfg: AgentConfig): Draft {
         version: rag.version ?? null,
         name: rag.name,
       });
+    } else if (t.kind === 'library') {
+      const lib = t as LibraryTool;
+      d.libraryTools.push({ toolId: lib.tool_id, version: lib.version ?? null, name: lib.name });
     } else {
       const builtin = t as BuiltinToolRef;
       if (builtin.name === 'http_get') {
@@ -145,6 +160,7 @@ export class AgentEditor {
 
   private readonly api = inject(AgentsService);
   private readonly prompts = inject(PromptsService);
+  private readonly tools = inject(ToolsService);
   private readonly rag = inject(RagService);
   private readonly session = inject(Session);
   private readonly router = inject(Router);
@@ -154,6 +170,8 @@ export class AgentEditor {
   protected readonly agent = signal<AgentDetail | null>(null);
   protected readonly promptList = signal<PromptOut[]>([]);
   protected readonly pipelineList = signal<PipelineOut[]>([]);
+  protected readonly toolList = signal<ToolOut[]>([]);
+  protected toolToAdd: string | null = null;
   protected readonly chatModels = signal<ModelOption[]>([]);
   protected readonly promptVariables = signal<Variable[]>([]);
   protected readonly message = signal<{ ok: boolean; text: string } | null>(null);
@@ -190,11 +208,13 @@ export class AgentEditor {
       this.draft = defaults();
     }
     try {
-      const [prompts, pipelines, chat] = await Promise.all([
+      const [prompts, pipelines, chat, tools] = await Promise.all([
         firstValueFrom(this.prompts.listPrompts({ projectId, limit: 200 })),
         firstValueFrom(this.rag.listRagPipelines({ projectId, limit: 200 })),
         this.modelOptions.load(projectId, 'chat'),
+        firstValueFrom(this.tools.listTools({ projectId })),
       ]);
+      this.toolList.set(tools.items);
       this.promptList.set(prompts.items);
       this.pipelineList.set(pipelines.items);
       this.chatModels.set(chat);
@@ -238,6 +258,34 @@ export class AgentEditor {
     void this.loadPromptVariables();
   }
 
+  protected toolLabel(pick: ToolPick): string {
+    return this.toolList().find((t) => t.id === pick.toolId)?.name ?? pick.name ?? '?';
+  }
+
+  protected toolNeedsApproval(pick: ToolPick): boolean {
+    return this.toolList().find((t) => t.id === pick.toolId)?.requires_approval ?? false;
+  }
+
+  /** Published tools not yet in the draft (an unpublished one can still be pinned to a version
+   * from the Tools Studio, but is not offered here). */
+  protected availableTools(): ToolOut[] {
+    const used = new Set(this.draft.libraryTools.map((t) => t.toolId));
+    return this.toolList().filter((t) => !used.has(t.id) && t.published_version !== null);
+  }
+
+  protected addTool(): void {
+    if (!this.toolToAdd) return;
+    this.draft.libraryTools = [
+      ...this.draft.libraryTools,
+      { toolId: this.toolToAdd, version: null },
+    ];
+    this.toolToAdd = null;
+  }
+
+  protected removeTool(pick: ToolPick): void {
+    this.draft.libraryTools = this.draft.libraryTools.filter((t) => t !== pick);
+  }
+
   protected pipelineName(pick: PipelinePick): string {
     return this.pipelineList().find((p) => p.id === pick.pipelineId)?.name ?? pick.name ?? '?';
   }
@@ -265,7 +313,12 @@ export class AgentEditor {
   }
 
   protected hasTools(): boolean {
-    return this.draft.pipelines.length > 0 || this.draft.httpGet || this.draft.currentTime;
+    return (
+      this.draft.pipelines.length > 0 ||
+      this.draft.libraryTools.length > 0 ||
+      this.draft.httpGet ||
+      this.draft.currentTime
+    );
   }
 
   protected save(then: 'chat' | 'stay'): void {
@@ -294,6 +347,9 @@ export class AgentEditor {
       version: p.version,
       name: p.name ?? null,
     }));
+    for (const t of d.libraryTools) {
+      tools.push({ kind: 'library', tool_id: t.toolId, version: t.version, name: t.name ?? null });
+    }
     if (d.httpGet) {
       tools.push({ kind: 'builtin', name: 'http_get', allowed_hosts: d.hosts });
     }

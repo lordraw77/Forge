@@ -80,7 +80,23 @@ class BuiltinToolRef(In):
         return clean
 
 
-ToolConfig = Annotated[RagTool | BuiltinToolRef, Field(discriminator="kind")]
+class LibraryTool(In):
+    """A Tools Studio tool, pinned to a version when the agent version is saved (M2.2)."""
+
+    kind: Literal["library"] = "library"
+    tool_id: uuid.UUID
+    version: int | None = Field(default=None, ge=1, description="Empty = the published version")
+    name: str | None = Field(default=None, description="Tool name shown to the model")
+
+    @field_validator("name")
+    @classmethod
+    def _name(cls, v: str | None) -> str | None:
+        if v is not None and not TOOL_NAME.match(v):
+            raise ValueError("tool names are lower-case letters, digits and underscores (max 48)")
+        return v
+
+
+ToolConfig = Annotated[RagTool | BuiltinToolRef | LibraryTool, Field(discriminator="kind")]
 
 
 class AgentConfig(In):

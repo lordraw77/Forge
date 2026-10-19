@@ -7,6 +7,7 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
+import { LibraryTool } from './libraryTool';
 import { RagTool } from './ragTool';
 import { BuiltinToolRef } from './builtinToolRef';
 
@@ -14,4 +15,4 @@ import { BuiltinToolRef } from './builtinToolRef';
  * @type ToolsInner
  * @export
  */
-export type ToolsInner = BuiltinToolRef | RagTool;
+export type ToolsInner = BuiltinToolRef | LibraryTool | RagTool;

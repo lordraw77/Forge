@@ -8,6 +8,14 @@ Phase 1 milestones M1.2 (LLM gateway), M1.3 (Prompt Studio), M1.4 (RAG on upload
 
 ### Added
 
+**Tools Studio (M2.2)**
+- Tool Library with immutable versions, publish, duplicate and delete (blocked while an agent uses the tool); tool types **HTTP**, **read-only SQL (PostgreSQL)** and **MCP**; input schema, timeout, `requires_approval` and a "can change data" flag.
+- Import from an **OpenAPI 3.x** document (JSON or YAML, local `$ref` only): pick operations, get one draft tool each. **MCP servers** (Streamable HTTP, SSE, stdio for allowed commands): discover their tools and import the ones wanted.
+- **Credentials** (bearer, basic, header, query) kept encrypted per project and never shown, and a per-project **egress allowlist**. A secret that a remote API echoes back is removed from the result before the model, the run view or the log see it.
+- **Test console** with a form built from the schema, and a **call log** of every test and agent call (status, timing, redacted input and output).
+- Agents can use library tools (pinned to the published version when the agent version is saved). Tools that need approval are refused until human approval ships.
+- New deployment settings: `FORGE_TOOLS_ALLOW_PRIVATE_HOSTS`, `FORGE_MCP_STDIO_ALLOWED`.
+
 **External identity (M2.1)**
 - Admin Console → Authentication: LDAP/Active Directory and OIDC providers (Entra ID, Keycloak, Google, any OIDC), Test connection, Test user, Sync now, and a switch to turn local login off (Super Admins can always sign in locally).
 - Directory users sign in on the normal login page; OIDC adds a button per provider (Authorization Code with PKCE, state and nonce, signature, issuer and audience checks).

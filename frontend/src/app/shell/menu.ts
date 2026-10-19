@@ -13,7 +13,7 @@ export const MENU: readonly MenuEntry[] = [
   { path: 'catalog', label: $localize`Use Cases Catalog`, icon: 'appstore', phase: 2 },
   { path: 'build', label: $localize`Build Your Own Use Case`, icon: 'apartment', phase: 2 },
   { path: 'prompts', label: $localize`Prompt Studio`, icon: 'edit', phase: 1 },
-  { path: 'tools', label: $localize`Tools Studio`, icon: 'tool', phase: 2 },
+  { path: 'tools', label: $localize`Tools Studio`, icon: 'tool', phase: 1 },
   { path: 'rag', label: $localize`RAG Studio`, icon: 'book', phase: 1 },
   { path: 'agents', label: $localize`Agentic AI Studio`, icon: 'robot', phase: 1 },
   { path: 'mcp', label: $localize`MCP Studio`, icon: 'cloud-server', phase: 3 },

@@ -93,7 +93,8 @@ def test_extra_ca_is_appended_and_exported(tmp_path: Path, monkeypatch: pytest.M
     for var in ("HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy"):
         monkeypatch.delenv(var, raising=False)
     for var in network._CA_VARIABLES:
-        monkeypatch.delenv(var, raising=False)
+        monkeypatch.setenv(var, "x")  # so monkeypatch restores them: configure_outbound sets them
+        monkeypatch.delenv(var)
     applied = network.configure_outbound()
     assert applied == {"ca_bundle": str(target)}
     assert all(os.environ[v] == str(target) for v in network._CA_VARIABLES)

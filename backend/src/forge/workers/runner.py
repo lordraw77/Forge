@@ -89,6 +89,7 @@ async def build_runs(reg: QueueRegistration, settings: Settings) -> QueueRegistr
     from forge.prompts.service import PromptStudio
     from forge.rag.service import IngestStarter, RagStudio, Retriever, SearchClient
     from forge.tenancy.service import TenancyService
+    from forge.tools.service import ToolStudio
 
     if settings.master_key is None:
         raise RuntimeError("FORGE_MASTER_KEY is required by the runs worker")
@@ -97,9 +98,8 @@ async def build_runs(reg: QueueRegistration, settings: Settings) -> QueueRegistr
     store = SettingsStore(sessions, listen_dsn(settings.database_url.get_secret_value()))
     await store.start()
     cache = redis.from_url(settings.redis_url)
-    gateway = Gateway.build(
-        sessions, Envelope.from_master_key(settings.master_key.get_secret_value()), store, cache
-    )
+    envelope = Envelope.from_master_key(settings.master_key.get_secret_value())
+    gateway = Gateway.build(sessions, envelope, store, cache)
     await gateway.start(store)
     search = SearchClient(settings)
     prompts = PromptStudio(sessions, gateway)
@@ -123,6 +123,7 @@ async def build_runs(reg: QueueRegistration, settings: Settings) -> QueueRegistr
             events=RunEvents(cache),
             checkpointer=AsyncPostgresSaver(pool),  # type: ignore[arg-type]
             allow_private_hosts=settings.agent_allow_private_hosts,
+            tools=ToolStudio(sessions, envelope, settings),
         )
     )
 

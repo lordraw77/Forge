@@ -28,6 +28,8 @@ export * from './rag.service';
 import { RagService } from './rag.service';
 export * from './system.service';
 import { SystemService } from './system.service';
+export * from './tools.service';
+import { ToolsService } from './tools.service';
 export const APIS = [
   AdminService,
   AdminModelsService,
@@ -44,4 +46,5 @@ export const APIS = [
   PromptsService,
   RagService,
   SystemService,
+  ToolsService,
 ];

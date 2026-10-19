@@ -26,6 +26,7 @@ from forge.api import (
     routes_projects,
     routes_prompts,
     routes_rag,
+    routes_tools,
     routes_v1,
 )
 from forge.api.deps import Services
@@ -47,6 +48,7 @@ from forge.observability.service import (
 from forge.prompts.service import PromptStudio
 from forge.rag.service import Rag, SearchClient
 from forge.tenancy.service import GroupMappings, TenancyService
+from forge.tools.service import ToolStudio
 
 log = get_logger(__name__)
 
@@ -145,7 +147,8 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
             tenancy.acl_principals,
         )
         run_events = RunEvents(app.state.redis)
-        agents = AgentStudio(app.state.sessions, gateway, prompts, rag, RunStarter(settings))
+        tools = ToolStudio(app.state.sessions, envelope, settings)
+        agents = AgentStudio(app.state.sessions, gateway, prompts, rag, RunStarter(settings), tools)
         auth = AuthService(
             app.state.sessions,
             store,
@@ -175,6 +178,7 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
             prompts=prompts,
             rag=rag,
             agents=agents,
+            tools=tools,
             run_events=run_events,
             bundles=Bundles(prompts, rag, gateway, tenancy, agents),
         )
@@ -223,6 +227,7 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
     app.include_router(routes_data.router)
     app.include_router(routes_rag.router)
     app.include_router(routes_agents.router)
+    app.include_router(routes_tools.router)
     app.include_router(routes_bundles.router)
     app.add_middleware(routes_data.BodyLimit)
     app.include_router(routes_v1.router)

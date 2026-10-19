@@ -61,6 +61,10 @@ class Settings(BaseSettings):
     metrics_port: int = Field(default=9100, ge=0, le=65535)
     # Agent `http_get` may reach private addresses only when this deployment flag is on (labs).
     agent_allow_private_hosts: bool = False
+    # Library tools (HTTP, MCP over HTTP, SQL data sources) may reach private addresses only when
+    # this flag is on; MCP `stdio` runs only the executables listed here (comma separated).
+    tools_allow_private_hosts: bool = False
+    mcp_stdio_allowed: str = ""
 
     # Boot-time log level, used until the GUI setting is loaded from the database.
     log_level: str = "INFO"

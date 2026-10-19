@@ -11,6 +11,7 @@ Behaviour comes from the requested model name (suffixes can be combined, e.g. `a
   -agent    scripted agent: calls a tool the first time (`search*` for a question, `http_get`
             when the message holds a URL, `current_time` when it asks for the time), then
             answers from the tool result, citing `[n]` when it holds passages
+  -agent also follows "call <tool> with {json}" for any tool it was given.
   -loop     always calls `current_time` (never answers), to reach the step limit
   -slowstream  streams the answer one word every 0.4 s (cancel and crash tests); combine with
             `-agent`
@@ -83,6 +84,9 @@ def _agent_message(model: str, body: dict[str, Any]) -> dict[str, Any]:
     if not results:
         url = re.search(r"https?://\S+", question)
         search = next((n for n in names if n.startswith("search")), None)
+        explicit = re.search(r"call (\w+) with (\{.*\})", question)
+        if explicit and explicit.group(1) in names:  # a library tool, named by the user
+            return _tool_call(explicit.group(1), json.loads(explicit.group(2)))
         if url and "http_get" in names:
             return _tool_call("http_get", {"url": url.group(0)})
         if "time" in question.lower() and "current_time" in names:

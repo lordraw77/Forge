@@ -26,6 +26,8 @@ x-backend: &backend
     FORGE_OTLP_ENDPOINT: ${FORGE_OTLP_ENDPOINT:-}
     # Agent http_get may reach private addresses only when this is true (labs).
     FORGE_AGENT_ALLOW_PRIVATE_HOSTS: ${FORGE_AGENT_ALLOW_PRIVATE_HOSTS:-false}
+    FORGE_TOOLS_ALLOW_PRIVATE_HOSTS: ${FORGE_TOOLS_ALLOW_PRIVATE_HOSTS:-false}
+    FORGE_MCP_STDIO_ALLOWED: ${FORGE_MCP_STDIO_ALLOWED:-}
     # Corporate egress proxy (optional). Forge's own services never go through it.
     HTTP_PROXY: ${FORGE_HTTP_PROXY:-}
     HTTPS_PROXY: ${FORGE_HTTPS_PROXY:-}

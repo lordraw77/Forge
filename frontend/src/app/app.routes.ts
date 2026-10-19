@@ -199,20 +199,58 @@ export const routes: Routes = [
         ],
       },
       {
+        path: 'tools',
+        title: 'Tools Studio · Forge',
+        loadComponent: () => import('./pages/tools/tool-studio').then((m) => m.ToolStudio),
+        children: [
+          {
+            path: '',
+            pathMatch: 'full',
+            loadComponent: () => import('./pages/tools/tool-studio').then((m) => m.ToolsIndex),
+          },
+          {
+            path: 'library',
+            canActivate: [builderGuard],
+            loadComponent: () => import('./pages/tools/tool-library').then((m) => m.ToolLibrary),
+          },
+          {
+            path: 'new',
+            canActivate: [builderGuard],
+            loadComponent: () => import('./pages/tools/tool-editor').then((m) => m.ToolEditor),
+          },
+          {
+            path: 'connections',
+            canActivate: [builderGuard],
+            loadComponent: () =>
+              import('./pages/tools/tool-connections').then((m) => m.ToolConnections),
+          },
+          {
+            path: 'calls',
+            canActivate: [builderGuard],
+            loadComponent: () => import('./pages/tools/tool-calls').then((m) => m.ToolCalls),
+          },
+          {
+            path: ':id/edit',
+            canActivate: [builderGuard],
+            loadComponent: () => import('./pages/tools/tool-editor').then((m) => m.ToolEditor),
+          },
+        ],
+      },
+      {
         // Phase 0 spike E0.5c, not in the menu: graph use-case editor on Foblex Flow.
         path: 'spikes/graph-editor',
         title: 'Graph editor spike · Forge',
         loadComponent: () =>
           import('./spikes/graph-editor/graph-editor').then((m) => m.GraphEditor),
       },
-      ...MENU.filter((entry) => !['projects', 'prompts', 'rag', 'agents'].includes(entry.path)).map(
-        (entry) => ({
-          path: entry.path,
-          component: Placeholder,
-          title: `${entry.label} · Forge`,
-          data: { title: entry.label, phase: entry.phase },
-        }),
-      ),
+      ...MENU.filter(
+        (entry) => !['projects', 'prompts', 'rag', 'agents', 'tools'].includes(entry.path),
+      ).map((entry) => ({
+        path: entry.path,
+        component: Placeholder,
+        title: `${entry.label} · Forge`,
+        data: { title: entry.label, phase: entry.phase },
+      })),
     ],
   },
   { path: '**', redirectTo: '' },

@@ -45,6 +45,7 @@ from forge.agents.tools import (
     _step_output,
     build_tools,
     format_passages,
+    prepare_library,
 )
 from forge.core.context import Actor
 from forge.core.db import admin_scope, project_scope
@@ -55,6 +56,7 @@ from forge.gateway.service import Caller, Gateway
 from forge.observability.service import current_span_id, metrics, span
 from forge.prompts.service import PromptStudio, TemplateError, render
 from forge.rag.service import RagStudio
+from forge.tools.service import ToolStudio
 
 log = get_logger(__name__)
 
@@ -100,6 +102,7 @@ class RuntimeDeps:
     events: RunEvents
     checkpointer: AsyncPostgresSaver
     allow_private_hosts: bool = False
+    tools: ToolStudio | None = None
 
 
 @dataclass
@@ -181,7 +184,12 @@ class AgentRuntime:
 
     async def _execute(self, rec: RunRecord, attempt: int) -> dict[str, Any]:
         cfg, instructions, examples = await self._load(rec)
-        tools = build_tools(cfg, self._d.rag)
+        library = (
+            await prepare_library(cfg, self._d.tools, rec.user_id, rec.project_id)
+            if self._d.tools
+            else {}
+        )
+        tools = build_tools(cfg, self._d.rag, library)
         deadline = rec.started_at.timestamp() + cfg.limits.timeout_s
         await self._emit(
             rec.run_id, "run_started" if rec.first_attempt else "run_resumed", attempt=attempt
@@ -343,7 +351,7 @@ class AgentRuntime:
     # ------------------------------------------------------------ graph
     def _graph(self, rec: RunRecord, cfg: AgentConfig, tools: ToolSet, deadline: float) -> Any:
         caller = Caller(rec.project_id, rec.user_id, trace_id=f"run:{rec.run_id}")
-        ctx = ToolContext(caller, rec.run_id, self._d.allow_private_hosts)
+        ctx = ToolContext(caller, rec.run_id, self._d.allow_private_hosts, self._d.tools)
         tool_log = ToolLog(self._d.sessions)
 
         def limit_failure(state: AgentState) -> str | None:

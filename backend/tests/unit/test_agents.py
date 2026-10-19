@@ -10,11 +10,11 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from forge.agents import egress
 from forge.agents.runtime import _ModelOutput, cited_numbers, failure_of
 from forge.agents.schemas import AgentConfig, BuiltinToolRef, Limits, RagTool
 from forge.agents.studio import tool_name_for
 from forge.agents.tools import CurrentTimeTool, ToolContext, ToolSet, _step_output, format_passages
+from forge.core import egress
 from forge.gateway.service import Caller
 
 

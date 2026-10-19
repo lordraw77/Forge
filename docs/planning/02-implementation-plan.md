@@ -86,7 +86,7 @@ E1.18 builds the agent as a LangGraph graph over a gateway-backed chat model ada
 | Milestone | Epics |
 | --- | --- |
 | **M2.1 External identity** ✅ 2026-10-19 ([design](../architecture/m2.1-external-identity.md)) | E2.1 LDAP/AD (bind, filters, group sync), OIDC (Authlib, Entra/Keycloak/Google), group → Role Name mapping, Admin Console *Authentication* — AC2 |
-| **M2.2 Tools** | E2.2 Tools Studio: OpenAPI import, HTTP tools with per-project credentials and egress allowlist; MCP client (stdio, HTTP/SSE); read-only SQL tool; test console + call log<br>E2.3 Built-in connectors (Jira, ServiceNow, GLPI, GitHub/GitLab, Slack, Teams, Zabbix, Prometheus, SMTP/IMAP) — prioritise with PO, not all needed for MVP |
+| **M2.2 Tools** ✅ 2026-10-19 ([design](../architecture/m2.2-tools.md); E2.3 connectors low priority, not built) | E2.2 Tools Studio: OpenAPI import, HTTP tools with per-project credentials and egress allowlist; MCP client (stdio, HTTP/SSE); read-only SQL tool; test console + call log<br>E2.3 Built-in connectors (Jira, ServiceNow, GLPI, GitHub/GitLab, Slack, Teams, Zabbix, Prometheus, SMTP/IMAP) — prioritise with PO, not all needed for MVP |
 | **M2.3 Use cases & graph engine** | E2.4 Catalogs, categories, Role Name access control<br>E2.5 Use case model, versions, lifecycle, export/import bundle, rollback — AC13<br>E2.6 Graph JSON v1 validation + Forge graph engine on Temporal (for_each, while, router fan-out, joins, limits)<br>E2.7 Supervisor pattern<br>E2.8 Build Your Own: requirements page, Planner Agent, Foblex canvas, node drawer, test page with per-agent panes and timeline<br>E2.9 Catalog end-user view, sessions, run history, outputs download (DOCX/XLSX/PDF) — AC12 |
 | **M2.4 HITL** | E2.10 Approval node + `requires_approval` tools + `hitl` flag; edit/reject/approve; email/webhook links with signed one-time tokens; notifications (SMTP, webhooks) — AC5, AC6 |
 | **M2.5 Guardrails** | E2.11 Policy model, pipeline on input/output/tool args; Presidio PII masking; injection/jailbreak via Guard endpoint + heuristics; toxicity; banned topics; URLs; secret regex; JSON schema; grounding check; actions log/mask/block/rewrite/escalate; intervention log — AC7, AC8 |
@@ -147,3 +147,9 @@ Definition of done: tests green in CI, tenant-isolation suite green, OpenAPI upd
 10. ~~M1.3 Prompt Studio~~ ✅ 2026-10-18.
 11. ~~M1.4 RAG on upload~~ ✅ 2026-10-19 (AC3: 38 s for a 20-page PDF), with the PO's additions of the same day: groups and roles for document access, exact tokenizers, embedded and download image variants, outbound/inbound proxy support, export/import bundles ([ADR-018](../adr/018-bundle-format.md)) and a dark theme. 
 12. ~~M1.5 Single agent + tracing~~ ✅ 2026-10-19 ([design](../architecture/m1.5-agent.md)); PO decisions of the same day: Monaco for template editing (Phase 2), bundle format confirmed, M1.3 and M1.4 choices accepted, Langfuse as an optional profile (ADR-009 amended), Phase 1 at 10–12 weeks confirmed. Phase 1 exit review done 2026-10-19 ([report](03-phase-1-exit-review.md)). Next: Phase 2 (G2 user stories, then M2.1).
+
+## 7. Backlog (small items, not tied to a milestone)
+
+| Item | Origin | Notes |
+| --- | --- | --- |
+| **Agent chat: choose the version.** When an agent has more than one version, selecting it in the chat offers a version picker (default: the published `prod` version; Builders also see `draft` and older versions) | PO, 2026-10-19 | Today the chat runs the published version, or the latest for Builders ([m1.5-agent.md](../architecture/m1.5-agent.md)). Needs the version to travel with the conversation (`agent_run` already records it) and to be shown in the run view |

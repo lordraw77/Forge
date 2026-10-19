@@ -233,6 +233,70 @@
       </button>
     </div>
 
+    <h4 i18n>Library tools</h4>
+    <p class="muted small" i18n>
+      Tools from the Tools Studio. A tool is pinned to its published version when the agent version
+      is saved.
+    </p>
+    @for (pick of draft.libraryTools; track pick.toolId) {
+      <div class="pipeline-row" [attr.data-testid]="'agent-library-tool-' + toolLabel(pick)">
+        <span>{{ toolLabel(pick) }}</span>
+        @if (pick.version) {
+          <nz-tag i18n>pinned v{{ pick.version }}</nz-tag>
+          <button nz-button nzType="link" nzSize="small" (click)="pick.version = null" i18n>
+            Use published
+          </button>
+        } @else {
+          <nz-tag nzColor="processing" i18n>published version</nz-tag>
+        }
+        @if (toolNeedsApproval(pick)) {
+          <nz-tag nzColor="warning" i18n>needs approval: refused until human approval ships</nz-tag>
+        }
+        <span class="spacer"></span>
+        <button
+          nz-button
+          nzType="text"
+          nzDanger
+          aria-label="Remove"
+          i18n-aria-label
+          (click)="removeTool(pick)"
+        >
+          <nz-icon nzType="delete" />
+        </button>
+      </div>
+    }
+    <div class="pipeline-add">
+      <nz-select
+        class="grow"
+        nzShowSearch
+        nzAllowClear
+        nzPlaceHolder="Add a library tool"
+        i18n-nzPlaceHolder
+        nzId="ae-tool"
+        aria-label="Add a library tool"
+        i18n-aria-label
+        data-testid="agent-tool-add"
+        [(ngModel)]="toolToAdd"
+        [nzNotFoundContent]="noTools"
+      >
+        @for (t of availableTools(); track t.id) {
+          <nz-option [nzValue]="t.id" [nzLabel]="t.name" />
+        }
+      </nz-select>
+      <ng-template #noTools>
+        <a routerLink="/tools/new" i18n>Publish a tool first</a>
+      </ng-template>
+      <button
+        nz-button
+        [disabled]="!toolToAdd"
+        (click)="addTool()"
+        data-testid="agent-tool-add-button"
+        i18n
+      >
+        Add
+      </button>
+    </div>
+
     <h4 i18n>Built-in tools</h4>
     <div class="builtin">
       <label
