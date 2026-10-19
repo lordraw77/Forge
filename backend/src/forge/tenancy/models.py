@@ -51,6 +51,7 @@ class Membership(Base):
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("project.id"))
     user_id: Mapped[uuid.UUID]
     role_name_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("role_name.id"))
+    source: Mapped[str] = mapped_column(default="manual")
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     created_by: Mapped[uuid.UUID | None]
 
@@ -89,3 +90,16 @@ class UserGroupMember(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
     project_id: Mapped[uuid.UUID]
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+
+class GroupMapping(Base):
+    """External group (LDAP DN/name, OIDC claim value) -> project Role Name (US-2.1.5)."""
+
+    __tablename__ = "group_mapping"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    provider_id: Mapped[uuid.UUID]
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("project.id"))
+    role_name_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("role_name.id"))
+    external_group: Mapped[str]
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    created_by: Mapped[uuid.UUID | None]

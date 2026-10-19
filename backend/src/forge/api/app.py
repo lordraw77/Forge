@@ -21,6 +21,7 @@ from forge.api import (
     routes_auth,
     routes_bundles,
     routes_data,
+    routes_idp,
     routes_models,
     routes_projects,
     routes_prompts,
@@ -29,13 +30,14 @@ from forge.api import (
 )
 from forge.api.deps import Services
 from forge.bundles.service import Bundles
+from forge.core.context import SYSTEM
 from forge.core.crypto import Envelope, derive_key
 from forge.core.db import create_engine, session_factory
 from forge.core.errors import install_problem_handlers
 from forge.core.logging import configure_logging, get_logger
 from forge.core.settings import Settings, get_settings
 from forge.gateway.service import Gateway
-from forge.iam.service import AuthService, TokenCodec
+from forge.iam.service import AuthService, ExternalAuth, IdentityProviders, TokenCodec
 from forge.observability.service import (
     instrument_app,
     metrics,
@@ -44,9 +46,20 @@ from forge.observability.service import (
 )
 from forge.prompts.service import PromptStudio
 from forge.rag.service import Rag, SearchClient
-from forge.tenancy.service import TenancyService
+from forge.tenancy.service import GroupMappings, TenancyService
 
 log = get_logger(__name__)
+
+
+async def _directory_sync(app: FastAPI, external: ExternalAuth) -> None:
+    """Every minute run the LDAP syncs that are due; one replica at a time (US-2.1.6)."""
+    while True:
+        await asyncio.sleep(60)
+        try:
+            if await app.state.redis.set("idp:sync-lock", "1", nx=True, ex=55):
+                await external.sync_due(SYSTEM)
+        except Exception as exc:  # never end the loop
+            log.warning("idp.sync_loop_error", error=str(exc))
 
 
 async def _initialise(app: FastAPI, svc: Services) -> None:
@@ -133,16 +146,30 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
         )
         run_events = RunEvents(app.state.redis)
         agents = AgentStudio(app.state.sessions, gateway, prompts, rag, RunStarter(settings))
+        auth = AuthService(
+            app.state.sessions,
+            store,
+            envelope,
+            TokenCodec(derive_key(master, "forge/jwt/v1")),
+            app.state.redis,
+        )
+        providers = IdentityProviders(app.state.sessions, envelope, store)
+        mappings = GroupMappings(app.state.sessions)
+        auth.external = ExternalAuth(
+            auth,
+            app.state.sessions,
+            store,
+            providers,
+            mappings,
+            app.state.redis,
+            settings.public_url,
+        )
         svc = Services(
             settings=settings,
             store=store,
-            auth=AuthService(
-                app.state.sessions,
-                store,
-                envelope,
-                TokenCodec(derive_key(master, "forge/jwt/v1")),
-                app.state.redis,
-            ),
+            auth=auth,
+            providers=providers,
+            mappings=mappings,
             tenancy=tenancy,
             gateway=gateway,
             prompts=prompts,
@@ -153,13 +180,17 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
         )
         app.state.services = svc
         init = asyncio.create_task(_initialise(app, svc))
+        idp_sync = asyncio.create_task(_directory_sync(app, auth.external))
         log.info("api.started", version=__version__)
         try:
             yield
         finally:
             init.cancel()
+            idp_sync.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await init
+            with contextlib.suppress(asyncio.CancelledError):
+                await idp_sync
             await store.stop()
             await svc.gateway.stop()
             await app.state.redis.aclose()
@@ -184,6 +215,8 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
     app.include_router(routes_auth.router)
     app.include_router(routes_projects.router)
     app.include_router(routes_admin.router)
+    app.include_router(routes_idp.public_router)
+    app.include_router(routes_idp.admin_router)
     app.include_router(routes_models.admin_router)
     app.include_router(routes_models.project_router)
     app.include_router(routes_prompts.router)

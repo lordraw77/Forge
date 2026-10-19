@@ -39,7 +39,7 @@ AnyPrincipal = Annotated[Principal, Depends(principal)]
 REFRESH_PATH = "/api/v1/auth"
 
 
-def _set_cookies(request: Request, response: Response, issued: IssuedSession) -> None:
+def set_cookies(request: Request, response: Response, issued: IssuedSession) -> None:
     secure = services(request).settings.secure_cookies
     response.set_cookie(
         ACCESS_COOKIE,
@@ -91,7 +91,7 @@ async def login(body: LoginIn, request: Request, response: Response) -> LoginOut
     if outcome.challenge:
         return LoginOut(status="totp_required", challenge=outcome.challenge)
     assert outcome.session
-    _set_cookies(request, response, outcome.session)
+    set_cookies(request, response, outcome.session)
     return _logged_in(request, outcome.session)
 
 
@@ -102,7 +102,7 @@ async def login_totp(body: LoginTotpIn, request: Request, response: Response) ->
     issued = await services(request).auth.login_totp(
         body.challenge, body.code, body.recovery_code, request_context(request)
     )
-    _set_cookies(request, response, issued)
+    set_cookies(request, response, issued)
     return _logged_in(request, issued)
 
 
@@ -116,7 +116,7 @@ async def refresh(request: Request, response: Response) -> Response:
         raise ProblemError(403, "csrf_failed", "Missing or invalid CSRF token")
     issued = await services(request).auth.refresh(token, request_context(request))
     response.status_code = status.HTTP_204_NO_CONTENT
-    _set_cookies(request, response, issued)
+    set_cookies(request, response, issued)
     return response
 
 

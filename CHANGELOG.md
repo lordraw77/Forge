@@ -8,6 +8,13 @@ Phase 1 milestones M1.2 (LLM gateway), M1.3 (Prompt Studio), M1.4 (RAG on upload
 
 ### Added
 
+**External identity (M2.1)**
+- Admin Console → Authentication: LDAP/Active Directory and OIDC providers (Entra ID, Keycloak, Google, any OIDC), Test connection, Test user, Sync now, and a switch to turn local login off (Super Admins can always sign in locally).
+- Directory users sign in on the normal login page; OIDC adds a button per provider (Authorization Code with PKCE, state and nonce, signature, issuer and audience checks).
+- Group → project Role Name mappings: several mappings per user, the highest Role Type wins, mapped memberships follow the groups at every login and at each scheduled sync, manually added members are never changed. Users gone from the directory are disabled and signed out.
+- A directory or IdP entry never takes over an existing account (no merge by email). Bind password and client secret are encrypted and never returned.
+- Test directory for development: `docker compose --profile idp-test` (OpenLDAP); `make test/integration` starts it.
+
 **Agentic AI Studio (M1.5)**
 - New Agent: an agent is a Library prompt (system prompt and examples are its instructions) plus a model alias, tools, RAG pipelines and limits. Every save is an immutable version; the prompt and the pipelines are pinned to versions on save. Save Configuration, Save Configuration & Test Agent, Versions, Publish, and an Agent Library with the usual status, time and name filters, Try, Edit, Duplicate and Delete.
 - Tools: each RAG pipeline becomes a search tool that applies the caller's document access (groups and roles); built-in `http_get` (only hosts the agent allows, never private addresses, redirects re-checked, size and time capped) and `current_time`.

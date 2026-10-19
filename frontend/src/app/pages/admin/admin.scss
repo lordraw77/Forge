@@ -123,3 +123,38 @@ nz-alert {
   white-space: nowrap;
   border: 0;
 }
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+
+  &.add {
+    margin-top: 0.75rem;
+  }
+}
+
+.buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.found {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1rem;
+
+  dt {
+    font-weight: 600;
+  }
+
+  dd {
+    margin: 0;
+  }
+}
+
+.label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}

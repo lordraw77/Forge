@@ -22,6 +22,7 @@ const LABELS: Record<string, string> = {
   'auth.lockout': $localize`Account lockout`,
   'auth.session': $localize`Sessions`,
   'auth.totp': $localize`Two-factor authentication`,
+  'auth.local_login': $localize`Local login`,
   'system.eula': $localize`Terms of use (EULA)`,
   'gateway.limits': $localize`LLM gateway limits (0 = unlimited)`,
 };

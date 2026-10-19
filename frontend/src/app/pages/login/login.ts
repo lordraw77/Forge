@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
@@ -7,7 +7,7 @@ import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { firstValueFrom } from 'rxjs';
 
-import { AuthService } from '../../api-client';
+import { AuthService, PublicProviderOut } from '../../api-client';
 import { problemMessage } from '../../core/http';
 import { Session } from '../../core/session';
 import { PasswordInput } from '../../shared/password-input';
@@ -19,7 +19,7 @@ import { PasswordInput } from '../../shared/password-input';
   templateUrl: './login.html',
   styleUrl: './login.scss',
 })
-export class Login {
+export class Login implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly session = inject(Session);
   private readonly router = inject(Router);
@@ -32,6 +32,27 @@ export class Login {
   protected readonly challenge = signal<string | null>(null);
   protected readonly error = signal<string | null>(null);
   protected readonly busy = signal(false);
+  protected readonly providers = signal<PublicProviderOut[]>([]);
+  protected readonly localLogin = signal(true);
+
+  async ngOnInit(): Promise<void> {
+    const failed = this.route.snapshot.queryParamMap.get('error');
+    if (failed === 'oidc_failed')
+      this.error.set($localize`Sign-in with the identity provider failed`);
+    if (failed === 'oidc_unavailable')
+      this.error.set($localize`The identity provider is unreachable`);
+    try {
+      const options = await firstValueFrom(this.auth.signInOptions());
+      this.providers.set(options.providers);
+      this.localLogin.set(options.local_login);
+    } catch {
+      // The password form still works without the list.
+    }
+  }
+
+  protected oidcUrl(id: string): string {
+    return `/api/v1/auth/oidc/${id}/start`;
+  }
 
   protected async submit(): Promise<void> {
     await this.run(async () => {

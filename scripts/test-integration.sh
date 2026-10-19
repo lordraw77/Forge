@@ -8,7 +8,7 @@ cd "$root"
 
 compose=(docker compose -f deploy/compose/docker-compose.yml --project-directory .
          --env-file .env --env-file deploy/compose/infra.env)
-"${compose[@]}" up -d --wait db valkey search s3 temporal
+"${compose[@]}" --profile idp-test up -d --wait db valkey search s3 temporal openldap
 
 # shellcheck disable=SC1091
 source deploy/compose/infra.env
@@ -37,5 +37,6 @@ FORGE_TEST_SEARCH_CA="$root/deploy/compose/search/certs/root-ca.pem" \
 FORGE_TEST_S3_ENDPOINT="http://127.0.0.1:${FORGE_S3_PORT:-8333}" \
 FORGE_TEST_S3_ACCESS_KEY="$S3_ACCESS_KEY" \
 FORGE_TEST_S3_SECRET_KEY="$S3_SECRET_KEY" \
+FORGE_TEST_LDAP_URL="ldap://127.0.0.1:${FORGE_LDAP_TEST_PORT:-3890}" \
 FORGE_TEST_TEMPORAL_ADDRESS="127.0.0.1:${FORGE_TEMPORAL_PORT:-7233}" \
   uv run pytest -m integration "$@"

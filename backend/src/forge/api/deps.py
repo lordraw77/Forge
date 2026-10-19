@@ -15,10 +15,17 @@ from forge.core.context import Actor, RequestContext
 from forge.core.errors import ProblemError
 from forge.core.settings import Settings
 from forge.gateway.service import Gateway
-from forge.iam.service import AuthService, Flags, TokenError, User, actor_for
+from forge.iam.service import (
+    AuthService,
+    Flags,
+    IdentityProviders,
+    TokenError,
+    User,
+    actor_for,
+)
 from forge.prompts.service import PromptStudio
 from forge.rag.service import Rag
-from forge.tenancy.service import ProjectAccess, TenancyService
+from forge.tenancy.service import GroupMappings, ProjectAccess, TenancyService
 
 ACCESS_COOKIE = "forge_access"
 REFRESH_COOKIE = "forge_refresh"
@@ -35,6 +42,8 @@ class Services:
     store: SettingsStore
     auth: AuthService
     tenancy: TenancyService
+    providers: IdentityProviders
+    mappings: GroupMappings
     gateway: Gateway
     prompts: PromptStudio
     rag: Rag

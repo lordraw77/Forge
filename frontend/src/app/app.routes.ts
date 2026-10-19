@@ -93,6 +93,10 @@ export const routes: Routes = [
             loadComponent: () => import('./pages/admin/admin-models').then((m) => m.AdminModels),
           },
           {
+            path: 'auth',
+            loadComponent: () => import('./pages/admin/admin-auth').then((m) => m.AdminAuth),
+          },
+          {
             path: 'settings',
             loadComponent: () =>
               import('./pages/admin/admin-settings').then((m) => m.AdminSettings),

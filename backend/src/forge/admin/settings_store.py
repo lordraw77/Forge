@@ -43,6 +43,12 @@ class TotpPolicy(BaseModel):
     required: bool = False
 
 
+class LocalLogin(BaseModel):
+    """When off, only Super Admins sign in with a local password (US-2.1.7)."""
+
+    enabled: bool = True
+
+
 class Eula(BaseModel):
     version: str = "1"
     text: str = (
@@ -68,6 +74,7 @@ REGISTRY: dict[str, type[BaseModel]] = {
     "auth.lockout": LockoutPolicy,
     "auth.session": SessionPolicy,
     "auth.totp": TotpPolicy,
+    "auth.local_login": LocalLogin,
     "system.eula": Eula,
     "gateway.limits": GatewayLimits,
 }

@@ -85,7 +85,7 @@ E1.18 builds the agent as a LangGraph graph over a gateway-backed chat model ada
 
 | Milestone | Epics |
 | --- | --- |
-| **M2.1 External identity** | E2.1 LDAP/AD (bind, filters, group sync), OIDC (Authlib, Entra/Keycloak/Google), group → Role Name mapping, Admin Console *Authentication* — AC2 |
+| **M2.1 External identity** ✅ 2026-10-19 ([design](../architecture/m2.1-external-identity.md)) | E2.1 LDAP/AD (bind, filters, group sync), OIDC (Authlib, Entra/Keycloak/Google), group → Role Name mapping, Admin Console *Authentication* — AC2 |
 | **M2.2 Tools** | E2.2 Tools Studio: OpenAPI import, HTTP tools with per-project credentials and egress allowlist; MCP client (stdio, HTTP/SSE); read-only SQL tool; test console + call log<br>E2.3 Built-in connectors (Jira, ServiceNow, GLPI, GitHub/GitLab, Slack, Teams, Zabbix, Prometheus, SMTP/IMAP) — prioritise with PO, not all needed for MVP |
 | **M2.3 Use cases & graph engine** | E2.4 Catalogs, categories, Role Name access control<br>E2.5 Use case model, versions, lifecycle, export/import bundle, rollback — AC13<br>E2.6 Graph JSON v1 validation + Forge graph engine on Temporal (for_each, while, router fan-out, joins, limits)<br>E2.7 Supervisor pattern<br>E2.8 Build Your Own: requirements page, Planner Agent, Foblex canvas, node drawer, test page with per-agent panes and timeline<br>E2.9 Catalog end-user view, sessions, run history, outputs download (DOCX/XLSX/PDF) — AC12 |
 | **M2.4 HITL** | E2.10 Approval node + `requires_approval` tools + `hitl` flag; edit/reject/approve; email/webhook links with signed one-time tokens; notifications (SMTP, webhooks) — AC5, AC6 |

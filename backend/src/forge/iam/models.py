@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import ForeignKey
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from forge.core.ids import uuid7
@@ -20,6 +22,9 @@ class User(Base):
     email: Mapped[str]
     full_name: Mapped[str] = mapped_column(default="")
     auth_source: Mapped[str] = mapped_column(default="local")
+    provider_id: Mapped[uuid.UUID | None]
+    external_id: Mapped[str | None]
+    external_groups: Mapped[list[str]] = mapped_column(default=list)
     password_hash: Mapped[str | None]
     is_super_admin: Mapped[bool] = mapped_column(default=False)
     must_change_password: Mapped[bool] = mapped_column(default=False)
@@ -67,3 +72,19 @@ class AuthSession(Base):
     revoked_at: Mapped[datetime | None]
     ip: Mapped[str | None]
     user_agent: Mapped[str | None]
+
+
+class IdentityProvider(Base):
+    __tablename__ = "identity_provider"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    kind: Mapped[str]
+    name: Mapped[str]
+    enabled: Mapped[bool] = mapped_column(default=False)
+    position: Mapped[int] = mapped_column(default=0)
+    config: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    secret_id: Mapped[uuid.UUID | None]
+    last_sync_at: Mapped[datetime | None]
+    last_sync: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    created_by: Mapped[uuid.UUID | None]
+    updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)

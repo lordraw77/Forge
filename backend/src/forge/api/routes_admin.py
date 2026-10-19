@@ -181,7 +181,14 @@ async def list_settings(_p: Admin, request: Request) -> list[SettingOut]:
 
 @router.put("/settings/{key}", response_model=SettingOut)
 async def put_setting(key: str, body: dict[str, Any], p: Admin, request: Request) -> SettingOut:
-    store = services(request).store
+    svc = services(request)
+    store = svc.store
+    if key == "auth.local_login" and body.get("enabled") is False:
+        listed = await svc.providers.list_providers()
+        if not any(v.provider.enabled for v in listed):
+            raise ProblemError(
+                409, "no_provider", "Enable an identity provider before turning local login off"
+            )
     try:
         async with admin_scope(request.app.state.sessions, p.actor.id) as s:  # platform rows
             model = await store.set(s, p.actor, key, body)

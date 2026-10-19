@@ -35,6 +35,9 @@ dependencies = [
     "opentelemetry-instrumentation-fastapi>=0.66b1",
     "opentelemetry-instrumentation-httpx>=0.66b1",
     "opentelemetry-instrumentation-redis>=0.66b1",
+    "ldap3>=2.9.1",
+    "authlib>=1.9.1",
+    "joserfc>=1.7.7",
 ]
 
 [project.optional-dependencies]
@@ -64,6 +67,7 @@ dev = [
     "import-linter>=2.15",
     "pip-audit>=2.9",
     "openai>=2",
+    "types-ldap3>=2.9.13.20260827",
 ]
 spikes = []
 
@@ -88,6 +92,7 @@ ignore = ["S101"]  # assert is fine in tests; production code is checked by mypy
 "src/forge/guardrails/injection/generate.py" = ["E501", "RUF001"]  # dataset text, one line each
 "src/forge/guardrails/injection/detectors.py" = ["E501", "RUF001"]  # long regular expressions
 "tests/**" = ["S105", "S106", "S608"]
+"tests/integration/test_identity.py" = ["F811", "F401"]  # fixtures imported from test_platform_core
 "spikes/**" = ["S608", "E501", "S603", "S311", "ASYNC230"]  # throwaway spike code, constant schema names
 
 [tool.mypy]

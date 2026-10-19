@@ -223,6 +223,26 @@ services:
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]
 
+  # Test directory for the external-identity integration tests: `make test/integration`.
+  openldap:
+    image: osixia/openldap:1.5.0
+    profiles: [idp-test]
+    command: --copy-service
+    environment:
+      LDAP_ORGANISATION: Example
+      LDAP_DOMAIN: example.org
+      LDAP_ADMIN_PASSWORD: admin-test-pass
+      LDAP_TLS: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "ldapsearch -x -H ldap://localhost -D cn=admin,dc=example,dc=org -w admin-test-pass -b uid=dave,ou=people,dc=example,dc=org dn | grep -q '^dn:'"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - ./deploy/compose/openldap/bootstrap.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/50-bootstrap.ldif:ro
+    ports:
+      - "127.0.0.1:${FORGE_LDAP_TEST_PORT:-3890}:389"
+
   temporal-ui:
     image: temporalio/ui:2.54.1
     profiles: [tools]

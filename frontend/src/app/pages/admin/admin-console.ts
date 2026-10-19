@@ -10,6 +10,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
       <a routerLink="users" routerLinkActive="active" i18n>Users</a>
       <a routerLink="projects" routerLinkActive="active" i18n>Projects</a>
       <a routerLink="models" routerLinkActive="active" i18n>Model providers</a>
+      <a routerLink="auth" routerLinkActive="active" i18n>Authentication</a>
       <a routerLink="settings" routerLinkActive="active" i18n>Settings</a>
       <a routerLink="audit" routerLinkActive="active" i18n>Audit log</a>
     </nav>

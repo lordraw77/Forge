@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from forge.admin.service import (
     Eula,
+    LocalLogin,
     LockoutPolicy,
     PasswordPolicy,
     SessionPolicy,
@@ -31,6 +32,7 @@ from forge.core.logging import get_logger
 from forge.core.models import utcnow
 from forge.core.settings import Settings
 from forge.iam import passwords, tokens
+from forge.iam.external import ExternalAuth
 from forge.iam.models import AuthSession, PasswordHistory, RecoveryCode, User
 
 log = get_logger(__name__)
@@ -103,6 +105,7 @@ class AuthService:
         self._envelope = envelope
         self._codec = codec
         self._redis = redis_client
+        self.external: ExternalAuth | None = None  # set by the app wiring (E2.1)
 
     # ---- helpers
     def flags(self, user: User) -> Flags:
@@ -135,7 +138,21 @@ class AuthService:
     # ---- login
     async def login(self, login: str, password: str, ctx: RequestContext) -> LoginOutcome:
         await self._rate_limit(ctx)
+        outcome = await self._local_login(login, password, ctx)
+        if outcome is not None:
+            return outcome
+        if self.external is not None:  # not a usable local account: try the directories
+            issued = await self.external.ldap_login(login, password, ctx)
+            if issued is not None:
+                return LoginOutcome(session=issued)
+        raise INVALID
+
+    async def _local_login(
+        self, login: str, password: str, ctx: RequestContext
+    ) -> LoginOutcome | None:
+        """None when the login is not an eligible local account (nothing is revealed)."""
         lockout = self._settings.get(LockoutPolicy)
+        local_off = not self._settings.get(LocalLogin).enabled
         failed = False
         async with project_scope(self._sessions, None) as s:
             user = (
@@ -150,9 +167,14 @@ class AuthService:
                     .with_for_update()
                 )
             ).scalar_one_or_none()
-            if user is None or user.status != "active" or user.auth_source != "local":
+            if (
+                user is None
+                or user.status != "active"
+                or user.auth_source != "local"
+                or (local_off and not user.is_super_admin)
+            ):
                 passwords.verify_password(None, password)  # same cost as a real check
-                raise INVALID
+                return None
             now = utcnow()
             locked = user.locked_until is not None and user.locked_until > now
             ok = passwords.verify_password(user.password_hash, password)
@@ -179,6 +201,10 @@ class AuthService:
         if failed:
             raise INVALID
         return outcome
+
+    async def issue(self, s: AsyncSession, user: User, ctx: RequestContext) -> IssuedSession:
+        """A new session family for a user the caller has already authenticated."""
+        return await self._issue(s, user, ctx, family_id=None)
 
     async def _login_succeeded(
         self, s: AsyncSession, user: User, password: str, ctx: RequestContext

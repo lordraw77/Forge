@@ -12,6 +12,8 @@ export * from './data.service';
 import { DataService } from './data.service';
 export * from './health.service';
 import { HealthService } from './health.service';
+export * from './identity.service';
+import { IdentityService } from './identity.service';
 export * from './me.service';
 import { MeService } from './me.service';
 export * from './openai.service';
@@ -34,6 +36,7 @@ export const APIS = [
   BundlesService,
   DataService,
   HealthService,
+  IdentityService,
   MeService,
   OpenaiService,
   ProjectModelsService,

@@ -9,7 +9,12 @@
     }
 
     @if (!challenge()) {
-      <form (ngSubmit)="submit()" class="form">
+      @for (p of providers(); track p.id) {
+        <a nz-button nzBlock class="oidc" [href]="oidcUrl(p.id)" [attr.data-provider]="p.name">
+          {{ p.label }}
+        </a>
+      }
+      <form (ngSubmit)="submit()" class="form" [hidden]="!localLogin()">
         <label for="login" i18n>Username or email</label>
         <input
           nz-input
