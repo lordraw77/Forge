@@ -24,7 +24,9 @@ jobs:
         with:
           version: "0.11.31"
           enable-cache: true
-      - run: uv sync --frozen --python 3.12
+      - run: uv sync --frozen --python 3.12 --extra pii
+      - name: spaCy models for the PII tests
+        run: FORGE_MODELS_DIR="$RUNNER_TEMP/models" uv run forge models fetch --spacy --tokenizer tiktoken:o200k_base
       - name: Lint
         run: uv run ruff check . && uv run ruff format --check .
       - name: Module boundaries (ADR-001, ADR-005)
@@ -32,7 +34,7 @@ jobs:
       - name: Type check
         run: uv run mypy
       - name: Unit tests
-        run: uv run pytest -m "not integration"
+        run: FORGE_MODELS_DIR="$RUNNER_TEMP/models" uv run pytest -m "not integration"
       - name: Dependency audit
         run: |
           uv export --frozen --no-dev --no-hashes --no-emit-project -o /tmp/req.txt

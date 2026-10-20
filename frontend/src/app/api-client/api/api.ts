@@ -12,6 +12,8 @@ export * from './bundles.service';
 import { BundlesService } from './bundles.service';
 export * from './data.service';
 import { DataService } from './data.service';
+export * from './guardrails.service';
+import { GuardrailsService } from './guardrails.service';
 export * from './health.service';
 import { HealthService } from './health.service';
 export * from './identity.service';
@@ -42,6 +44,7 @@ export const APIS = [
   AuthService,
   BundlesService,
   DataService,
+  GuardrailsService,
   HealthService,
   IdentityService,
   MeService,

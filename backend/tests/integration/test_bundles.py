@@ -326,3 +326,48 @@ def test_agents_travel_in_bundles(
         c.post(f"{tbase}/import", headers=csrf(c), json={"bundle": bundle, "policy": "skip"})
     )
     assert ("agent", "skipped") in {(i["kind"], i["action"]) for i in skipped["items"]}
+
+
+def test_guardrail_policy_travels_in_bundles(
+    env: dict[str, Any],  # noqa: F811
+    admin: TestClient,  # noqa: F811
+) -> None:
+    c, base = env["owner"], env["base"]
+    rules = [
+        {"type": "pii", "stage": ["input"], "action": "mask", "params": {"entities": ["EMAIL"]}},
+        {"type": "secrets", "stage": ["output"], "action": "block"},
+    ]
+    ok(c.put(f"{base}/guardrails/policy", headers=csrf(c), json={"rules": rules}))
+    exported = c.post(f"{base}/export", headers=csrf(c), json={"guardrail_policy": True})
+    assert exported.status_code == 200, exported.text
+    bundle = exported.json()
+    item = next(i for i in bundle["items"] if i["kind"] == "guardrail_policy")
+    assert [r["type"] for r in item["rules"]] == ["pii", "secrets"]
+
+    target = ok(
+        admin.post(
+            "/api/v1/admin/projects",
+            headers=csrf(admin),
+            json={"name": f"GR target {uid()}", "admin_user_id": env["project"]["owner"]["id"]},
+        ),
+        201,
+    )["project"]["id"]
+    tbase = f"/api/v1/projects/{target}"
+    dry = ok(c.post(f"{tbase}/import", headers=csrf(c), json={"bundle": bundle}))
+    assert [i["action"] for i in dry["items"]] == ["updated"]
+    assert ok(c.get(f"{tbase}/guardrails/policy"))["rules"] == []  # a dry run changes nothing
+    done = ok(c.post(f"{tbase}/import", headers=csrf(c), json={"bundle": bundle, "dry_run": False}))
+    assert done["summary"] == {"updated": 1}
+    assert [r["type"] for r in ok(c.get(f"{tbase}/guardrails/policy"))["rules"]] == [
+        "pii",
+        "secrets",
+    ]
+
+    # A rule naming a guard model this project does not have is an error, not a half policy.
+    item["rules"] = [{"type": "toxicity", "action": "block", "params": {"model": "no-such-guard"}}]
+    bad = ok(c.post(f"{tbase}/import", headers=csrf(c), json={"bundle": bundle, "dry_run": False}))
+    assert bad["items"][0]["action"] == "error"
+    assert [r["type"] for r in ok(c.get(f"{tbase}/guardrails/policy"))["rules"]] == [
+        "pii",
+        "secrets",
+    ]

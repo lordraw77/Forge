@@ -997,6 +997,25 @@
     "3739154346722676811": "Chi può decidere (Role Name, separati da virgola)",
     "2258894297631883832": "Ore di attesa (da 1 a 720)",
     "1064478282362323998": "L'esecuzione attende che una persona approvi un passo.",
-    "1666333179105815335": "Apri Approvazioni"
+    "1666333179105815335": "Apri Approvazioni",
+    "3227611067359181778": "Guardrail",
+    "4816216590591222133": "Attiva",
+    "6278226792044663744": "Aggiungi regola",
+    "7699905149395658303": "Non sei ancora membro di nessun progetto.",
+    "682108663296570796": "Solo i Project Admin gestiscono i guardrail.",
+    "1431318700014573301": "I guardrail sono facoltativi. Senza regole salvate, o con la policy disattivata, nessuna chiamata viene controllata.",
+    "6861787586360881966": "Policy salvata.",
+    "4028885004034722294": "Modalità di errore: predefinita",
+    "4875904805228555346": "Nessuna regola: nulla viene controllato.",
+    "7330497278645626593": "Provalo",
+    "3465334097375756547": "Controlla (regole sopra)",
+    "3193647612359325574": "Interventi",
+    "7343458434870773763": "Fase",
+    "9041078670559726454": "Controllo",
+    "602821270955747507": "Trovato",
+    "4740155908531375605": "Nessun intervento finora.",
+    "6370060859333008457": "Policy dei guardrail (regole; modelli guard per nome)",
+    "6208484603333067161": "Regole dei guardrail di questo agente (JSON, si sommano a quelle del progetto)",
+    "8377201912330647558": "Le regole dei guardrail non sono JSON valido."
   }
 }

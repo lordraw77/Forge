@@ -10,6 +10,8 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from forge.guardrails.service import GuardrailRuleIn, validate_rules
+
 Tag = Literal["draft", "staging", "prod"]
 RunStatus = Literal["queued", "running", "succeeded", "failed", "cancelled"]
 BuiltinTool = Literal["http_get", "current_time"]
@@ -106,9 +108,13 @@ class AgentConfig(In):
     limits: Limits = Field(default_factory=Limits)
     temperature: float | None = Field(default=0.2, ge=0, le=2)
     max_output_tokens: int | None = Field(default=None, ge=16, le=64_000)
+    # The agent's own guardrail rules, applied after the project's policy (E2.11): an agent can
+    # be stricter than its project, never looser.
+    guardrails: list[GuardrailRuleIn] = Field(default_factory=list, max_length=20)
 
     @model_validator(mode="after")
     def _unique_names(self) -> AgentConfig:
+        validate_rules(self.guardrails)
         names = [t.name for t in self.tools if t.name]
         if len(names) != len(set(names)):
             raise ValueError("tool names must be unique")

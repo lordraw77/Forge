@@ -64,6 +64,8 @@ _DEFAULT_BASE = {"nim": "https://integrate.api.nvidia.com/v1"}
 _RESERVED = frozenset(
     {"model", "messages", "input", "api_key", "api_base", "base_url", "stream", "num_retries"}
 )
+# Settings of a classification endpoint (guard model with `shape: classify`), not LiteLLM options.
+CLASSIFY_KEYS = frozenset({"shape", "path", "safe_labels"})
 
 
 # Credentials that providers echo back in error messages (threat model TB3).
@@ -115,6 +117,8 @@ class ProviderAdapter(Protocol):
     async def rerank(
         self, model: ModelConfig, query: str, documents: list[str], top_n: int | None
     ) -> dict[str, Any]: ...
+
+    async def classify(self, model: ModelConfig, text: str) -> Any: ...
 
     def count_tokens(self, model: ModelConfig, messages: Any = None, text: str = "") -> int: ...
 
@@ -255,7 +259,7 @@ class LiteLLMAdapter:
         elif prefix in ("openai", "hosted_vllm"):
             # The OpenAI client refuses to start without a key; keyless local servers accept any.
             kw["api_key"] = "not-needed"
-        kw.update({k: v for k, v in model.params.items() if k not in _RESERVED})
+        kw.update({k: v for k, v in model.params.items() if k not in _RESERVED | CLASSIFY_KEYS})
         return kw
 
     async def chat(self, model: ModelConfig, params: dict[str, Any]) -> dict[str, Any]:
@@ -327,13 +331,48 @@ class LiteLLMAdapter:
             raw = json.dumps(messages) if messages is not None else text
             return max(1, len(raw) // 4)
 
+    async def classify(self, model: ModelConfig, text: str) -> Any:
+        """POST the text to a classification endpoint (ADR-013, second shape) and return its JSON:
+        `{"labels": [{"name", "score"}]}` or the text-embeddings-inference shape. The body carries
+        the text as both `text` and `inputs` (the latter is what TEI expects)."""
+        import httpx
+
+        provider = model.provider
+        base = (provider.base_url or "").rstrip("/")
+        if not base:
+            raise UpstreamError("bad_request", "a classification endpoint needs a base URL")
+        headers = {"Content-Type": "application/json", **(provider.config.get("headers") or {})}
+        if provider.api_key:
+            headers["Authorization"] = f"Bearer {provider.api_key}"
+        url = base + "/" + str(model.params.get("path") or "classify").lstrip("/")
+        try:
+            async with httpx.AsyncClient(timeout=model.timeout_s) as client:
+                resp = await client.post(url, json={"text": text, "inputs": text}, headers=headers)
+        except httpx.TimeoutException as exc:
+            raise UpstreamError("timeout", "the classification endpoint timed out") from exc
+        except httpx.HTTPError as exc:
+            raise UpstreamError("connection", f"unreachable: {type(exc).__name__}") from exc
+        if resp.status_code >= 400:
+            kinds = {401: "auth", 403: "auth", 404: "not_found", 429: "rate_limit"}
+            kind: ErrorKind = kinds.get(resp.status_code) or (  # type: ignore[assignment]
+                "server" if resp.status_code >= 500 else "bad_request"
+            )
+            raise UpstreamError(kind, scrub(resp.text[:300]), resp.status_code)
+        try:
+            return resp.json()
+        except ValueError as exc:
+            raise UpstreamError("server", "the endpoint did not answer JSON") from exc
+
     async def probe(self, model: ModelConfig, timeout_s: float) -> ProbeResult:
         """Minimal request of the model's type (US-1.5.2)."""
         start = time.perf_counter()
         sample: str | None = None
         dims: int | None = None
         coro: Any
-        if model.model_type in ("chat", "guard"):
+        classify = model.model_type == "guard" and model.params.get("shape") == "classify"
+        if classify:
+            coro = self.classify(model, "ping")
+        elif model.model_type in ("chat", "guard"):
             coro = self.chat(
                 model, {"messages": [{"role": "user", "content": "ping"}], "max_tokens": 1}
             )
@@ -347,7 +386,9 @@ class LiteLLMAdapter:
             result = await asyncio.wait_for(coro, timeout_s)
         except TimeoutError as exc:
             raise UpstreamError("timeout", f"no answer within {timeout_s:g} s") from exc
-        if model.model_type in ("chat", "guard"):
+        if classify:
+            sample = json.dumps(result)[:200]
+        elif model.model_type in ("chat", "guard"):
             choices = result.get("choices") or [{}]
             message = choices[0].get("message") or {}
             sample = str(message.get("content") or message.get("reasoning_content") or "")[:200]

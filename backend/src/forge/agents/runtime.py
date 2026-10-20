@@ -429,7 +429,12 @@ class AgentRuntime:
 
     # ------------------------------------------------------------ graph
     def _graph(self, rec: RunRecord, cfg: AgentConfig, tools: ToolSet, deadline: float) -> Any:
-        caller = Caller(rec.project_id, rec.user_id, trace_id=f"run:{rec.run_id}")
+        caller = Caller(
+            rec.project_id,
+            rec.user_id,
+            trace_id=f"run:{rec.run_id}",
+            guardrail_rules=tuple(r.model_dump() for r in cfg.guardrails),
+        )
         ctx = ToolContext(caller, rec.run_id, self._d.allow_private_hosts, self._d.tools)
         tool_log = ToolLog(self._d.sessions)
 
@@ -570,6 +575,21 @@ class AgentRuntime:
                         error_code="tool_not_found",
                     )
                     return missing, 0, args, None
+                args, why = await self._d.gateway.guardrails.check_arguments(
+                    rec.project_id,
+                    args,
+                    tool=name,
+                    user_id=rec.user_id,
+                    trace_id=caller.trace_id,
+                    extra_rules=caller.guardrail_rules,
+                )
+                if why:
+                    refused = ToolResult(
+                        "error",
+                        f"A guardrail blocked this call to '{name}' ({why}); it was not run.",
+                        error_code="guardrail_blocked",
+                    )
+                    return refused, int((time.perf_counter() - started) * 1000), args, None
                 with span(f"tool.{name}", **{"forge.tool": name, "forge.step": base + i}):
                     sid = current_span_id()
                     result, _ = await tool_log.run_once(

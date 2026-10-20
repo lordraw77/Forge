@@ -152,6 +152,21 @@
         />
       </div>
     </div>
+    <div class="field">
+      <label for="ae-guardrails" i18n
+        >Guardrail rules of this agent (JSON, added to the project's)</label
+      >
+      <textarea
+        nz-input
+        id="ae-guardrails"
+        name="guardrails"
+        rows="4"
+        spellcheck="false"
+        class="mono"
+        data-testid="agent-guardrails"
+        [(ngModel)]="draft.guardrails"
+      ></textarea>
+    </div>
     @if (promptVariables().length) {
       <h4 i18n>Prompt variables</h4>
       <div class="params" data-testid="agent-variables">

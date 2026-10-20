@@ -92,6 +92,9 @@ type Policy = 'new_version' | 'rename' | 'skip';
           <label nz-checkbox nzId="ex-limits" [(ngModel)]="withLimits" name="limits">
             <span i18n>Project limits and cache settings</span>
           </label>
+          <label nz-checkbox nzId="ex-guardrails" [(ngModel)]="withGuardrails" name="guardrails">
+            <span i18n>Guardrail policy (rules; guard models by name)</span>
+          </label>
           <label nz-checkbox nzId="ex-groups" [(ngModel)]="withGroups" name="groups">
             <span i18n>User groups (names only, without members)</span>
           </label>
@@ -255,6 +258,7 @@ export class ProjectBundles {
   protected withAliases = false;
   protected withLimits = false;
   protected withGroups = false;
+  protected withGuardrails = false;
   protected policy: Policy = 'new_version';
   private bundle: Record<string, unknown> | null = null;
   private pendingFile: string | null = null;
@@ -295,6 +299,7 @@ export class ProjectBundles {
             model_aliases: this.withAliases,
             gateway_config: this.withLimits,
             user_groups: this.withGroups,
+            guardrail_policy: this.withGuardrails,
           },
         }),
       );

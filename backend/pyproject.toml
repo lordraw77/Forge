@@ -52,6 +52,10 @@ dependencies = [
 # Document parsing for the ingestion worker only (image forge-backend-ingest, ADR-013):
 # Docling with CPU-only PyTorch. The API image and the dev environment do not install it.
 ingest = ["docling>=2.140", "torch>=2.2", "torchvision>=0.17"]
+pii = [
+    "presidio-analyzer>=2.2",
+    "spacy>=3.8",
+]
 
 [project.scripts]
 forge = "forge.cli:main"

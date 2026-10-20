@@ -4,6 +4,10 @@
 * `heuristic`: normalised-text rules in English and Italian. A baseline shipped in Phase 1 to
   validate the runner and give the Phase 2 guardrail models (E2.11, ADR-013) a number to beat.
   It is not a security control.
+* `guard:<model>@<https base url>`: an OpenAI-compatible guard model (Llama Prompt Guard, Llama
+  Guard, NVIDIA content safety), the way the gateway reads it (AC8 against a real endpoint).
+* `judge:<model>@<https base url>`: an ordinary chat model asked to act as the guard, with the
+  same prompt a `judge` rule uses.
 * `command:<program and arguments>`: runs a program per text (text on stdin, `block` or `allow`
   on stdout), so any external detector can be scored without code changes.
 """
@@ -16,6 +20,7 @@ import codecs
 import re
 import shlex
 import subprocess
+import sys
 import unicodedata
 from collections.abc import Callable
 
@@ -133,11 +138,79 @@ def command(spec: str) -> Detector:
     return run
 
 
+def guard(spec: str, judge: bool = False) -> Detector:
+    """`<model>@<base url>`: an OpenAI-compatible guard model (ADR-013), key in FORGE_GUARD_API_KEY,
+    answers read like the gateway reads them. Pass `?threshold=0.8` after the URL for score models.
+    With `judge`, an ordinary chat model gets the judge prompt of the `judge` rule.
+    A text the guard does not answer is an error, not a pass: a score must not hide gaps."""
+    import json
+    import os
+    import time
+    import urllib.error
+    import urllib.request
+
+    from forge.guardrails import guard as reading
+
+    model, _, rest = spec.partition("@")
+    base, _, query = rest.partition("?threshold=")
+    if not model or not base.startswith("https://"):
+        raise ValueError("guard detector needs <model>@https://<base url>")
+    threshold = float(query) if query else 0.5
+    key = os.environ.get("FORGE_GUARD_API_KEY", "")
+
+    def run(text: str) -> bool:
+        messages = (
+            reading.judge_messages("injection", text)
+            if judge
+            else [{"role": "user", "content": text}]
+        )
+        payload = json.dumps(
+            {"model": model, "messages": messages, "max_tokens": 400, "temperature": 0}
+        ).encode()
+        req = urllib.request.Request(  # noqa: S310 - https checked above
+            f"{base.rstrip('/')}/chat/completions",
+            payload,
+            {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {key}",
+                "User-Agent": "forge-injection-run",
+            },
+        )
+        for _try in range(3):  # a reasoning model sometimes spends its tokens and answers nothing
+            for attempt in range(10):  # free tiers rate-limit: wait as long as the provider asks
+                try:
+                    with urllib.request.urlopen(req, timeout=60) as resp:  # noqa: S310
+                        answer = json.load(resp)["choices"][0]["message"]["content"]
+                    break
+                except urllib.error.HTTPError as exc:
+                    if exc.code not in (429, 500, 502, 503, 504) or attempt == 9:
+                        raise
+                    time.sleep(min(60.0, float(exc.headers.get("retry-after") or 5) + 1))
+                except (urllib.error.URLError, TimeoutError, ConnectionError):
+                    if attempt == 9:  # a dropped connection is not a verdict: try again
+                        raise
+                    time.sleep(5.0)
+            result = reading.parse(str(answer or ""), threshold)
+            if result is not None:
+                return result.unsafe
+        # Still unreadable: count it as "not blocked", the conservative reading for a block rate.
+        print(f"unreadable guard answer, counted as allowed: {text[:60]!r}", file=sys.stderr)
+        return False
+
+    return run
+
+
 def load(name: str) -> Detector:
     if name == "none":
         return none
     if name == "heuristic":
         return heuristic
+    if name.startswith("guard:"):
+        return guard(name.removeprefix("guard:"))
+    if name.startswith("judge:"):
+        return guard(name.removeprefix("judge:"), judge=True)
     if name.startswith("command:"):
         return command(name.removeprefix("command:"))
-    raise ValueError(f"unknown detector {name!r}; use none, heuristic or command:<program>")
+    raise ValueError(
+        f"unknown detector {name!r}; use none, heuristic, guard:<model>@<url>, judge:<model>@<url> or command:<program>"
+    )

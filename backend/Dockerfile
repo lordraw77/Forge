@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 # One image, several roles (ADR-001): `forge api`, `forge worker runs|ingest`, `forge migrate`.
-# EXTRAS=ingest builds the ingestion worker variant (forge-backend-ingest): Docling with CPU-only
-# PyTorch (ADR-013).
+# EXTRAS is a space-separated list. `ingest` builds the ingestion worker variant: Docling with CPU-only
+# PyTorch (ADR-013). Every image also gets the `pii` extra: Presidio and spaCy for name detection in guardrails (E2.11).
 # MODELS=embedded (default): Docling models (ingest variant) and the default tokenizers are baked
 #   into the image and downloads are disabled, so it runs air-gapped.
 # MODELS=download (the `-slim` tags): nothing is baked in; the ingestion worker downloads the
@@ -17,12 +17,12 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-install-project ${EXTRAS:+--extra $EXTRAS}
+    uv sync --frozen --no-dev --no-install-project $(for e in pii $EXTRAS; do printf -- "--extra %s " "$e"; done)
 COPY README.md alembic.ini ./
 COPY src ./src
 COPY migrations ./migrations
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-editable ${EXTRAS:+--extra $EXTRAS}
+    uv sync --frozen --no-dev --no-editable $(for e in pii $EXTRAS; do printf -- "--extra %s " "$e"; done)
 
 FROM python:3.12-slim-trixie AS runtime
 ARG VERSION=0.0.0-dev
@@ -45,7 +45,9 @@ ENV PATH="/app/.venv/bin:${PATH}" \
     TIKTOKEN_CACHE_DIR=/app/models/tiktoken
 RUN mkdir -p /app/models \
  && if [ "$MODELS" = "embedded" ]; then \
-      FORGE_MODELS_FETCH=1 forge models fetch ${EXTRAS:+--docling}; \
+      FORGE_MODELS_FETCH=1 forge models fetch \
+        $(case " $EXTRAS " in *" ingest "*) printf -- --docling;; esac) \
+        --spacy; \
     fi \
  && chown -R forge:forge /app/models
 USER forge

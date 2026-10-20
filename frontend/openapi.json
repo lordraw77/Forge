@@ -229,6 +229,14 @@
       "AgentConfig": {
         "additionalProperties": false,
         "properties": {
+          "guardrails": {
+            "items": {
+              "$ref": "#/components/schemas/GuardrailRuleIn"
+            },
+            "maxItems": 20,
+            "title": "Guardrails",
+            "type": "array"
+          },
           "limits": {
             "$ref": "#/components/schemas/Limits"
           },
@@ -3762,6 +3770,11 @@
             "title": "Gateway Config",
             "type": "boolean"
           },
+          "guardrail_policy": {
+            "default": false,
+            "title": "Guardrail Policy",
+            "type": "boolean"
+          },
           "include_dependencies": {
             "default": true,
             "description": "Add the prompts and collections used by the pipelines",
@@ -3959,6 +3972,235 @@
           "created_at"
         ],
         "title": "GroupOut",
+        "type": "object"
+      },
+      "GuardrailEventOut": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "check_type": {
+            "title": "Check Type",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "matches": {
+            "title": "Matches",
+            "type": "integer"
+          },
+          "rule_index": {
+            "title": "Rule Index",
+            "type": "integer"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "stage",
+          "source",
+          "rule_index",
+          "check_type",
+          "action",
+          "label",
+          "detail",
+          "matches"
+        ],
+        "title": "GuardrailEventOut",
+        "type": "object"
+      },
+      "GuardrailPolicyIn": {
+        "properties": {
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/GuardrailRuleIn"
+            },
+            "maxItems": 50,
+            "title": "Rules",
+            "type": "array"
+          }
+        },
+        "title": "GuardrailPolicyIn",
+        "type": "object"
+      },
+      "GuardrailPolicyOut": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/GuardrailRuleIn"
+            },
+            "title": "Rules",
+            "type": "array"
+          },
+          "unavailable": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unavailable",
+            "type": "array"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "enabled",
+          "rules",
+          "unavailable"
+        ],
+        "title": "GuardrailPolicyOut",
+        "type": "object"
+      },
+      "GuardrailRuleIn": {
+        "properties": {
+          "action": {
+            "default": "log",
+            "title": "Action",
+            "type": "string"
+          },
+          "fail_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fail Mode"
+          },
+          "params": {
+            "additionalProperties": true,
+            "title": "Params",
+            "type": "object"
+          },
+          "stage": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Stage",
+            "type": "array"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "GuardrailRuleIn",
+        "type": "object"
+      },
+      "GuardrailTestIn": {
+        "properties": {
+          "rules": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/GuardrailRuleIn"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rules"
+          },
+          "stage": {
+            "default": "input",
+            "title": "Stage",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 100000,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "GuardrailTestIn",
+        "type": "object"
+      },
+      "GuardrailTestOut": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "findings": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "unavailable": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unavailable",
+            "type": "array"
+          }
+        },
+        "required": [
+          "action",
+          "text",
+          "findings",
+          "unavailable"
+        ],
+        "title": "GuardrailTestOut",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -17934,6 +18176,211 @@
         "summary": "Set Group Members",
         "tags": [
           "projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/guardrails/events": {
+      "get": {
+        "operationId": "events",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GuardrailEventOut"
+                  },
+                  "title": "Response Events",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Events",
+        "tags": [
+          "guardrails"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/guardrails/policy": {
+      "get": {
+        "operationId": "get_guardrail_policy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardrailPolicyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Guardrail Policy",
+        "tags": [
+          "guardrails"
+        ]
+      },
+      "put": {
+        "operationId": "put_guardrail_policy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuardrailPolicyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardrailPolicyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Guardrail Policy",
+        "tags": [
+          "guardrails"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/guardrails/test": {
+      "post": {
+        "description": "Dry run: nothing is logged and no model is called.",
+        "operationId": "test_guardrail_policy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuardrailTestIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardrailTestOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Test Guardrail Policy",
+        "tags": [
+          "guardrails"
         ]
       }
     },

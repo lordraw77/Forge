@@ -25,6 +25,7 @@ from forge.core.db import project_scope
 from forge.core.errors import ProblemError
 from forge.core.logging import get_logger
 from forge.core.models import utcnow
+from forge.guardrails.service import Guardrails
 from forge.prompts.service import PromptStudio, RunIn
 from forge.tools.service import ToolStudio
 from forge.usecases.approvals import ApprovalRuntime
@@ -70,7 +71,9 @@ class UseCaseRuntime:
         prompts: PromptStudio,
         files: UseCaseFiles,
         approvals: ApprovalRuntime,
+        guardrails: Guardrails,
     ) -> None:
+        self._guardrails = guardrails
         self.approvals = approvals
         self._sessions = sessions
         self._agents = agents
@@ -388,6 +391,14 @@ class UseCaseRuntime:
     ) -> dict[str, Any]:
         prepared = await self._tools.prepare_named(user_id, project_id, name, version)
         args = payload.get("args") or {}
+        args, why = await self._guardrails.check_arguments(
+            project_id, args, tool=name, user_id=user_id, trace_id=f"run:{run_id}"
+        )
+        if why:
+            return {
+                "error_code": "guardrail_blocked",
+                "error": f"A guardrail blocked the arguments of '{name}' ({why}); it was not run.",
+            }
         if prepared.requires_approval and not payload.get("approved"):
             return {"needs_approval": True, "planned_args": args}
         res = await prepared.execute(args)

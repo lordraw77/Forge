@@ -310,3 +310,38 @@ M2.4 is built in one step. Scope decisions: approvals pause **graph and supervis
 1. Tenant isolation: approvals and tokens of another project are invisible; RLS is forced.
 2. An approver cannot decide twice (409), cannot decide after expiry or cancellation, and edits are size-bounded like step outputs.
 3. Acceptance (AC5, AC12): a run with an approval node stops, notifies and resumes after approval from the UI or API; the same from an email link; rejection with feedback re-runs a `hitl` node.
+
+## M2.5 Guardrails
+
+M2.5 is built in slices. **Slice a (done):** policy model, in-process checks, gateway enforcement on input and output, intervention log, policy API with dry run. **Not yet built:** escalate-to-approval, the AC8 run against a guard endpoint.
+
+### E2.11 Guardrail policy
+
+**US-2.11.1 (M) – Policy.** As a PA, I want one policy per project.
+
+1. A policy is an ordered list of rules `{type, stage[], action, params, fail_mode}`; `type` is `pii`, `injection`, `secrets`, `urls`, `banned_topics`, `json_schema`, `toxicity` or `grounding`; `stage` is `input`, `output` or `tool_args`; `action` is `log`, `mask`, `block`, `rewrite` or `escalate`.
+2. Only Project Admins read and write it; the policy can be switched off; changes apply within 5 s.
+3. A model-backed check (`toxicity`, `grounding`) with no endpoint is reported as unavailable on the policy; a rule that changes or stops text (`mask`, `rewrite`, `block`, `escalate`) then fails closed, a `log` rule fails open, unless `fail_mode` says otherwise.
+4. A dry-run endpoint evaluates text against the saved or a draft policy without logging or calling a model.
+
+**US-2.11.2 (M) – Enforcement.** As a compliance officer, I want every model call checked.
+
+1. Every gateway chat call (API keys, agents, use cases, Planner) checks the user and tool messages before the model and the answer after it.
+2. `mask` replaces PII spans with `[ENTITY]` before the cloud model sees them (AC7); `rewrite` replaces with the rule's text; `block` answers 400 `guardrail_blocked` (input) or 502 (output); the strictest action across rules wins.
+3. A `mask`/`rewrite` rule whose check has no span to cut (injection, schema) blocks instead, unless fail-open.
+4. A streamed call whose policy has output rules is run whole and replayed, so an answer is never partly delivered.
+5. Guard-model checks (chat shape): `toxicity`, and `injection` after the heuristic, with `params.model` naming a `guard` model of the project; calls are accounted for in `llm_call`, a guard that cannot answer follows the fail mode.
+6. `params.judge: true` lets an ordinary chat model act as the guard for `toxicity` and `injection`.
+7. The `tool_args` stage checks each string of a tool call's arguments before the tool runs (agents and use case tool nodes); a blocked call does not run.
+8. `grounding` (output stage): a chat model judges whether the answer is supported by the call's tool results; calls without tool results are not checked.
+9. A `guard` model with `params.shape: classify` is a plain HTTP classifier (`{text} → {labels}` or the TEI shape); it serves `toxicity` and `injection` rules like a chat guard model.
+10. Checks without a guard model: PII (email, card with Luhn, IBAN with mod 97, Italian fiscal code with check character, phone, IP; and, with the Presidio models, `PERSON`, `LOCATION`, `ORGANIZATION` in Italian and English), secrets (cloud keys, tokens, private keys, passwords in assignments, custom patterns), URLs (allow/deny lists, shorteners, raw IPs), banned terms, JSON schema, the injection heuristics of Phase 1.
+
+**US-2.11.5 (S) – Agent rules.** An agent version can carry its own guardrail rules, applied after the project's for its model and tool calls; they never replace or relax the project's.
+
+**US-2.11.4 (S) – Bundles.** The policy exports and imports with the other configuration; import replaces the policy after validating it and its guard models.
+
+**US-2.11.3 (M) – Intervention log.**
+
+1. Each finding is logged with stage, source, rule, check, action, labels and match count. **The text is never stored.**
+2. The log is project-scoped (forced RLS) and readable by Project Admins.

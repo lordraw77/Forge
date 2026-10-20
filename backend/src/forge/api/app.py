@@ -22,6 +22,7 @@ from forge.api import (
     routes_auth,
     routes_bundles,
     routes_data,
+    routes_guardrails,
     routes_idp,
     routes_models,
     routes_projects,
@@ -194,6 +195,7 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
             usecases=usecases,
             usecase_runs=usecase_runs,
             approvals=Approvals(app.state.sessions, tenancy),
+            guardrails=gateway.guardrails,
             planner=Planner(gateway, usecases, usecase_files),
             run_events=run_events,
             bundles=Bundles(prompts, rag, gateway, tenancy, agents, usecases),
@@ -247,6 +249,7 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
     app.include_router(routes_usecases.router)
     app.include_router(routes_approvals.router)
     app.include_router(routes_approvals.public_router)
+    app.include_router(routes_guardrails.router)
     app.include_router(routes_bundles.router)
     app.add_middleware(routes_data.BodyLimit)
     app.include_router(routes_v1.router)

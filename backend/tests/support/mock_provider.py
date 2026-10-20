@@ -7,6 +7,8 @@ Behaviour comes from the requested model name (suffixes can be combined, e.g. `a
   -fail402  402 (billing)
   -tools    answers with a tool call -nousage  never reports usage
   -echo     answers with the received messages as JSON
+  -guard    guard model: "unsafe\nS1" when the last message says "attack", else "safe"
+            (`-guardjson`: NVIDIA-style JSON; `-guardscore`: a probability, 0.97 or 0.01)
   -assist   answers like Help Me Write (JSON with framework and prompts)
   -agent    scripted agent: calls a tool the first time (`search*` for a question, `http_get`
             when the message holds a URL, `current_time` when it asks for the time), then
@@ -147,6 +149,20 @@ def _message(model: str, body: dict[str, Any]) -> dict[str, Any]:
         if "-slowstream" in model and msg.get("content"):
             msg["content"] += " " + " ".join(["slowly"] * 24)  # about 10 s of streaming
         return msg
+    if "-guard" in model:
+        last = str(body["messages"][-1].get("content", "")).lower()
+        bad = "attack" in last
+        if "-guardjson" in model:
+            out = (
+                '{"User Safety": "unsafe", "Safety Categories": "Hate"}'
+                if bad
+                else ('{"User Safety": "safe"}')
+            )
+        elif "-guardscore" in model:
+            out = "0.97" if bad else "0.01"
+        else:
+            out = "unsafe\nS1" if bad else "safe"
+        return {"role": "assistant", "content": out}
     if "-echo" in model:
         return {"role": "assistant", "content": json.dumps(body["messages"])}
     if "-assist" in model:
@@ -167,6 +183,38 @@ def _message(model: str, body: dict[str, Any]) -> dict[str, Any]:
         }
         return {"role": "assistant", "content": None, "tool_calls": [call]}
     return {"role": "assistant", "content": f"pong from {model}"}
+
+
+@app.post("/v1/classify")
+async def classify(request: Request) -> Any:
+    """Generic classification endpoint: {"text"} -> {"labels": [{"name", "score"}]}."""
+    body = await request.json()
+    RECORDS.append(
+        {"path": request.url.path, "body": body, "auth": request.headers.get("authorization")}
+    )
+    bad = "attack" in str(body.get("text", "")).lower()
+    return {
+        "labels": [
+            {"name": "toxic", "score": 0.93 if bad else 0.02},
+            {"name": "safe", "score": 0.07 if bad else 0.98},
+        ]
+    }
+
+
+@app.post("/v1/classify-tei")
+async def classify_tei(request: Request) -> Any:
+    """The text-embeddings-inference shape: [[{"label", "score"}]], from `inputs`."""
+    body = await request.json()
+    RECORDS.append(
+        {"path": request.url.path, "body": body, "auth": request.headers.get("authorization")}
+    )
+    bad = "attack" in str(body.get("inputs", "")).lower()
+    return [
+        [
+            {"label": "hate", "score": 0.9 if bad else 0.01},
+            {"label": "neutral", "score": 0.1 if bad else 0.99},
+        ]
+    ]
 
 
 @app.post("/v1/chat/completions")

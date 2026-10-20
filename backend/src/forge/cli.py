@@ -66,6 +66,11 @@ def _fetch_models(args: argparse.Namespace) -> int:
 
     if args.docling and not (args.if_missing and docling_models_present()):
         print(f"docling models -> {download_docling_models()}")
+    if args.spacy:
+        from forge.guardrails import ner
+
+        ner.fetch()
+        print(f"spaCy models -> {ner.MODELS_DIR}")
     for spec in args.tokenizer or tokenizers.DEFAULT_TOKENIZERS:
         tokenizers.fetch(spec)
         print(f"tokenizer {spec} -> {tokenizers.MODELS_DIR}")
@@ -297,6 +302,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     fetch.add_argument("--docling", action="store_true", help="also the Docling models")
     fetch.add_argument(
+        "--spacy", action="store_true", help="also the spaCy models of PII name detection"
+    )
+    fetch.add_argument(
         "--tokenizer",
         action="append",
         help="tokenizer spec, e.g. hf:BAAI/bge-m3 or tiktoken:o200k_base (repeatable; "
@@ -315,7 +323,8 @@ def build_parser() -> argparse.ArgumentParser:
     inj_run.add_argument(
         "--detector",
         default="heuristic",
-        help="none, heuristic, or command:<program> (text on stdin, 'block' or 'allow' out)",
+        help="none, heuristic, guard:<model>@<url> (key in FORGE_GUARD_API_KEY), or "
+        "command:<program> (text on stdin, 'block' or 'allow' out)",
     )
     inj_run.add_argument(
         "--set",

@@ -15,6 +15,7 @@ from forge.core.context import Actor, RequestContext
 from forge.core.errors import ProblemError
 from forge.core.settings import Settings
 from forge.gateway.service import Gateway
+from forge.guardrails.service import Guardrails
 from forge.iam.service import (
     AuthService,
     Flags,
@@ -57,6 +58,7 @@ class Services:
     usecases: UseCaseStudio
     usecase_runs: UseCaseRuns
     approvals: Approvals
+    guardrails: Guardrails
     planner: Planner
     run_events: RunEvents
     bundles: Bundles

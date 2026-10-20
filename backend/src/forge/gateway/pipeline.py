@@ -33,11 +33,21 @@ from forge.gateway.limits import Limiter, Reservation, ResponseCache
 from forge.gateway.models import LlmCall
 from forge.gateway.registry import ModelConfig, Registry, Resolution
 from forge.gateway.schemas import EffectiveLimits, TestResult, UsageOut
+from forge.guardrails.service import (
+    SAFE_LABELS,
+    Guardrails,
+    GuardResult,
+    from_labels,
+    judge_messages,
+    parse_guard,
+)
 from forge.observability.service import record_gateway_call
 
 log = get_logger(__name__)
 
 CHAT_KINDS = frozenset({"chat", "guard"})
+GUARD_KINDS = frozenset({"guard"})
+GROUNDING_CONTEXT_CHARS = 30_000
 EMBED_KINDS = frozenset({"embedding"})
 RERANK_KINDS = frozenset({"reranker"})
 DEFAULT_OUTPUT_RESERVE = 1024
@@ -68,6 +78,8 @@ class Caller:
     user_id: uuid.UUID | None
     api_key_id: uuid.UUID | None = None
     trace_id: str | None = None
+    # An agent's own guardrail rules (E2.11), added to the project's for this call.
+    guardrail_rules: tuple[dict[str, Any], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -147,8 +159,9 @@ class GatewayService:
         backoff_base_s: float = 0.5,
         backoff_cap_s: float = 8.0,
         sleep: Callable[[float], Any] = asyncio.sleep,
+        guardrails: Guardrails | None = None,
     ) -> None:
-        self._sessions = sessions
+        self._guardrails = guardrails
         self.registry = registry
         self._adapter = adapter
         self._limiter = limiter
@@ -157,6 +170,12 @@ class GatewayService:
         self._backoff_cap = backoff_cap_s
         self._sleep = sleep
         self._background: set[asyncio.Task[None]] = set()
+        if guardrails is not None:
+            guardrails.classify = self.guard_classify
+            guardrails.guard_exists = lambda project_id, name, judge=False: self.registry.resolve(
+                project_id, name, CHAT_KINDS if judge else GUARD_KINDS
+            )
+        self._sessions = sessions
 
     # ------------------------------------------------------------------ chat
     async def chat(self, caller: Caller, requested: str, params: dict[str, Any]) -> GatewayResponse:
@@ -179,6 +198,21 @@ class GatewayService:
         except ProblemError as exc:
             self._record_failure(call, exc)
             raise
+        guard_output = False
+        if self._guardrails is not None:
+            try:
+                await self._guard_input(caller, params)
+                # Output rules need the whole answer: a streamed call is run whole and replayed.
+                guard_output = await self._guardrails.has_stage(
+                    caller.project_id, "output", caller.guardrail_rules
+                )
+            except ProblemError as exc:
+                await self._limiter.reconcile(reservation, 0)
+                self._record_failure(call, exc)
+                raise
+        replay = stream and guard_output
+        if replay:
+            stream = False
         cache_key = self._cache_key(caller, requested, params, limits)
         if cache_key and (cached := await self._cache.get(cache_key)):
             await self._limiter.reconcile(reservation, 0)
@@ -220,13 +254,150 @@ class GatewayService:
         tokens = (int(usage.get("prompt_tokens") or 0), int(usage.get("completion_tokens") or 0))
         body = self._chat_body(response, model, tokens)
         await self._limiter.reconcile(reservation, sum(tokens))
+        if guard_output:
+            try:
+                await self._guard_output(caller, body, params.get("messages"))
+            except ProblemError as exc:
+                self._record(call, "error", exc.status, tokens=tokens, usage_source=source)
+                raise
         info = self._record(call, "ok", 200, tokens=tokens, usage_source=source)
         if cache_key:
             await self._cache.put(
                 cache_key, {"forge_model_id": str(model.id), "response": body}, limits.cache_ttl_s
             )
         headers["x-forge-model"] = model.name
+        if replay:
+            return GatewayResponse(headers, stream=self._replay(body, client_usage), info=info)
         return GatewayResponse(headers, body=body, info=info)
+
+    # ------------------------------------------------------------ guardrails
+    async def guard_classify(
+        self,
+        project_id: uuid.UUID,
+        user_id: uuid.UUID | None,
+        name: str,
+        text: str,
+        threshold: float = 0.5,
+        judge: str | None = None,
+        context: str | None = None,
+    ) -> GuardResult | None:
+        """Ask a `guard` model (alias or name, enabled for the project) whether `text` is unsafe.
+
+        Goes to the provider directly, never through `chat`, so the guard call is not itself
+        guarded. Recorded in `llm_call` (endpoint `guard`). None: no answer we can read."""
+        caller = Caller(project_id, user_id)
+        call = _Call(caller, "guard", name)
+        try:
+            # A judge is an ordinary chat model told to classify; a guard model reads the text.
+            kinds = CHAT_KINDS if judge else GUARD_KINDS
+            chain = self.registry.resolve(caller.project_id, name, kinds).chain
+            params = {
+                "messages": judge_messages(judge, text, context)
+                if judge
+                else [{"role": "user", "content": text}],
+                "max_tokens": 400 if judge else 100,
+                "temperature": 0,
+            }
+
+            async def ask(m: ModelConfig) -> tuple[str, Any]:
+                if m.params.get("shape") == "classify":  # ADR-013 second shape
+                    if judge:  # a classifier cannot follow instructions
+                        raise UpstreamError("unsupported", "a classification endpoint cannot judge")
+                    return "labels", await self._adapter.classify(m, text)
+                return "chat", await self._adapter.chat(m, self._model_params(m, params))
+
+            model, (shape, response) = await self._with_fallback(call, list(chain), ask)
+        except ProblemError as exc:
+            self._record_failure(call, exc)
+            log.warning("guardrails.guard_failed", model=name, code=exc.code)
+            return None
+        if shape == "labels":
+            self._record(call, "ok", 200, tokens=(0, 0), usage_source="none")
+            safe = model.params.get("safe_labels")
+            return from_labels(
+                response,
+                threshold,
+                frozenset(str(x).lower() for x in safe) if isinstance(safe, list) else SAFE_LABELS,
+            )
+        usage = response.get("usage") or {}
+        tokens = (int(usage.get("prompt_tokens") or 0), int(usage.get("completion_tokens") or 0))
+        self._record(call, "ok", 200, tokens=tokens, usage_source="provider")
+        answer = (((response.get("choices") or [{}])[0]).get("message") or {}).get("content")
+        return parse_guard(str(answer or ""), threshold)
+
+    async def _guard_text(
+        self, caller: Caller, stage: str, text: str, context: str | None = None
+    ) -> str:
+        assert self._guardrails is not None
+        verdict = await self._guardrails.check(
+            caller.project_id,
+            stage,
+            text,
+            context=context,
+            extra_rules=caller.guardrail_rules,
+            source="gateway",
+            user_id=caller.user_id,
+            api_key_id=caller.api_key_id,
+            trace_id=caller.trace_id,
+        )
+        if verdict.blocked:
+            kinds = ", ".join(
+                sorted({f.type for f in verdict.findings if f.action in ("block", "escalate")})
+            )
+            raise ProblemError(
+                400 if stage == "input" else 502,
+                "guardrail_blocked",
+                f"A guardrail blocked the {stage} ({kinds})",
+            )
+        return verdict.text
+
+    async def _guard_input(self, caller: Caller, params: dict[str, Any]) -> None:
+        """Check what the user and tools said; masking rewrites the messages in place."""
+        messages = []
+        for message in params.get("messages") or []:
+            if not isinstance(message, dict) or message.get("role") not in ("user", "tool"):
+                messages.append(message)
+                continue
+            content = message.get("content")
+            if isinstance(content, str):
+                message = {**message, "content": await self._guard_text(caller, "input", content)}
+            elif isinstance(content, list):
+                parts = []
+                for part in content:
+                    if isinstance(part, dict) and part.get("type") == "text":
+                        part = {
+                            **part,
+                            "text": await self._guard_text(
+                                caller, "input", str(part.get("text", ""))
+                            ),
+                        }
+                    parts.append(part)
+                message = {**message, "content": parts}
+            messages.append(message)
+        if "messages" in params:
+            params["messages"] = messages
+
+    @staticmethod
+    def _grounding_context(messages: Any) -> str | None:
+        """The source passages of the call: what tools returned (RAG results). None when the
+        call has none, so there is nothing to ground an answer in."""
+        parts = [
+            m["content"]
+            for m in messages or []
+            if isinstance(m, dict) and m.get("role") == "tool" and isinstance(m.get("content"), str)
+        ]
+        return "\n\n".join(parts)[:GROUNDING_CONTEXT_CHARS] if parts else None
+
+    async def _guard_output(
+        self, caller: Caller, body: dict[str, Any], messages: Any = None
+    ) -> None:
+        context = self._grounding_context(messages)
+        for choice in body.get("choices") or []:
+            message = choice.get("message") or {}
+            if isinstance(message.get("content"), str):
+                message["content"] = await self._guard_text(
+                    caller, "output", message["content"], context
+                )
 
     def _capable(self, resolution: Resolution, params: dict[str, Any]) -> list[ModelConfig]:
         needs = _needed_capabilities(params)

@@ -7,8 +7,8 @@ A bundle is one JSON document:
 
 Items: `prompt` and `rag_pipeline` (with the chosen versions and their tags), `data_collection`
 (definition only, never files), and configuration: `model_alias` (project aliases, by model
-name), `gateway_config` (project limits), `user_group` (names, never members). Secrets and
-document contents are never exported.
+name), `gateway_config` (project limits), `guardrail_policy` (rules, guard models by name),
+`user_group` (names, never members). Secrets and document contents are never exported.
 
 Multi-version support:
 
@@ -43,7 +43,7 @@ FORMAT = "forge.bundle"
 SCHEMA_VERSION = 1
 Scope = Literal["all", "published", "latest"]
 Policy = Literal["new_version", "rename", "skip"]
-CONFIG_KINDS = frozenset({"model_alias", "gateway_config", "user_group"})
+CONFIG_KINDS = frozenset({"model_alias", "gateway_config", "user_group", "guardrail_policy"})
 
 # schema_version N -> function upgrading a bundle from N to N + 1. Add one with every change
 # of the bundle format; old bundles keep importing.
@@ -71,6 +71,7 @@ class ExportIn(In):
     model_aliases: bool = False
     gateway_config: bool = False
     user_groups: bool = False
+    guardrail_policy: bool = False
 
 
 class ImportIn(In):
@@ -137,7 +138,9 @@ class Bundles:
     async def export(
         self, actor: Actor, project_id: uuid.UUID, body: ExportIn, *, can_manage: bool
     ) -> dict[str, Any]:
-        if (body.model_aliases or body.gateway_config or body.user_groups) and not can_manage:
+        if (
+            body.model_aliases or body.gateway_config or body.user_groups or body.guardrail_policy
+        ) and not can_manage:
             raise ProblemError(403, "forbidden", "Exporting configuration needs project.manage")
         items: list[dict[str, Any]] = []
         prompt_scope: dict[uuid.UUID, str] = {p.id: p.versions for p in body.prompts}
@@ -212,6 +215,16 @@ class Bundles:
             items.append(
                 {"kind": "gateway_config", "name": "gateway", "config": cfg.config.model_dump()}
             )
+        if body.guardrail_policy:
+            policy = await self.gateway.guardrails.get_policy(project_id)
+            items.append(
+                {
+                    "kind": "guardrail_policy",
+                    "name": "guardrails",
+                    "enabled": policy.enabled,
+                    "rules": [r.model_dump() for r in policy.rules],
+                }
+            )
         if body.user_groups:
             for g in await self.tenancy.list_groups(project_id, actor.id):
                 items.append({"kind": "user_group", "name": g.name, "description": g.description})
@@ -235,6 +248,7 @@ class Bundles:
             "user_group",
             "model_alias",
             "gateway_config",
+            "guardrail_policy",
             "data_collection",
             "prompt",
             "rag_pipeline",
@@ -427,6 +441,10 @@ class Bundles:
             if not dry:
                 await self.gateway.catalog.set_project_config(actor, project_id, cfg)
             return {"kind": kind, "name": name or "gateway", "action": "updated"}
+        if kind == "guardrail_policy":
+            return await self.gateway.guardrails.import_policy(
+                project_id, actor.id, item, dry_run=dry
+            )
         if kind == "user_group":
             groups = {g.name.lower() for g in await self.tenancy.list_groups(project_id, actor.id)}
             if name.lower() in groups:

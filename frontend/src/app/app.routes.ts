@@ -255,6 +255,12 @@ export const routes: Routes = [
         ],
       },
       {
+        path: 'governance',
+        title: 'Guardrails · Forge',
+        loadComponent: () =>
+          import('./pages/governance/guardrails-page').then((m) => m.GuardrailsPage),
+      },
+      {
         path: 'approvals',
         title: 'Approvals · Forge',
         loadComponent: () =>
@@ -341,9 +347,16 @@ export const routes: Routes = [
       },
       ...MENU.filter(
         (entry) =>
-          !['projects', 'prompts', 'rag', 'agents', 'tools', 'build', 'catalog'].includes(
-            entry.path,
-          ),
+          ![
+            'projects',
+            'prompts',
+            'rag',
+            'agents',
+            'tools',
+            'build',
+            'catalog',
+            'governance',
+          ].includes(entry.path),
       ).map((entry) => ({
         path: entry.path,
         component: Placeholder,

@@ -165,6 +165,7 @@ async def build_runs(reg: QueueRegistration, settings: Settings) -> QueueRegistr
             ApprovalRuntime(
                 sessions, TenancyService(sessions), Mailer(settings), settings, runtime_tools
             ),
+            gateway.guardrails,
         )
     ).all()
     reg.closers += [

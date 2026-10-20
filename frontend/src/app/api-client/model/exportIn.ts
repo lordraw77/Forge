@@ -13,6 +13,7 @@ export interface ExportIn {
   agents?: Array<AssetRef>;
   collections?: Array<string>;
   gateway_config?: boolean;
+  guardrail_policy?: boolean;
   /**
    * Add the prompts and collections used by the pipelines
    */

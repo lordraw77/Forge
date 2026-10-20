@@ -69,6 +69,8 @@ interface Draft {
   maxCostUsd: number;
   temperature: number | null;
   maxOutputTokens: number | null;
+  /** The agent's own guardrail rules, as JSON text (a list of rules). */
+  guardrails: string;
 }
 
 function defaults(): Draft {
@@ -89,6 +91,7 @@ function defaults(): Draft {
     maxCostUsd: 1,
     temperature: 0.2,
     maxOutputTokens: null,
+    guardrails: '[]',
   };
 }
 
@@ -125,6 +128,7 @@ function fromConfig(cfg: AgentConfig): Draft {
   d.maxCostUsd = cfg.limits?.max_cost_usd ?? d.maxCostUsd;
   d.temperature = cfg.temperature ?? null;
   d.maxOutputTokens = cfg.max_output_tokens ?? null;
+  d.guardrails = JSON.stringify(cfg.guardrails ?? [], null, 2);
   return d;
 }
 
@@ -354,6 +358,12 @@ export class AgentEditor {
       tools.push({ kind: 'builtin', name: 'http_get', allowed_hosts: d.hosts });
     }
     if (d.currentTime) tools.push({ kind: 'builtin', name: 'current_time' });
+    let guardrails: AgentConfig['guardrails'];
+    try {
+      guardrails = JSON.parse(d.guardrails || '[]');
+    } catch {
+      throw new Error($localize`The guardrail rules are not valid JSON.`);
+    }
     return {
       prompt: { prompt_id: d.promptId!, version: d.promptVersion, variables },
       model: d.model,
@@ -366,6 +376,7 @@ export class AgentEditor {
       },
       temperature: d.temperature,
       max_output_tokens: d.maxOutputTokens,
+      guardrails,
     };
   }
 
@@ -405,7 +416,7 @@ export class AgentEditor {
         this.message.set({ ok: true, text: $localize`Saved version ${saved.latest_version}:n:.` });
       }
     } catch (e) {
-      this.message.set({ ok: false, text: problemMessage(e) });
+      this.message.set({ ok: false, text: e instanceof Error ? e.message : problemMessage(e) });
     } finally {
       this.saving.set(false);
     }

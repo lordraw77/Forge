@@ -30,6 +30,7 @@ from forge.gateway.schemas import (
     UsageOut,
 )
 from forge.gateway.tokenizers import TokenCounter
+from forge.guardrails.service import Guardrails
 
 
 @dataclass
@@ -37,6 +38,7 @@ class Gateway:
     registry: Registry
     catalog: Catalog
     service: GatewayService
+    guardrails: Guardrails
     _subscribed: bool = field(default=False, init=False)
 
     @classmethod
@@ -51,6 +53,7 @@ class Gateway:
         backoff_base_s: float = 0.5,
     ) -> Gateway:
         registry = Registry(sessions, envelope, store)
+        guardrails = Guardrails(sessions)
         return cls(
             registry=registry,
             catalog=Catalog(sessions, envelope, registry, store),
@@ -61,7 +64,9 @@ class Gateway:
                 Limiter(client),
                 ResponseCache(client),
                 backoff_base_s=backoff_base_s,
+                guardrails=guardrails,
             ),
+            guardrails=guardrails,
         )
 
     async def start(self, store: SettingsStore, *, warm: bool = True) -> None:
