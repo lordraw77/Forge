@@ -135,3 +135,137 @@ Connectors (E2.3: Jira, ServiceNow, GLPI, GitHub/GitLab, Slack, Teams, Zabbix, P
 1. Credentials never appear in API responses, logs, audit diffs, run steps or call logs (tests inspect each).
 2. SSRF tests: private and metadata addresses, DNS pointing to private, redirect to a private host, host outside the allowlist, credentials in URL.
 3. Tenant isolation: tools, credentials, data sources, MCP servers and call logs of another project are invisible (isolation suite covers the new tables).
+
+---
+
+## M2.3 Use cases and graph engine
+
+M2.3 is large and is built in four steps, each ending with tests and a commit: **a** catalogs and use case model (E2.4, E2.5); **b** graph engine and supervisor (E2.6, E2.7); **c** Build Your Own (E2.8); **d** end-user catalog and runs (E2.9). Human approval nodes are validated and stored here but execute only in M2.4; until then a run reaching one stops with an explicit error.
+
+### E2.4 Catalogs, categories and access control
+
+**US-2.4.1 (M) – Catalogs and categories.** As a PA, I want to organise use cases in catalogs and categories.
+
+1. A catalog has a name (unique in the project), description and status; a category belongs to one catalog (unique name inside it). Built-in catalogs Forge.Software, Forge.ITOps, Forge.BizOps are created with the project and can be disabled but not deleted.
+2. A catalog or category with use cases cannot be deleted (409 with the references).
+3. Only Project Admins manage catalogs (`project.manage`).
+
+**US-2.4.2 (M) – Access control by Role Name.** As a PA, I want to decide which roles see which catalog.
+
+1. Per Role Name, a toggle per catalog; enabling a catalog enables all its categories, which can then be unchecked one by one.
+2. Users see and run only use cases in categories enabled for their Role Name; Builders and Project Admins see all use cases of the project in the studio.
+3. A user with no enabled catalog sees an empty catalog page with an explanation. The API returns 404 (not 403) for a use case the caller cannot see.
+4. Changes are audited and take effect on the next request.
+
+### E2.5 Use case model, versions and lifecycle
+
+**US-2.5.1 (M) – Use case library.** As a B, I want to create and manage use cases.
+
+1. A use case has name (unique in the project), description, icon, tags, catalog and category (optional until published), pattern (`supervisor` or `graph`), input form, output type, defaults (model alias overrides, max cost, max duration) and a definition.
+2. Input form fields: text, long text, number, select, file, data collection; each with a name, label, help text and required flag. The JSON Schema for the run API is generated from it.
+3. Output type: markdown, JSON (with schema), file (DOCX, XLSX, PDF) or chat transcript.
+4. Library with the usual name/status/time filters, Duplicate and Delete.
+
+**US-2.5.2 (M) – Versions and lifecycle.** As a B, I want controlled publishing.
+
+1. States `draft` → `testing` → `published` → `deprecated`. Every publish creates an immutable version (1, 2, …) with definition, schemas, limits, publisher and time.
+2. Editing a published use case creates a new draft; the published version keeps serving new and running runs until the new one is published.
+3. Publishing requires validation to pass, and pinned agents, tools and prompts to be published; the screen lists what is missing.
+4. Rollback: re-publish any previous version from the version history, with a diff view between two versions.
+5. A use case with runs cannot be deleted, only deprecated; deprecated use cases disappear from catalogs but runs keep their version.
+6. A use case used as a reference elsewhere (agent version, bundle) is reported in a 409 on delete, as for prompts and tools.
+
+**US-2.5.3 (M) – Bundles.** As a B, I want to export and import a use case.
+
+1. Export is a bundle per ADR-018: the use case plus referenced agents, prompts, tools and RAG configuration, by name, without secrets or data.
+2. Import applies the conflict policy of ADR-018 (new version / rename / skip) and reports unresolved references.
+3. Each bundle carries the Forge schema version and is migrated on import.
+
+### E2.6 Graph definition and engine
+
+**US-2.6.1 (M) – Graph JSON v1 validation.** As a B, I want invalid graphs rejected when saved.
+
+1. The JSON Schema is published at `/api/v1/schemas/use-case-graph/v1` (ADR-010); node types `start`, `agent`, `tool`, `llm`, `router`, `for_each`, `while`, `human_approval`, `end`.
+2. Semantic checks: unique node ids, no unreachable nodes, no unbounded cycles, loops with `max_iterations`, every `{variable}` defined on all paths before use, referenced versions exist and are published, router sections reference defined fields.
+3. Errors carry the node id and a code, so the canvas can highlight them; a draft may be saved invalid, but not tested or published.
+4. `ui.positions` is ignored by validation, diffs and execution.
+
+**US-2.6.2 (M) – Execution on Temporal.** As an operator, I want graph runs to be durable.
+
+1. Run states `queued` → `running` → `waiting_approval` → `running` → `succeeded` | `failed` | `cancelled`; each node execution is a persisted step with input, output, status, tokens, cost, latency and trace id.
+2. A worker killed mid-run: the run resumes from the last completed step without repeating completed steps or tool calls (idempotency keys as in ADR-004).
+3. Nodes whose dependencies finish together run in parallel; `after_mode` `all`/`any` and dead-path elimination follow ADR-010.
+4. Limits (`max_steps`, `max_cost_usd`, `timeout_s`) stop the run with a reason; project quotas and gateway limits still apply.
+5. Cancel stops pending steps and marks the run `cancelled`.
+
+**US-2.6.3 (M) – Node types.** As a B, I want the building blocks of the spec.
+
+1. `agent` runs a pinned published agent with a task and input and stores its output in a variable; `tool` runs a library tool with arguments built from variables (tools with `requires_approval` follow M2.4); `llm` runs a pinned prompt on a model alias.
+2. `router` evaluates ordered sections (`=`, `!=`, `>`, `<`, `contains`, `and`/`or`), several may match, default path when none does.
+3. `for_each` iterates a list variable or static list, exposing `{item}` and `{index}`, with Loop and Done outputs; `while` repeats while its condition holds; both stop at `max_iterations` with a clear failure.
+4. `human_approval` and `hitl: true` are accepted by validation; execution stops at them with "approval is not available yet" until M2.4.
+5. Variables are resolved from a run-scoped map; an undefined or non-serialisable value at run time fails the step with the variable name.
+
+### E2.7 Supervisor pattern
+
+**US-2.7.1 (M) – Agent team.** As a B, I want a simple sequential team of agents.
+
+1. A supervisor definition is an ordered list of agents (pinned) with a task each; the first is the Team Leader and receives the input form values.
+2. It compiles to the same graph (a chain of `agent` nodes), so runs, steps, tracing and limits are the same as for graphs.
+3. Each agent receives the previous outputs as context and the shared feed shows every agent's output in order.
+4. Reordering, adding and removing agents creates a new draft version.
+
+### E2.8 Build Your Own
+
+**US-2.8.1 (M) – Requirements page.** As a B, I want to describe the use case in natural language.
+
+1. Description up to 4000 characters, optional attached file (up to 100 MB, stored per project), pattern selection (supervisor or graph).
+2. Save as Draft at any time with name and description; later saves overwrite the draft.
+
+**US-2.8.2 (M) – Planner Agent.** As a B, I want a generated first workflow.
+
+1. The Planner knows the published agents, tools and prompts of the project, uses ADR-010 as its structured output schema, and returns a valid definition or a list of validation errors it then repairs (bounded retries).
+2. It flags missing capabilities and suggests the agents to create, with a link to the agent editor; it never creates assets by itself.
+3. Chat refinement edits the current definition; each accepted change is a draft save. The Planner's cost is accounted in the usage metrics.
+
+**US-2.8.3 (M) – Canvas and node drawer.** As a B, I want to edit the graph by hand.
+
+1. Foblex Flow canvas with New Node, zoom, pan, auto-layout and validation errors on nodes; connector ids are the `after` references.
+2. Node settings open in a drawer with the fields of US-2.6.3 and variable pickers; the supervisor pattern shows the team as tiles with drag-and-drop reordering.
+3. Chat and canvas edit the same definition without overwriting each other.
+
+**US-2.8.4 (M) – Test workflow.** As a B, I want to run a draft before publishing.
+
+1. The test page runs the draft with the input form, one pane per agent, a shared timeline and the current node highlighted on the graph.
+2. Test runs are marked as such, count in usage, and do not appear in end-user run history.
+3. Publish asks name, description, catalog and category (US-2.5.2).
+
+### E2.9 Catalog, sessions and runs for end users
+
+**US-2.9.1 (M) – Catalog view.** As an end user, I want to find and open use cases.
+
+1. Card grid with search, category and tag filters, recently used and favorites; only use cases allowed by US-2.4.2.
+2. The detail page shows description, the generated input form and the user's run history; End Users never see agents, prompts or graphs.
+
+**US-2.9.2 (M) – Sessions and runs.** As an end user, I want to run a use case and follow it.
+
+1. Running opens a session; a session holds one or more runs, each pinned to the published version in force when it started.
+2. Progress streams over SSE: per-agent panes, shared timeline, final output. A refreshed page picks up the running run.
+3. End Users see their own runs; Operators, Builders and Admins see all runs and traces of the project.
+4. Run history shows inputs, outputs, files, cost, duration, version and author, with re-run using the same inputs.
+
+**US-2.9.3 (M) – Outputs.** As an end user, I want to download results.
+
+1. Markdown and JSON are shown and downloadable; DOCX, XLSX and PDF are generated from the final output and stored in object storage with the run.
+2. Downloads are checked against the same visibility rule as the run.
+
+**US-2.9.4 (M) – Run API.** As an integrator, I want to start a use case from code.
+
+1. `POST /api/v1/use-cases/{id}/runs` accepts the input form as JSON and returns a run id; modes sync (with timeout), SSE stream, or async with a webhook on completion.
+2. API keys see only use cases in categories enabled for their Role Name.
+
+**US-2.9.5 (M) – Security and tests.**
+
+1. Tenant isolation: catalogs, use cases, versions, sessions, runs, steps and outputs of another project are invisible (isolation suite extended).
+2. A published version is immutable; a run started before a new publish finishes on its original version.
+3. Acceptance: a use case is built, published, run by an End User from the catalog and its outputs downloaded; a worker killed mid-run resumes from the last completed step; rollback works.
