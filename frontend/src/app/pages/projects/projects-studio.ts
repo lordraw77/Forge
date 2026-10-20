@@ -41,6 +41,9 @@ type Notice = { severity: 'success' | 'error' | 'info'; text: string } | null;
           <a routerLink="users" routerLinkActive="active" i18n>Users</a>
           <a routerLink="groups" routerLinkActive="active" data-testid="tab-groups" i18n>Groups</a>
           <a routerLink="roles" routerLinkActive="active" i18n>Roles</a>
+          <a routerLink="catalogs" routerLinkActive="active" data-testid="tab-catalogs" i18n
+            >Catalogs</a
+          >
         }
       </nav>
       <router-outlet />

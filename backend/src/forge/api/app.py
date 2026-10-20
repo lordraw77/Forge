@@ -27,6 +27,7 @@ from forge.api import (
     routes_prompts,
     routes_rag,
     routes_tools,
+    routes_usecases,
     routes_v1,
 )
 from forge.api.deps import Services
@@ -49,6 +50,7 @@ from forge.prompts.service import PromptStudio
 from forge.rag.service import Rag, SearchClient
 from forge.tenancy.service import GroupMappings, TenancyService
 from forge.tools.service import ToolStudio
+from forge.usecases.service import UseCaseStudio
 
 log = get_logger(__name__)
 
@@ -149,6 +151,7 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
         run_events = RunEvents(app.state.redis)
         tools = ToolStudio(app.state.sessions, envelope, settings)
         agents = AgentStudio(app.state.sessions, gateway, prompts, rag, RunStarter(settings), tools)
+        usecases = UseCaseStudio(app.state.sessions, agents, tools, prompts, tenancy)
         auth = AuthService(
             app.state.sessions,
             store,
@@ -179,8 +182,9 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
             rag=rag,
             agents=agents,
             tools=tools,
+            usecases=usecases,
             run_events=run_events,
-            bundles=Bundles(prompts, rag, gateway, tenancy, agents),
+            bundles=Bundles(prompts, rag, gateway, tenancy, agents, usecases),
         )
         app.state.services = svc
         init = asyncio.create_task(_initialise(app, svc))
@@ -228,6 +232,7 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
     app.include_router(routes_rag.router)
     app.include_router(routes_agents.router)
     app.include_router(routes_tools.router)
+    app.include_router(routes_usecases.router)
     app.include_router(routes_bundles.router)
     app.add_middleware(routes_data.BodyLimit)
     app.include_router(routes_v1.router)

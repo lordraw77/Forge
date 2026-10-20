@@ -20,5 +20,6 @@ export interface ExportIn {
   model_aliases?: boolean;
   prompts?: Array<AssetRef>;
   rag_pipelines?: Array<AssetRef>;
+  use_cases?: Array<AssetRef>;
   user_groups?: boolean;
 }

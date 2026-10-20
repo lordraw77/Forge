@@ -37,6 +37,7 @@ from forge.gateway.service import Gateway, ProjectGatewayConfigIn
 from forge.prompts.service import PromptStudio
 from forge.rag.service import Rag
 from forge.tenancy.service import TenancyService
+from forge.usecases.service import UseCaseStudio, extract_refs
 
 FORMAT = "forge.bundle"
 SCHEMA_VERSION = 1
@@ -62,6 +63,7 @@ class ExportIn(In):
     prompts: list[AssetRef] = Field(default_factory=list, max_length=500)
     rag_pipelines: list[AssetRef] = Field(default_factory=list, max_length=500)
     agents: list[AssetRef] = Field(default_factory=list, max_length=500)
+    use_cases: list[AssetRef] = Field(default_factory=list, max_length=500)
     collections: list[uuid.UUID] = Field(default_factory=list, max_length=500)
     include_dependencies: bool = Field(
         default=True, description="Add the prompts and collections used by the pipelines"
@@ -129,6 +131,7 @@ class Bundles:
     gateway: Gateway
     tenancy: TenancyService
     agents: AgentStudio
+    usecases: UseCaseStudio
 
     # ------------------------------------------------------------ export
     async def export(
@@ -151,7 +154,20 @@ class Bundles:
                     prompt_scope.setdefault(pid, ref.versions)
         agent_items: list[dict[str, Any]] = []
         exported_pipelines = {ref.id for ref in body.rag_pipelines}
-        for ref in body.agents:
+        use_case_items: list[dict[str, Any]] = []
+        agent_refs = list(body.agents)
+        for ref in body.use_cases:
+            item = await self.usecases.export_use_case(actor, project_id, ref.id, ref.versions)
+            use_case_items.append(item)
+            if body.include_dependencies:
+                refs, _ = extract_refs(item["pattern"], item["definition"])
+                for r in refs:
+                    if r.kind != "agent":
+                        continue
+                    found = await self.agents.find_agent(actor, project_id, r.name)
+                    if found and all(a.id != found for a in agent_refs):
+                        agent_refs.append(AssetRef(id=found, versions="published"))
+        for ref in agent_refs:
             item, agent_prompts, agent_pipelines = await self.agents.export_agent(
                 actor, project_id, ref.id, ref.versions
             )
@@ -186,6 +202,7 @@ class Bundles:
             items.append(await self.rag.studio.export_collection(actor, project_id, cid))
         items += pipelines
         items += agent_items
+        items += use_case_items
         if body.model_aliases:
             for a in await self.gateway.catalog.list_aliases(actor, project_id):
                 if a.scope == "project" and a.model_names:
@@ -222,6 +239,7 @@ class Bundles:
             "prompt",
             "rag_pipeline",
             "agent",
+            "use_case",
         ]
         items = sorted(
             (i for i in bundle["items"] if isinstance(i, dict) and i.get("kind") in order),
@@ -391,6 +409,10 @@ class Bundles:
                 dry_run=dry,
                 source=source,
                 assume_models=assumed,
+            )
+        if kind == "use_case":
+            return await self.usecases.import_use_case(
+                actor, project_id, item, body.policy, dry_run=dry, source=source
             )
         if kind == "model_alias":
             return await self._import_alias(actor, project_id, item, dry)

@@ -30,6 +30,8 @@ export * from './system.service';
 import { SystemService } from './system.service';
 export * from './tools.service';
 import { ToolsService } from './tools.service';
+export * from './useCases.service';
+import { UseCasesService } from './useCases.service';
 export const APIS = [
   AdminService,
   AdminModelsService,
@@ -47,4 +49,5 @@ export const APIS = [
   RagService,
   SystemService,
   ToolsService,
+  UseCasesService,
 ];

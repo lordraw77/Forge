@@ -183,7 +183,7 @@ def test_unknown_items_and_fields_from_newer_versions_are_ignored(
         "format": "forge.bundle",
         "schema_version": 1,
         "items": [
-            {"kind": "use_case", "name": "from the future"},
+            {"kind": "connector", "name": "from the future"},
             {
                 "kind": "prompt",
                 "name": name,
@@ -199,7 +199,7 @@ def test_unknown_items_and_fields_from_newer_versions_are_ignored(
         c.post(f"{env['base']}/import", headers=csrf(c), json={"bundle": bundle, "dry_run": False})
     )
     assert {(i["kind"], i["action"]) for i in report["items"]} == {
-        ("use_case", "skipped"),
+        ("connector", "skipped"),
         ("prompt", "created"),
     }
 

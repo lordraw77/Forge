@@ -38,3 +38,9 @@ export const builderGuard: CanActivateFn = () => {
   const session = inject(Session);
   return session.can('asset.write') ? true : inject(Router).parseUrl('/agents');
 };
+
+/** Use case building (Build Your Own) needs `usecase.build`; the others go home. */
+export const useCaseBuilderGuard: CanActivateFn = () => {
+  const session = inject(Session);
+  return session.can('usecase.build') ? true : inject(Router).parseUrl('/');
+};

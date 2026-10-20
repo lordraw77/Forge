@@ -8,6 +8,14 @@ Phase 1 milestones M1.2 (LLM gateway), M1.3 (Prompt Studio), M1.4 (RAG on upload
 
 ### Added
 
+**Catalogs and use cases (M2.3a)**
+- **Catalogs and categories** per project (Projects Studio → Catalogs), with the built-in Forge.Software, Forge.ITOps and Forge.BizOps; **access by Role Name**: enable a catalog for a role and untick single categories. A use case a role may not see answers 404.
+- **Use case library** (Build Your Own Use Case): supervisor or graph pattern, input form (text, long text, number, choice, file, collection) with generated JSON Schema, output type, cost/duration/approval defaults and the workflow definition as JSON.
+- Lifecycle **draft → testing → published → deprecated**; every publish is an immutable version, editing a published use case only changes a draft, **rollback** re-publishes any earlier version, and two versions can be compared. Publishing needs a catalog and category, a complete workflow and published agents, tools and prompts.
+- Deleting an agent, tool or prompt that a use case pins is refused, naming the use cases.
+- End-user catalog endpoint (`/catalog/use-cases`) showing only the published use cases a role may run, without agents, prompts or graphs.
+- Use cases in **export/import bundles** (draft, references re-pinned by name, history not recreated).
+
 **Tools Studio (M2.2)**
 - Tool Library with immutable versions, publish, duplicate and delete (blocked while an agent uses the tool); tool types **HTTP**, **read-only SQL (PostgreSQL)** and **MCP**; input schema, timeout, `requires_approval` and a "can change data" flag.
 - Import from an **OpenAPI 3.x** document (JSON or YAML, local `$ref` only): pick operations, get one draft tool each. **MCP servers** (Streamable HTTP, SSE, stdio for allowed commands): discover their tools and import the ones wanted.

@@ -1860,6 +1860,296 @@
         "title": "BuiltinToolRef",
         "type": "object"
       },
+      "CatalogAccessIn": {
+        "additionalProperties": false,
+        "properties": {
+          "catalogs": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogAccessItem"
+            },
+            "maxItems": 200,
+            "title": "Catalogs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "catalogs"
+        ],
+        "title": "CatalogAccessIn",
+        "type": "object"
+      },
+      "CatalogAccessItem": {
+        "additionalProperties": false,
+        "properties": {
+          "catalog_id": {
+            "format": "uuid",
+            "title": "Catalog Id",
+            "type": "string"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "excluded_categories": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 500,
+            "title": "Excluded Categories",
+            "type": "array"
+          }
+        },
+        "required": [
+          "catalog_id",
+          "enabled"
+        ],
+        "title": "CatalogAccessItem",
+        "type": "object"
+      },
+      "CatalogAccessOut": {
+        "properties": {
+          "catalogs": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogAccessItem"
+            },
+            "title": "Catalogs",
+            "type": "array"
+          },
+          "role_name": {
+            "title": "Role Name",
+            "type": "string"
+          },
+          "role_name_id": {
+            "format": "uuid",
+            "title": "Role Name Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role_name_id",
+          "role_name",
+          "catalogs"
+        ],
+        "title": "CatalogAccessOut",
+        "type": "object"
+      },
+      "CatalogIn": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "status": {
+            "default": "active",
+            "enum": [
+              "active",
+              "disabled"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CatalogIn",
+        "type": "object"
+      },
+      "CatalogOut": {
+        "properties": {
+          "builtin": {
+            "title": "Builtin",
+            "type": "boolean"
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryOut"
+            },
+            "title": "Categories",
+            "type": "array"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "use_cases": {
+            "default": 0,
+            "title": "Use Cases",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "status",
+          "builtin",
+          "categories"
+        ],
+        "title": "CatalogOut",
+        "type": "object"
+      },
+      "CatalogUseCase": {
+        "description": "What an end user sees: no agents, prompts or graphs (US-2.9.1).",
+        "properties": {
+          "catalog": {
+            "title": "Catalog",
+            "type": "string"
+          },
+          "catalog_id": {
+            "format": "uuid",
+            "title": "Catalog Id",
+            "type": "string"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "category_id": {
+            "format": "uuid",
+            "title": "Category Id",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "icon": {
+            "title": "Icon",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "input_fields": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Input Fields",
+            "type": "array"
+          },
+          "input_schema": {
+            "additionalProperties": true,
+            "title": "Input Schema",
+            "type": "object"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "output_type": {
+            "title": "Output Type",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "icon",
+          "tags",
+          "catalog_id",
+          "catalog",
+          "category_id",
+          "category",
+          "version",
+          "input_schema",
+          "input_fields",
+          "output_type"
+        ],
+        "title": "CatalogUseCase",
+        "type": "object"
+      },
+      "CategoryIn": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CategoryIn",
+        "type": "object"
+      },
+      "CategoryOut": {
+        "properties": {
+          "catalog_id": {
+            "format": "uuid",
+            "title": "Catalog Id",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "use_cases": {
+            "default": 0,
+            "title": "Use Cases",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "catalog_id",
+          "name",
+          "description"
+        ],
+        "title": "CategoryOut",
+        "type": "object"
+      },
       "ChatCompletionIn": {
         "additionalProperties": false,
         "properties": {
@@ -3183,6 +3473,14 @@
             },
             "maxItems": 500,
             "title": "Rag Pipelines",
+            "type": "array"
+          },
+          "use_cases": {
+            "items": {
+              "$ref": "#/components/schemas/AssetRef"
+            },
+            "maxItems": 500,
+            "title": "Use Cases",
             "type": "array"
           },
           "user_groups": {
@@ -9226,6 +9524,939 @@
         "title": "UsageOut",
         "type": "object"
       },
+      "UseCaseCreateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "catalog_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalog Id"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "defaults": {
+            "$ref": "#/components/schemas/UseCaseDefaults"
+          },
+          "definition": {
+            "additionalProperties": true,
+            "title": "Definition",
+            "type": "object"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Description",
+            "type": "string"
+          },
+          "icon": {
+            "default": "",
+            "maxLength": 60,
+            "title": "Icon",
+            "type": "string"
+          },
+          "input_fields": {
+            "items": {
+              "$ref": "#/components/schemas/UseCaseInputField"
+            },
+            "maxItems": 50,
+            "title": "Input Fields",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "output_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Schema"
+          },
+          "output_type": {
+            "default": "markdown",
+            "enum": [
+              "markdown",
+              "json",
+              "docx",
+              "xlsx",
+              "pdf",
+              "chat"
+            ],
+            "title": "Output Type",
+            "type": "string"
+          },
+          "pattern": {
+            "enum": [
+              "supervisor",
+              "graph"
+            ],
+            "title": "Pattern",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "pattern"
+        ],
+        "title": "UseCaseCreateIn",
+        "type": "object"
+      },
+      "UseCaseDefaults": {
+        "additionalProperties": false,
+        "properties": {
+          "hitl_policy": {
+            "default": "agent_setting",
+            "enum": [
+              "agent_setting",
+              "always",
+              "never"
+            ],
+            "title": "Hitl Policy",
+            "type": "string"
+          },
+          "max_cost_usd": {
+            "default": 5.0,
+            "maximum": 100.0,
+            "minimum": 0.01,
+            "title": "Max Cost Usd",
+            "type": "number"
+          },
+          "max_duration_s": {
+            "default": 1800,
+            "maximum": 86400.0,
+            "minimum": 10.0,
+            "title": "Max Duration S",
+            "type": "integer"
+          },
+          "model_aliases": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "maxProperties": 20,
+            "title": "Model Aliases",
+            "type": "object"
+          }
+        },
+        "title": "UseCaseDefaults",
+        "type": "object"
+      },
+      "UseCaseDetail": {
+        "properties": {
+          "catalog": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalog"
+          },
+          "catalog_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalog Id"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "defaults": {
+            "additionalProperties": true,
+            "title": "Defaults",
+            "type": "object"
+          },
+          "definition": {
+            "additionalProperties": true,
+            "title": "Definition",
+            "type": "object"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "dirty": {
+            "title": "Dirty",
+            "type": "boolean"
+          },
+          "icon": {
+            "title": "Icon",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "input_fields": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Input Fields",
+            "type": "array"
+          },
+          "input_schema": {
+            "additionalProperties": true,
+            "title": "Input Schema",
+            "type": "object"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/UseCaseIssueOut"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "latest_version": {
+            "title": "Latest Version",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "output_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Schema"
+          },
+          "output_type": {
+            "title": "Output Type",
+            "type": "string"
+          },
+          "pattern": {
+            "title": "Pattern",
+            "type": "string"
+          },
+          "published_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published Version"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "versions": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "icon",
+          "tags",
+          "catalog_id",
+          "category_id",
+          "pattern",
+          "status",
+          "latest_version",
+          "published_version",
+          "dirty",
+          "updated_at",
+          "created_at",
+          "input_fields",
+          "input_schema",
+          "output_type",
+          "output_schema",
+          "defaults",
+          "definition"
+        ],
+        "title": "UseCaseDetail",
+        "type": "object"
+      },
+      "UseCaseDuplicateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "UseCaseDuplicateIn",
+        "type": "object"
+      },
+      "UseCaseInputField": {
+        "additionalProperties": false,
+        "properties": {
+          "default": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default"
+          },
+          "help": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Help",
+            "type": "string"
+          },
+          "label": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Label",
+            "type": "string"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Options",
+            "type": "array"
+          },
+          "required": {
+            "default": false,
+            "title": "Required",
+            "type": "boolean"
+          },
+          "type": {
+            "enum": [
+              "text",
+              "long_text",
+              "number",
+              "select",
+              "file",
+              "collection"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "type"
+        ],
+        "title": "UseCaseInputField",
+        "type": "object"
+      },
+      "UseCaseIssueOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "node": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "UseCaseIssueOut",
+        "type": "object"
+      },
+      "UseCaseOut": {
+        "properties": {
+          "catalog": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalog"
+          },
+          "catalog_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalog Id"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "dirty": {
+            "title": "Dirty",
+            "type": "boolean"
+          },
+          "icon": {
+            "title": "Icon",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "latest_version": {
+            "title": "Latest Version",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pattern": {
+            "title": "Pattern",
+            "type": "string"
+          },
+          "published_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published Version"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "icon",
+          "tags",
+          "catalog_id",
+          "category_id",
+          "pattern",
+          "status",
+          "latest_version",
+          "published_version",
+          "dirty",
+          "updated_at",
+          "created_at"
+        ],
+        "title": "UseCaseOut",
+        "type": "object"
+      },
+      "UseCasePage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/UseCaseOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "UseCasePage",
+        "type": "object"
+      },
+      "UseCasePublishIn": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Note",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Empty = publish the draft as a new version; a number = roll back to it",
+            "title": "Version"
+          }
+        },
+        "title": "UseCasePublishIn",
+        "type": "object"
+      },
+      "UseCaseStatusIn": {
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "enum": [
+              "draft",
+              "testing",
+              "deprecated"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "UseCaseStatusIn",
+        "type": "object"
+      },
+      "UseCaseUpdateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "catalog_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalog Id"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "defaults": {
+            "$ref": "#/components/schemas/UseCaseDefaults"
+          },
+          "definition": {
+            "additionalProperties": true,
+            "title": "Definition",
+            "type": "object"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Description",
+            "type": "string"
+          },
+          "icon": {
+            "default": "",
+            "maxLength": 60,
+            "title": "Icon",
+            "type": "string"
+          },
+          "input_fields": {
+            "items": {
+              "$ref": "#/components/schemas/UseCaseInputField"
+            },
+            "maxItems": 50,
+            "title": "Input Fields",
+            "type": "array"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "output_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Schema"
+          },
+          "output_type": {
+            "default": "markdown",
+            "enum": [
+              "markdown",
+              "json",
+              "docx",
+              "xlsx",
+              "pdf",
+              "chat"
+            ],
+            "title": "Output Type",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "title": "UseCaseUpdateIn",
+        "type": "object"
+      },
+      "UseCaseVersionDetail": {
+        "properties": {
+          "defaults": {
+            "additionalProperties": true,
+            "title": "Defaults",
+            "type": "object"
+          },
+          "definition": {
+            "additionalProperties": true,
+            "title": "Definition",
+            "type": "object"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "input_fields": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Input Fields",
+            "type": "array"
+          },
+          "input_schema": {
+            "additionalProperties": true,
+            "title": "Input Schema",
+            "type": "object"
+          },
+          "live": {
+            "default": false,
+            "title": "Live",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "output_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Schema"
+          },
+          "output_type": {
+            "title": "Output Type",
+            "type": "string"
+          },
+          "pattern": {
+            "title": "Pattern",
+            "type": "string"
+          },
+          "published_at": {
+            "format": "date-time",
+            "title": "Published At",
+            "type": "string"
+          },
+          "published_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published By"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "note",
+          "published_at",
+          "published_by",
+          "name",
+          "description",
+          "pattern",
+          "input_fields",
+          "input_schema",
+          "output_type",
+          "output_schema",
+          "defaults",
+          "definition"
+        ],
+        "title": "UseCaseVersionDetail",
+        "type": "object"
+      },
+      "UseCaseVersionDiff": {
+        "properties": {
+          "changed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Changed",
+            "type": "array"
+          },
+          "left": {
+            "$ref": "#/components/schemas/UseCaseVersionDetail"
+          },
+          "right": {
+            "$ref": "#/components/schemas/UseCaseVersionDetail"
+          }
+        },
+        "required": [
+          "left",
+          "right",
+          "changed"
+        ],
+        "title": "UseCaseVersionDiff",
+        "type": "object"
+      },
+      "UseCaseVersionSummary": {
+        "properties": {
+          "live": {
+            "default": false,
+            "title": "Live",
+            "type": "boolean"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "published_at": {
+            "format": "date-time",
+            "title": "Published At",
+            "type": "string"
+          },
+          "published_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published By"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "note",
+          "published_at",
+          "published_by"
+        ],
+        "title": "UseCaseVersionSummary",
+        "type": "object"
+      },
       "UserCreateIn": {
         "additionalProperties": false,
         "properties": {
@@ -12895,6 +14126,530 @@
         "summary": "Revoke Key",
         "tags": [
           "projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/catalog/use-cases": {
+      "get": {
+        "operationId": "catalog_use_cases",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tag",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tag"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CatalogUseCase"
+                  },
+                  "title": "Response Catalog Use Cases",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Catalog Use Cases",
+        "tags": [
+          "use-cases"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/catalog/use-cases/{use_case_id}": {
+      "get": {
+        "operationId": "catalog_use_case",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "use_case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Use Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogUseCase"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Catalog Use Case",
+        "tags": [
+          "use-cases"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/catalogs": {
+      "get": {
+        "operationId": "list_catalogs",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CatalogOut"
+                  },
+                  "title": "Response List Catalogs",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Catalogs",
+        "tags": [
+          "use-cases"
+        ]
+      },
+      "post": {
+        "operationId": "create_catalog",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatalogIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Catalog",
+        "tags": [
+          "use-cases"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/catalogs/{catalog_id}": {
+      "delete": {
+        "operationId": "delete_catalog",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "catalog_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Catalog Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Catalog",
+        "tags": [
+          "use-cases"
+        ]
+      },
+      "put": {
+        "operationId": "update_catalog",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "catalog_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Catalog Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatalogIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Catalog",
+        "tags": [
+          "use-cases"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/catalogs/{catalog_id}/categories": {
+      "post": {
+        "operationId": "create_category",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "catalog_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Catalog Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Category",
+        "tags": [
+          "use-cases"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/categories/{category_id}": {
+      "delete": {
+        "operationId": "delete_category",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "category_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Category Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Category",
+        "tags": [
+          "use-cases"
+        ]
+      },
+      "put": {
+        "operationId": "update_category",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "category_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Category Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Category",
+        "tags": [
+          "use-cases"
         ]
       }
     },
@@ -17902,6 +19657,120 @@
         ]
       }
     },
+    "/api/v1/projects/{project_id}/roles/{role_name_id}/catalog-access": {
+      "get": {
+        "operationId": "get_catalog_access",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "role_name_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Role Name Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogAccessOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Catalog Access",
+        "tags": [
+          "use-cases"
+        ]
+      },
+      "put": {
+        "operationId": "set_catalog_access",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "role_name_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Role Name Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatalogAccessIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogAccessOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Catalog Access",
+        "tags": [
+          "use-cases"
+        ]
+      }
+    },
     "/api/v1/projects/{project_id}/runs": {
       "get": {
         "operationId": "list_runs",
@@ -19433,6 +21302,743 @@
         "summary": "Agent Usage",
         "tags": [
           "agents"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/use-cases": {
+      "get": {
+        "operationId": "list_use_cases",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "draft",
+                    "testing",
+                    "published",
+                    "deprecated"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "catalog_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Catalog Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UseCasePage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Use Cases",
+        "tags": [
+          "use-cases"
+        ]
+      },
+      "post": {
+        "operationId": "create_use_case",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UseCaseCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UseCaseDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Use Case",
+        "tags": [
+          "use-cases"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/use-cases/{use_case_id}": {
+      "delete": {
+        "operationId": "delete_use_case",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "use_case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Use Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Use Case",
+        "tags": [
+          "use-cases"
+        ]
+      },
+      "get": {
+        "operationId": "get_use_case",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "use_case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Use Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UseCaseDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Use Case",
+        "tags": [
+          "use-cases"
+        ]
+      },
+      "put": {
+        "operationId": "update_use_case",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "use_case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Use Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UseCaseUpdateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UseCaseDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Use Case",
+        "tags": [
+          "use-cases"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/use-cases/{use_case_id}/diff": {
+      "get": {
+        "operationId": "diff_versions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "use_case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Use Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "left",
+            "required": true,
+            "schema": {
+              "title": "Left",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "right",
+            "required": true,
+            "schema": {
+              "title": "Right",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UseCaseVersionDiff"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Diff Versions",
+        "tags": [
+          "use-cases"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/use-cases/{use_case_id}/duplicate": {
+      "post": {
+        "operationId": "duplicate_use_case",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "use_case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Use Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UseCaseDuplicateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UseCaseDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Duplicate Use Case",
+        "tags": [
+          "use-cases"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/use-cases/{use_case_id}/publish": {
+      "post": {
+        "operationId": "publish_use_case",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "use_case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Use Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UseCasePublishIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UseCaseDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Publish Use Case",
+        "tags": [
+          "use-cases"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/use-cases/{use_case_id}/status": {
+      "post": {
+        "operationId": "set_use_case_status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "use_case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Use Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UseCaseStatusIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UseCaseDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Use Case Status",
+        "tags": [
+          "use-cases"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/use-cases/{use_case_id}/versions": {
+      "get": {
+        "operationId": "list_versions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "use_case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Use Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UseCaseVersionSummary"
+                  },
+                  "title": "Response List Versions",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Versions",
+        "tags": [
+          "use-cases"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/use-cases/{use_case_id}/versions/{number}": {
+      "get": {
+        "operationId": "get_version",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "use_case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Use Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UseCaseVersionDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Version",
+        "tags": [
+          "use-cases"
         ]
       }
     },

@@ -1,6 +1,13 @@
 import { Routes } from '@angular/router';
 
-import { authGuard, builderGuard, guestGuard, signedInGuard, superAdminGuard } from './core/guards';
+import {
+  authGuard,
+  builderGuard,
+  guestGuard,
+  signedInGuard,
+  superAdminGuard,
+  useCaseBuilderGuard,
+} from './core/guards';
 import { ChangePassword, Eula, TotpEnroll } from './pages/account/account-steps';
 import { Home } from './pages/home/home';
 import { Login } from './pages/login/login';
@@ -69,6 +76,11 @@ export const routes: Routes = [
             path: 'roles',
             loadComponent: () =>
               import('./pages/projects/projects-studio').then((m) => m.ProjectRoles),
+          },
+          {
+            path: 'catalogs',
+            loadComponent: () =>
+              import('./pages/projects/project-catalogs').then((m) => m.ProjectCatalogs),
           },
         ],
       },
@@ -237,6 +249,37 @@ export const routes: Routes = [
         ],
       },
       {
+        path: 'build',
+        title: 'Build Your Own Use Case · Forge',
+        loadComponent: () => import('./pages/usecases/usecase-studio').then((m) => m.UseCaseStudio),
+        children: [
+          {
+            path: '',
+            pathMatch: 'full',
+            loadComponent: () =>
+              import('./pages/usecases/usecase-studio').then((m) => m.UseCasesIndex),
+          },
+          {
+            path: 'library',
+            canActivate: [useCaseBuilderGuard],
+            loadComponent: () =>
+              import('./pages/usecases/usecase-library').then((m) => m.UseCaseLibrary),
+          },
+          {
+            path: 'new',
+            canActivate: [useCaseBuilderGuard],
+            loadComponent: () =>
+              import('./pages/usecases/usecase-editor').then((m) => m.UseCaseEditor),
+          },
+          {
+            path: ':id/edit',
+            canActivate: [useCaseBuilderGuard],
+            loadComponent: () =>
+              import('./pages/usecases/usecase-editor').then((m) => m.UseCaseEditor),
+          },
+        ],
+      },
+      {
         // Phase 0 spike E0.5c, not in the menu: graph use-case editor on Foblex Flow.
         path: 'spikes/graph-editor',
         title: 'Graph editor spike · Forge',
@@ -244,7 +287,7 @@ export const routes: Routes = [
           import('./spikes/graph-editor/graph-editor').then((m) => m.GraphEditor),
       },
       ...MENU.filter(
-        (entry) => !['projects', 'prompts', 'rag', 'agents', 'tools'].includes(entry.path),
+        (entry) => !['projects', 'prompts', 'rag', 'agents', 'tools', 'build'].includes(entry.path),
       ).map((entry) => ({
         path: entry.path,
         component: Placeholder,

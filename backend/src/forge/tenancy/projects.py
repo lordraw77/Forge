@@ -665,6 +665,31 @@ class TenancyService:
             ).all()
             return [(r, k) for r, k in rows]
 
+    async def member_role_name_id(
+        self, project_id: uuid.UUID, user_id: uuid.UUID | None
+    ) -> uuid.UUID | None:
+        """The Role Name a user (or the creator of an API key) holds in the project."""
+        if user_id is None:
+            return None
+        async with project_scope(self._sessions, project_id, user_id) as s:
+            return (
+                await s.execute(
+                    select(Membership.role_name_id).where(
+                        Membership.project_id == project_id, Membership.user_id == user_id
+                    )
+                )
+            ).scalar_one_or_none()
+
+    async def role_name_of(
+        self, project_id: uuid.UUID, user_id: uuid.UUID | None, role_id: uuid.UUID
+    ) -> str:
+        """Name of a Role Name of the project; 404 when it belongs elsewhere."""
+        async with project_scope(self._sessions, project_id, user_id) as s:
+            role = await s.get(RoleName, role_id)
+            if role is None or role.project_id != project_id:
+                raise ProblemError(404, "not_found", "Role Name not found")
+            return role.name
+
     async def create_role(
         self, actor: Actor, project_id: uuid.UUID, name: str, role_type: str
     ) -> RoleName:

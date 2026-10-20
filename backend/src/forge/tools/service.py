@@ -176,6 +176,11 @@ class ToolStudio:
         self._settings = settings
         self._checks: list[ReferenceCheck] = []
 
+    @staticmethod
+    async def name_in(s: AsyncSession, item_id: uuid.UUID) -> str | None:
+        """Name of one item inside an open session (used by other modules' reference checks)."""
+        return (await s.execute(select(Tool.name).where(Tool.id == item_id))).scalar_one_or_none()
+
     def add_reference_check(self, check: ReferenceCheck) -> None:
         """Modules that use tools (agents) register who references one."""
         self._checks.append(check)

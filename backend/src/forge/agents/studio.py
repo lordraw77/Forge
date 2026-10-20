@@ -12,7 +12,7 @@ import base64
 import binascii
 import re
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from datetime import datetime
 from decimal import Decimal
@@ -113,9 +113,23 @@ class AgentStudio:
         self._rag = rag
         self._starter = starter
         self._tools = tools
+        self._reference_checks: list[
+            Callable[[AsyncSession, uuid.UUID], Awaitable[list[ReferenceOut]]]
+        ] = []
         tools.add_reference_check(self.tool_references)
         prompts.add_reference_check(self.prompt_references)
         rag.studio.add_reference_check(self.pipeline_references)
+
+    @staticmethod
+    async def name_in(s: AsyncSession, item_id: uuid.UUID) -> str | None:
+        """Name of one item inside an open session (used by other modules' reference checks)."""
+        return (await s.execute(select(Agent.name).where(Agent.id == item_id))).scalar_one_or_none()
+
+    def add_reference_check(
+        self, check: Callable[[AsyncSession, uuid.UUID], Awaitable[list[ReferenceOut]]]
+    ) -> None:
+        """Modules that use agents (use cases) register who references one (blocks delete)."""
+        self._reference_checks.append(check)
 
     @asynccontextmanager
     async def _session(self, actor: Actor, project_id: uuid.UUID) -> AsyncIterator[AsyncSession]:
@@ -403,6 +417,16 @@ class AgentStudio:
     async def delete(self, actor: Actor, project_id: uuid.UUID, agent_id: uuid.UUID) -> None:
         async with self._session(actor, project_id) as s:
             a = await self._agent(s, agent_id, lock=True)
+            refs: list[ReferenceOut] = []
+            for check in self._reference_checks:
+                refs += await check(s, a.id)
+            if refs:
+                raise ProblemError(
+                    409,
+                    "agent_in_use",
+                    "Use cases use this agent",
+                    [r.model_dump(mode="json") for r in refs],
+                )
             await audit.record(
                 s,
                 actor,
