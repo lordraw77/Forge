@@ -14,6 +14,9 @@ export interface IdpOut {
   has_secret: boolean;
   id: string;
   kind: string;
+  /**
+   * The definition as the builder has it now (default: the draft)
+   */
   last_sync?: { [key: string]: any } | null;
   last_sync_at?: string | null;
   name: string;

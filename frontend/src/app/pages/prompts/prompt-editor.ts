@@ -33,6 +33,7 @@ import {
 } from '../../api-client';
 import { problemCode, problemMessage } from '../../core/http';
 import { Session } from '../../core/session';
+import { MonacoEditor } from '../../shared/monaco-editor';
 import { ModelOption, ModelOptions } from './model-options';
 import { FRAMEWORKS, FREE_FORM_KEY } from './frameworks';
 import { detectVariables } from './variables';
@@ -68,6 +69,7 @@ function emptyDraft(): Draft {
   selector: 'forge-prompt-editor',
   imports: [
     A11yModule,
+    MonacoEditor,
     DatePipe,
     FormsModule,
     TextFieldModule,

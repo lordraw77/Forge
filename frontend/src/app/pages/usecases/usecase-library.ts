@@ -101,7 +101,7 @@ const STATUS_COLOR: Record<string, string> = {
         @for (u of table.data; track u.id) {
           <tr [attr.data-testid]="'uc-row-' + u.name">
             <td>
-              <a [routerLink]="['..', u.id, 'edit']">{{ u.name }}</a>
+              <a [routerLink]="['..', u.id, 'workflow']">{{ u.name }}</a>
               <div class="muted small">{{ u.description }}</div>
             </td>
             <td>{{ u.pattern === 'graph' ? graphLabel : teamLabel }}</td>
@@ -127,8 +127,11 @@ const STATUS_COLOR: Record<string, string> = {
             </td>
             <td>{{ u.updated_at | date: 'short' }}</td>
             <td class="actions">
+              <a nz-button nzType="link" nzSize="small" [routerLink]="['..', u.id, 'workflow']" i18n
+                >Workflow</a
+              >
               <a nz-button nzType="link" nzSize="small" [routerLink]="['..', u.id, 'edit']" i18n
-                >Edit</a
+                >Settings</a
               >
               <button nz-button nzType="link" nzSize="small" (click)="openDuplicate(u)" i18n>
                 Duplicate

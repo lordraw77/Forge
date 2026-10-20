@@ -12,8 +12,14 @@ export interface ToolCallOut {
   created_at: string;
   error_code: string | null;
   id: string;
+  /**
+   * The definition as the builder has it now (default: the draft)
+   */
   input: { [key: string]: any } | null;
   latency_ms: number;
+  /**
+   * The definition as the builder has it now (default: the draft)
+   */
   output: { [key: string]: any } | null;
   run_id: string | null;
   source: string;

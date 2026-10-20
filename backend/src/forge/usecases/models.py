@@ -56,6 +56,7 @@ class UseCase(Base):
     project_id: Mapped[uuid.UUID]
     name: Mapped[str]
     description: Mapped[str] = mapped_column(default="")
+    requirements: Mapped[str] = mapped_column(default="")
     icon: Mapped[str] = mapped_column(default="")
     tags: Mapped[list[str]] = mapped_column(default=list)
     catalog_id: Mapped[uuid.UUID | None]

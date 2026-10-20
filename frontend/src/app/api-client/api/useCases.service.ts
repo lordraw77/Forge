@@ -36,6 +36,10 @@ import { CategoryIn } from '../model/categoryIn';
 // @ts-ignore
 import { HTTPValidationError } from '../model/hTTPValidationError';
 // @ts-ignore
+import { PlanIn } from '../model/planIn';
+// @ts-ignore
+import { PlanOut } from '../model/planOut';
+// @ts-ignore
 import { RunStartIn } from '../model/runStartIn';
 // @ts-ignore
 import { UseCaseCreateIn } from '../model/useCaseCreateIn';
@@ -175,6 +179,12 @@ export interface ListVersionsRequestParams {
   projectId: string;
 }
 
+export interface PlanUseCaseRequestParams {
+  useCaseId: string;
+  projectId: string;
+  planIn: PlanIn;
+}
+
 export interface PublishUseCaseRequestParams {
   useCaseId: string;
   projectId: string;
@@ -215,6 +225,10 @@ export interface UpdateUseCaseRequestParams {
   useCaseId: string;
   projectId: string;
   useCaseUpdateIn: UseCaseUpdateIn;
+}
+
+export interface UseCaseAssetsRequestParams {
+  projectId: string;
 }
 
 @Injectable({
@@ -2247,6 +2261,117 @@ export class UseCasesService extends BaseService {
   }
 
   /**
+   * Plan Use Case
+   * Ask the Planner for a workflow (or a change); nothing is saved.
+   * @endpoint post /api/v1/projects/{project_id}/use-cases/{use_case_id}/plan
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public planUseCase(
+    requestParameters: PlanUseCaseRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<PlanOut>;
+  public planUseCase(
+    requestParameters: PlanUseCaseRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<PlanOut>>;
+  public planUseCase(
+    requestParameters: PlanUseCaseRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<PlanOut>>;
+  public planUseCase(
+    requestParameters: PlanUseCaseRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const useCaseId = requestParameters?.useCaseId;
+    if (useCaseId === null || useCaseId === undefined) {
+      throw new Error(
+        'Required parameter useCaseId was null or undefined when calling planUseCase.',
+      );
+    }
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error(
+        'Required parameter projectId was null or undefined when calling planUseCase.',
+      );
+    }
+    const planIn = requestParameters?.planIn;
+    if (planIn === null || planIn === undefined) {
+      throw new Error('Required parameter planIn was null or undefined when calling planUseCase.');
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    // to determine the Content-Type header
+    const consumes: string[] = ['application/json'];
+    const httpContentTypeSelected: string | undefined =
+      this.configuration.selectHeaderContentType(consumes);
+    if (httpContentTypeSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Content-Type', httpContentTypeSelected);
+    }
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/use-cases/${this.configuration.encodeParam({ name: 'useCaseId', value: useCaseId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/plan`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<PlanOut>('post', `${basePath}${localVarPath}`, {
+      context: localVarHttpContext,
+      body: planIn,
+      responseType: <any>responseType_,
+      ...(withCredentials ? { withCredentials } : {}),
+      headers: localVarHeaders,
+      observe: observe,
+      ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+      reportProgress: reportProgress,
+    });
+  }
+
+  /**
    * Publish Use Case
    * @endpoint post /api/v1/projects/{project_id}/use-cases/{use_case_id}/publish
    * @param requestParameters
@@ -3029,5 +3154,101 @@ export class UseCasesService extends BaseService {
       ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
       reportProgress: reportProgress,
     });
+  }
+
+  /**
+   * Use Case Assets
+   * The published agents, tools and prompts a workflow can pin (name, version, description).
+   * @endpoint get /api/v1/projects/{project_id}/use-case-assets
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public useCaseAssets(
+    requestParameters: UseCaseAssetsRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<{ [key: string]: Array<{ [key: string]: any }> }>;
+  public useCaseAssets(
+    requestParameters: UseCaseAssetsRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<{ [key: string]: Array<{ [key: string]: any }> }>>;
+  public useCaseAssets(
+    requestParameters: UseCaseAssetsRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<{ [key: string]: Array<{ [key: string]: any }> }>>;
+  public useCaseAssets(
+    requestParameters: UseCaseAssetsRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error(
+        'Required parameter projectId was null or undefined when calling useCaseAssets.',
+      );
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/use-case-assets`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<{ [key: string]: Array<{ [key: string]: any }> }>(
+      'get',
+      `${basePath}${localVarPath}`,
+      {
+        context: localVarHttpContext,
+        responseType: <any>responseType_,
+        ...(withCredentials ? { withCredentials } : {}),
+        headers: localVarHeaders,
+        observe: observe,
+        ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+        reportProgress: reportProgress,
+      },
+    );
   }
 }

@@ -269,7 +269,24 @@ export const routes: Routes = [
             path: 'new',
             canActivate: [useCaseBuilderGuard],
             loadComponent: () =>
+              import('./pages/usecases/usecase-requirements').then((m) => m.UseCaseRequirements),
+          },
+          {
+            path: 'settings/new',
+            canActivate: [useCaseBuilderGuard],
+            loadComponent: () =>
               import('./pages/usecases/usecase-editor').then((m) => m.UseCaseEditor),
+          },
+          {
+            path: ':id/workflow',
+            canActivate: [useCaseBuilderGuard],
+            loadComponent: () =>
+              import('./pages/usecases/usecase-workflow').then((m) => m.UseCaseWorkflow),
+          },
+          {
+            path: ':id/test',
+            canActivate: [useCaseBuilderGuard],
+            loadComponent: () => import('./pages/usecases/usecase-test').then((m) => m.UseCaseTest),
           },
           {
             path: ':id/edit',

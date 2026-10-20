@@ -9,6 +9,7 @@
  */
 
 export interface RunStepOut {
+  agent_run_id?: string | null;
   cost: number;
   error: string | null;
   error_code: string | null;

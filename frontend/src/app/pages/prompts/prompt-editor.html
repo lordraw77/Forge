@@ -105,17 +105,16 @@
         i18n-nzTooltipTitle
       />
     </label>
-    <textarea
-      nz-input
-      id="pe-system"
+    <forge-monaco
       class="template"
       data-testid="prompt-system"
-      cdkTextareaAutosize
-      cdkAutosizeMinRows="4"
-      cdkAutosizeMaxRows="18"
-      [(ngModel)]="draft.system_template"
-      (ngModelChange)="syncVariables()"
-    ></textarea>
+      language="plaintext"
+      height="11rem"
+      label="System Prompt"
+      i18n-label
+      [(value)]="draft.system_template"
+      (valueChange)="syncVariables()"
+    />
     @if (issueFor('system_template'); as i) {
       <nz-alert nzType="error" [nzMessage]="issueText" />
       <ng-template #issueText
@@ -141,17 +140,16 @@
         <nz-icon nzType="bulb" /><span i18n>Help Me Write</span>
       </button>
     </div>
-    <textarea
-      nz-input
-      id="pe-user"
+    <forge-monaco
       class="template"
       data-testid="prompt-user"
-      cdkTextareaAutosize
-      cdkAutosizeMinRows="4"
-      cdkAutosizeMaxRows="18"
-      [(ngModel)]="draft.user_template"
-      (ngModelChange)="syncVariables()"
-    ></textarea>
+      language="plaintext"
+      height="11rem"
+      label="User Prompt"
+      i18n-label
+      [(value)]="draft.user_template"
+      (valueChange)="syncVariables()"
+    />
     @if (issueFor('user_template'); as i) {
       <nz-alert nzType="error" [nzMessage]="issueText" />
       <ng-template #issueText

@@ -23,10 +23,16 @@ export interface ChatCompletionIn {
   parallel_tool_calls?: boolean | null;
   presence_penalty?: number | null;
   reasoning_effort?: ChatCompletionIn.ReasoningEffortEnum | null;
+  /**
+   * The definition as the builder has it now (default: the draft)
+   */
   response_format?: { [key: string]: any } | null;
   seed?: number | null;
   stop?: Stop | null;
   stream?: boolean;
+  /**
+   * The definition as the builder has it now (default: the draft)
+   */
   stream_options?: { [key: string]: any } | null;
   temperature?: number | null;
   tool_choice?: ToolChoice | null;

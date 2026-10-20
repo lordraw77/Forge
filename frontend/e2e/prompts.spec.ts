@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { loginAsAdmin, uniqueName } from './support';
+import { fillTemplate, loginAsAdmin, uniqueName } from './support';
 
 /** M1.3 Prompt Studio in a real browser (US-1.10.1, US-1.10.2, US-1.11.1, US-1.11.2).
  * No provider is reachable from the stack in CI, so the test run is checked on its failure
@@ -71,8 +71,8 @@ test.describe('US-1.11.2 prompt lifecycle (M1.3)', () => {
     await page.getByTestId('prompt-name-input').press('Enter');
     await page.locator('nz-select', { has: page.locator('#pe-model') }).click();
     await page.locator('nz-option-item').filter({ hasText: modelName }).first().click();
-    await page.getByTestId('prompt-system').fill('You are a polite support agent.');
-    await page.getByTestId('prompt-user').fill('Answer {customer} about {topic}');
+    await fillTemplate(page, 'prompt-system', 'You are a polite support agent.');
+    await fillTemplate(page, 'prompt-user', 'Answer {customer} about {topic}');
     await expect(page.getByTestId('variable-customer')).toBeVisible();
     await expect(page.getByTestId('variable-topic')).toBeVisible();
     await page.getByTestId('variable-topic').locator('input').nth(1).fill('billing');
@@ -101,7 +101,7 @@ test.describe('US-1.11.2 prompt lifecycle (M1.3)', () => {
 
     // ---- Edit: a second save is a new version; v1 stays as it was (US-1.10.2)
     await page.getByRole('link', { name: 'Edit' }).click();
-    await page.getByTestId('prompt-user').fill('Reply to {customer}: {topic}');
+    await fillTemplate(page, 'prompt-user', 'Reply to {customer}: {topic}');
     await page.getByTestId('save-draft').click();
     await expect(page.getByTestId('editor-message')).toContainText('version 2');
     await page.getByTestId('open-versions').click();

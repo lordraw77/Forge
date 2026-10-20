@@ -27,6 +27,7 @@
     "@foblex/mediator": "1.1.3",
     "@foblex/platform": "1.0.4",
     "@foblex/utils": "1.1.1",
+    "monaco-editor": "0.52.2",
     "ng-zorro-antd": "22.1.2",
     "qrcode": "1.5.4",
     "rxjs": "~7.8.0",

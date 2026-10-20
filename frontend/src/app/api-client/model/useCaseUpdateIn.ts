@@ -21,6 +21,7 @@ export interface UseCaseUpdateIn {
   name?: string | null;
   output_schema?: { [key: string]: any } | null;
   output_type?: UseCaseUpdateIn.OutputTypeEnum;
+  requirements?: string;
   tags?: Array<string>;
 }
 export namespace UseCaseUpdateIn {

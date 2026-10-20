@@ -27,6 +27,7 @@ from forge.prompts.service import PromptStudio
 from forge.rag.service import Rag
 from forge.tenancy.service import GroupMappings, ProjectAccess, TenancyService
 from forge.tools.service import ToolStudio
+from forge.usecases.planner import Planner
 from forge.usecases.runs import UseCaseRuns
 from forge.usecases.service import UseCaseStudio
 
@@ -54,6 +55,7 @@ class Services:
     tools: ToolStudio
     usecases: UseCaseStudio
     usecase_runs: UseCaseRuns
+    planner: Planner
     run_events: RunEvents
     bundles: Bundles
 

@@ -138,6 +138,7 @@ class UseCaseBody(In):
     """The editable part of a use case; saving overwrites the draft."""
 
     description: str = Field(default="", max_length=2000)
+    requirements: str = Field(default="", max_length=4000)
     icon: str = Field(default="", max_length=60)
     tags: list[Annotated[str, Field(min_length=1, max_length=40)]] = Field(
         default_factory=list, max_length=20
@@ -235,6 +236,7 @@ class UseCasePage(BaseModel):
 
 
 class UseCaseDetail(UseCaseOut):
+    requirements: str = ""
     input_fields: list[dict[str, Any]]
     input_schema: dict[str, Any]
     output_type: str
@@ -309,6 +311,7 @@ class RunStartIn(In):
 
 class RunStepOut(Out):
     step_key: str
+    agent_run_id: uuid.UUID | None = None
     node_id: str
     node_type: str
     ref: str | None

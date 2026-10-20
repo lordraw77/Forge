@@ -93,3 +93,16 @@ export async function pickOption(
       : page.locator('nz-option-item').filter({ hasText: label });
   await option.first().click();
 }
+
+/** Types into a Monaco template editor (it is not a form field, so `fill` does not apply). */
+export async function fillTemplate(
+  page: import('@playwright/test').Page,
+  testId: string,
+  text: string,
+): Promise<void> {
+  const editor = page.getByTestId(testId).locator('.monaco-editor').first();
+  await editor.click();
+  await page.keyboard.press('ControlOrMeta+A');
+  await page.keyboard.press('Delete');
+  await page.keyboard.type(text);
+}

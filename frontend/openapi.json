@@ -5106,6 +5106,29 @@
         "title": "MessageOut",
         "type": "object"
       },
+      "MissingAsset": {
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "purpose": {
+            "default": "",
+            "title": "Purpose",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "name"
+        ],
+        "title": "MissingAsset",
+        "type": "object"
+      },
       "ModelDraft": {
         "additionalProperties": false,
         "description": "The fields a Test Connection needs; a saved model adds identity and enablement.",
@@ -6484,6 +6507,116 @@
           "created_by"
         ],
         "title": "PipelineVersionOut",
+        "type": "object"
+      },
+      "PlanIn": {
+        "additionalProperties": false,
+        "properties": {
+          "definition": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The definition as the builder has it now (default: the draft)",
+            "title": "Definition"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/PlanMessage"
+            },
+            "maxItems": 40,
+            "title": "History",
+            "type": "array"
+          },
+          "message": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "PlanIn",
+        "type": "object"
+      },
+      "PlanMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "maxLength": 6000,
+            "title": "Content",
+            "type": "string"
+          },
+          "role": {
+            "pattern": "^(user|assistant)$",
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "PlanMessage",
+        "type": "object"
+      },
+      "PlanOut": {
+        "properties": {
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "cost": {
+            "title": "Cost",
+            "type": "number"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Definition"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/UseCaseIssueOut"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "missing": {
+            "items": {
+              "$ref": "#/components/schemas/MissingAsset"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "reply": {
+            "title": "Reply",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reply",
+          "definition",
+          "issues",
+          "missing",
+          "attempts",
+          "cost"
+        ],
+        "title": "PlanOut",
         "type": "object"
       },
       "PlaygroundIn": {
@@ -8436,6 +8569,18 @@
       },
       "RunStepOut": {
         "properties": {
+          "agent_run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Run Id"
+          },
           "cost": {
             "title": "Cost",
             "type": "number"
@@ -9761,6 +9906,12 @@
             "title": "Pattern",
             "type": "string"
           },
+          "requirements": {
+            "default": "",
+            "maxLength": 4000,
+            "title": "Requirements",
+            "type": "string"
+          },
           "tags": {
             "items": {
               "maxLength": 40,
@@ -9956,6 +10107,11 @@
               }
             ],
             "title": "Published Version"
+          },
+          "requirements": {
+            "default": "",
+            "title": "Requirements",
+            "type": "string"
           },
           "status": {
             "title": "Status",
@@ -10774,6 +10930,12 @@
               "chat"
             ],
             "title": "Output Type",
+            "type": "string"
+          },
+          "requirements": {
+            "default": "",
+            "maxLength": 4000,
+            "title": "Requirements",
             "type": "string"
           },
           "tags": {
@@ -21806,6 +21968,58 @@
         ]
       }
     },
+    "/api/v1/projects/{project_id}/use-case-assets": {
+      "get": {
+        "description": "The published agents, tools and prompts a workflow can pin (name, version, description).",
+        "operationId": "use_case_assets",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "items": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "title": "Response Use Case Assets",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Use Case Assets",
+        "tags": [
+          "use-cases"
+        ]
+      }
+    },
     "/api/v1/projects/{project_id}/use-case-runs": {
       "get": {
         "operationId": "list_use_case_runs",
@@ -22497,6 +22711,70 @@
           }
         },
         "summary": "Duplicate Use Case",
+        "tags": [
+          "use-cases"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/use-cases/{use_case_id}/plan": {
+      "post": {
+        "description": "Ask the Planner for a workflow (or a change); nothing is saved.",
+        "operationId": "plan_use_case",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "use_case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Use Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Plan Use Case",
         "tags": [
           "use-cases"
         ]

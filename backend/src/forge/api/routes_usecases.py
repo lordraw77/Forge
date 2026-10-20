@@ -5,11 +5,12 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, Query, Request, status
 
 from forge.api.deps import ProjectContext, project_permission, services
+from forge.usecases.planner import PlanIn, PlanOut
 from forge.usecases.schemas import (
     CatalogAccessIn,
     CatalogAccessOut,
@@ -283,3 +284,18 @@ async def cancel_use_case_run(
     return await services(request).usecase_runs.cancel(
         ctx.actor, ctx.project_id, run_id, see_all=_sees_runs(ctx)
     )
+
+
+# ---- builder
+@router.get("/use-case-assets", response_model=dict[str, list[dict[str, Any]]])
+async def use_case_assets(ctx: Builder, request: Request) -> dict[str, list[dict[str, Any]]]:
+    """The published agents, tools and prompts a workflow can pin (name, version, description)."""
+    return await services(request).usecases.assets(ctx.actor, ctx.project_id)
+
+
+@router.post("/use-cases/{use_case_id}/plan", response_model=PlanOut)
+async def plan_use_case(
+    use_case_id: uuid.UUID, body: PlanIn, ctx: Builder, request: Request
+) -> PlanOut:
+    """Ask the Planner for a workflow (or a change); nothing is saved."""
+    return await services(request).planner.plan(ctx.actor, ctx.project_id, use_case_id, body)

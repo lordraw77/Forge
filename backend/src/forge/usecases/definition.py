@@ -12,7 +12,7 @@ NODE_TYPES = frozenset(
     {"start", "agent", "tool", "llm", "router", "for_each", "while", "human_approval", "end"}
 )
 NODE_ID = re.compile(r"^[a-z][a-z0-9_]{0,47}$")
-REF = re.compile(r"^([A-Za-z0-9][A-Za-z0-9 _.-]{0,79})@([1-9][0-9]{0,5})$")
+REF = re.compile(r"^([^@\s][^@\n]{0,79})@([1-9][0-9]{0,5})$")  # names may hold "(imported)"
 MAX_AGENTS = 20
 MAX_NODES = 200
 RefKind = Literal["agent", "tool", "prompt"]

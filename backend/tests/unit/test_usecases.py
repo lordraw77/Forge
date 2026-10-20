@@ -122,3 +122,19 @@ def test_completeness() -> None:
     ]
     ok = {"nodes": [{"id": "start", "type": "start"}, {"id": "a", "type": "agent"}]}
     assert d.completeness("graph", ok) == []
+
+
+def test_ui_block_is_ignored_by_validation() -> None:
+    graph = {
+        "nodes": [{"id": "start", "type": "start"}],
+        "ui": {"positions": {"start": {"x": 1, "y": 2}}},
+    }
+    assert d.validate_definition("graph", graph) == []
+
+
+def test_references_accept_any_asset_name() -> None:
+    refs, issues = d.extract_refs(
+        "supervisor", {"agents": [{"agent_ref": "Agent 1f (imported)@3"}, {"agent_ref": "a@b"}]}
+    )
+    assert [(r.name, r.version) for r in refs] == [("Agent 1f (imported)", 3)]
+    assert [i.code for i in issues] == ["bad_reference"]

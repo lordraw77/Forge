@@ -30,6 +30,7 @@ export interface UseCaseDetail {
   output_type: string;
   pattern: string;
   published_version: number | null;
+  requirements?: string;
   status: string;
   tags: Array<string>;
   updated_at: string;

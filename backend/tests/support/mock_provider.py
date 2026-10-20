@@ -16,6 +16,9 @@ Behaviour comes from the requested model name (suffixes can be combined, e.g. `a
   -slowstream  streams the answer one word every 0.4 s (cancel and crash tests); combine with
             `-agent`
   -hang     sleeps 30 s before answering (timeout tests)
+  -planner  Planner stand-in: first answers with a definition pinning a missing agent, then,
+            once asked to fix problems, with a valid one built from the first agent of the
+            "Library" in the prompt (`-plannerbad` never answers JSON; `-plannerq` only replies)
 Tool-call arguments are streamed in two pieces, as real providers do.
 Embedding models named `emb-<n>` return n dimensions (default 8); with `-bow` (e.g.
 `emb-64-bow`) the vector is a hashed bag of words, so cosine similarity follows shared words.
@@ -107,7 +110,38 @@ def _agent_message(model: str, body: dict[str, Any]) -> dict[str, Any]:
     return {"role": "assistant", "content": "Tool says: " + text.replace("\n", " ")[:160]}
 
 
+def _planner_message(model: str, body: dict[str, Any]) -> dict[str, Any]:
+    text = "\n".join(str(m.get("content")) for m in body["messages"])
+    if "-plannerbad" in model:
+        return {"role": "assistant", "content": "I would rather talk about it."}
+    if "-plannerq" in model:
+        reply = {"reply": "It routes by score.", "definition": None, "missing": []}
+        return {"role": "assistant", "content": "```json\n" + json.dumps(reply) + "\n```"}
+    library = re.search(r"^agents:\n- ([^\n:]+):", text, re.M)
+    known = library.group(1) if library else "ghost@1"
+    fixing = "The definition has problems" in text
+    ref = known if fixing else "ghost-agent@1"
+    if "Pattern: supervisor" in text:
+        definition: dict[str, Any] = {"agents": [{"agent_ref": ref, "task": "Do the work"}]}
+    else:
+        definition = {
+            "nodes": [
+                {"id": "start", "type": "start"},
+                {"id": "work", "type": "agent", "agent_ref": ref, "after": ["start"]},
+                {"id": "end", "type": "end", "output": "{work}", "after": ["work"]},
+            ]
+        }
+    reply = {
+        "reply": "Plan ready" + (" (fixed)" if fixing else ""),
+        "definition": definition,
+        "missing": [{"kind": "tool", "name": "crm_lookup", "purpose": "read customers"}],
+    }
+    return {"role": "assistant", "content": "```json\n" + json.dumps(reply) + "\n```"}
+
+
 def _message(model: str, body: dict[str, Any]) -> dict[str, Any]:
+    if "-planner" in model:
+        return _planner_message(model, body)
     if "-agent" in model or "-loop" in model:
         msg = _agent_message(model, body)
         if "-slowstream" in model and msg.get("content"):

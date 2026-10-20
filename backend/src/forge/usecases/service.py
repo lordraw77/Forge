@@ -552,6 +552,7 @@ class UseCaseStudio:
         base = self._out(uc, catalogs, categories)
         return UseCaseDetail(
             **base.model_dump(),
+            requirements=uc.requirements,
             input_fields=uc.input_fields,
             input_schema=defs.input_schema(uc.input_fields),
             output_type=uc.output_type,
@@ -593,6 +594,7 @@ class UseCaseStudio:
     @staticmethod
     def _apply(uc: UseCase, body: UseCaseBody) -> None:
         uc.description = body.description
+        uc.requirements = body.requirements
         uc.icon = body.icon
         uc.tags = list(dict.fromkeys(t.lower() for t in body.tags))
         uc.catalog_id = body.catalog_id
@@ -716,6 +718,7 @@ class UseCaseStudio:
             for f in SNAPSHOT_FIELDS:
                 setattr(copy, f, getattr(src, f))
             copy.icon = src.icon
+            copy.requirements = src.requirements
             s.add(copy)
             await self._flush(s, f"A use case named '{name}' already exists")
             await audit.record(
@@ -753,6 +756,33 @@ class UseCaseStudio:
             prompts |= {
                 p.name.lower(): p.published_version for p in page.items if p.published_version
             }
+            cursor = page.next_cursor
+            if not cursor:
+                break
+        return {"agent": agents, "tool": tools, "prompt": prompts}
+
+    async def assets(self, actor: Actor, project_id: uuid.UUID) -> dict[str, list[dict[str, Any]]]:
+        """Published agents, tools and prompts a workflow can pin, with the version to use."""
+        agents = [
+            {"name": a.name, "version": a.version, "description": a.description}
+            for a in await self._agents.available(actor, project_id, include_drafts=False)
+        ]
+        tools = [
+            {"name": t.name, "version": t.published_version, "description": t.description}
+            for t in (await self._tools.list_tools(actor, project_id, published_only=True)).items
+            if t.published_version
+        ]
+        prompts: list[dict[str, Any]] = []
+        cursor = None
+        while True:
+            page = await self._prompts.list_prompts(
+                actor, project_id, status="published", cursor=cursor, limit=200
+            )
+            prompts += [
+                {"name": p.name, "version": p.published_version, "description": p.description}
+                for p in page.items
+                if p.published_version
+            ]
             cursor = page.next_cursor
             if not cursor:
                 break
@@ -1004,7 +1034,14 @@ class UseCaseStudio:
                 "defaults",
                 "definition",
             )
-            changed = [f for f in fields if getattr(a, f) != getattr(b, f)]
+
+            def view(v: UseCaseVersionDetail, f: str) -> Any:
+                value = getattr(v, f)
+                if f == "definition" and isinstance(value, dict):
+                    return {k: x for k, x in value.items() if k != "ui"}  # layout is not a change
+                return value
+
+            changed = [f for f in fields if view(a, f) != view(b, f)]
             return UseCaseVersionDiff(left=a, right=b, changed=changed)
 
     # ------------------------------------------------------------------ delete / references

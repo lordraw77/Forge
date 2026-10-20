@@ -8,6 +8,11 @@ Phase 1 milestones M1.2 (LLM gateway), M1.3 (Prompt Studio), M1.4 (RAG on upload
 
 ### Added
 
+**Build Your Own (M2.3c)**
+- Three pages: **requirements** (natural language, up to 4000 characters, pattern), **workflow** with the Planner chat and either the agent team (drag to reorder) or the **visual canvas** with a node drawer, and a **test page** with the input form, the graph with the current node highlighted, a timeline and one live pane per agent. *Publish* asks description, catalog, category and note.
+- **Planner Agent**: knows the project's published agents, tools and prompts, proposes a complete workflow, checks it with the same validator as the editor and repairs it (up to 3 attempts), lists the capabilities the library lacks. It only proposes; you apply and save.
+- **Monaco** editor with static workers (works air-gapped) for the workflow definition, output schema and the Prompt Studio templates.
+
 **Graph engine and supervisor (M2.3b)**
 - Use cases now **run**: a graph of `agent`, `tool` and `llm` nodes with `router` (several sections can match, default path), `for_each` and `while` loops (bounded, nestable), parallel branches and AND/OR joins, executed durably on Temporal. A supervisor team runs as a chain of agents.
 - Saving a use case validates the graph (unknown nodes and ports, cycles, loops without bounds, variables that are not defined on every path); the editor lists the problems per node. Testing and publishing need a clean graph.

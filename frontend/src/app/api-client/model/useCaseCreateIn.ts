@@ -19,9 +19,13 @@ export interface UseCaseCreateIn {
   icon?: string;
   input_fields?: Array<UseCaseInputField>;
   name: string;
+  /**
+   * The definition as the builder has it now (default: the draft)
+   */
   output_schema?: { [key: string]: any } | null;
   output_type?: UseCaseCreateIn.OutputTypeEnum;
   pattern: UseCaseCreateIn.PatternEnum;
+  requirements?: string;
   tags?: Array<string>;
 }
 export namespace UseCaseCreateIn {

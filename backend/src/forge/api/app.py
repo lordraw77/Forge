@@ -50,6 +50,7 @@ from forge.prompts.service import PromptStudio
 from forge.rag.service import Rag, SearchClient
 from forge.tenancy.service import GroupMappings, TenancyService
 from forge.tools.service import ToolStudio
+from forge.usecases.planner import Planner
 from forge.usecases.runs import UseCaseRuns
 from forge.usecases.service import UseCaseStudio
 
@@ -186,6 +187,7 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
             tools=tools,
             usecases=usecases,
             usecase_runs=usecase_runs,
+            planner=Planner(gateway, usecases),
             run_events=run_events,
             bundles=Bundles(prompts, rag, gateway, tenancy, agents, usecases),
         )

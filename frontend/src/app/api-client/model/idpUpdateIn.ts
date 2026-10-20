@@ -9,6 +9,9 @@
  */
 
 export interface IdpUpdateIn {
+  /**
+   * The definition as the builder has it now (default: the draft)
+   */
   config?: { [key: string]: any } | null;
   enabled?: boolean | null;
   name?: string | null;

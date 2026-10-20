@@ -1,4 +1,13 @@
-import { Component, OnDestroy, computed, inject, input, signal } from '@angular/core';
+import {
+  Component,
+  OnDestroy,
+  computed,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -101,48 +110,50 @@ const COLOR: Record<string, string> = {
             [nzDescription]="r.error"
           />
         }
-        <nz-table
-          [nzData]="r.step_list ?? []"
-          nzSize="small"
-          [nzShowPagination]="false"
-          [nzPageSize]="1000"
-        >
-          <thead>
-            <tr>
-              <th i18n>Step</th>
-              <th i18n>Type</th>
-              <th i18n>Status</th>
-              <th i18n>Output</th>
-              <th i18n>Time</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (s of r.step_list ?? []; track s.step_key) {
-              <tr [attr.data-testid]="'uc-step-' + s.step_key">
-                <td>{{ s.step_key }}</td>
-                <td>{{ s.node_type }}</td>
-                <td>
-                  <nz-tag
-                    [nzColor]="
-                      s.status === 'failed'
-                        ? 'error'
-                        : s.status === 'running'
-                          ? 'processing'
-                          : 'success'
-                    "
-                    >{{ s.status }}</nz-tag
-                  >
-                </td>
-                <td class="clip">{{ preview(s.output) }}{{ s.error ? s.error : '' }}</td>
-                <td>{{ s.latency_ms }} ms</td>
-              </tr>
-            } @empty {
+        @if (showSteps()) {
+          <nz-table
+            [nzData]="r.step_list ?? []"
+            nzSize="small"
+            [nzShowPagination]="false"
+            [nzPageSize]="1000"
+          >
+            <thead>
               <tr>
-                <td colspan="5" class="muted" i18n>Waiting for the first step…</td>
+                <th i18n>Step</th>
+                <th i18n>Type</th>
+                <th i18n>Status</th>
+                <th i18n>Output</th>
+                <th i18n>Time</th>
               </tr>
-            }
-          </tbody>
-        </nz-table>
+            </thead>
+            <tbody>
+              @for (s of r.step_list ?? []; track s.step_key) {
+                <tr [attr.data-testid]="'uc-step-' + s.step_key">
+                  <td>{{ s.step_key }}</td>
+                  <td>{{ s.node_type }}</td>
+                  <td>
+                    <nz-tag
+                      [nzColor]="
+                        s.status === 'failed'
+                          ? 'error'
+                          : s.status === 'running'
+                            ? 'processing'
+                            : 'success'
+                      "
+                      >{{ s.status }}</nz-tag
+                    >
+                  </td>
+                  <td class="clip">{{ preview(s.output) }}{{ s.error ? s.error : '' }}</td>
+                  <td>{{ s.latency_ms }} ms</td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="5" class="muted" i18n>Waiting for the first step…</td>
+                </tr>
+              }
+            </tbody>
+          </nz-table>
+        }
         @if (result(); as out) {
           <h4 i18n>Result</h4>
           <pre class="result" data-testid="uc-run-result">{{ out }}</pre>
@@ -171,6 +182,9 @@ export class UseCaseTestRun implements OnDestroy {
   private readonly session = inject(Session);
 
   readonly useCase = input.required<UseCaseDetail>();
+  /** The test page shows steps in panes and a timeline instead of this table. */
+  readonly showSteps = input(true);
+  readonly runChange = output<UseCaseRunDetail | null>();
   protected readonly fields = computed(
     () =>
       this.useCase().input_fields as {
@@ -194,6 +208,10 @@ export class UseCaseTestRun implements OnDestroy {
     return typeof out === 'string' ? out : JSON.stringify(out, null, 2);
   });
   private timer: ReturnType<typeof setTimeout> | null = null;
+
+  constructor() {
+    effect(() => this.runChange.emit(this.run()));
+  }
 
   ngOnDestroy(): void {
     if (this.timer) clearTimeout(this.timer);

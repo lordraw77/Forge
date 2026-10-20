@@ -506,3 +506,111 @@ def test_other_projects_cannot_see_use_cases(
         f"{mine}/use-cases/{uc['id']}", headers=csrf(stranger), json={"description": "x"}
     )
     assert stolen.status_code == 404
+
+
+def planner_alias(env: dict[str, Any], admin: TestClient, mock: str, model_id: str) -> None:
+    from tests.integration.test_agents import CHAT
+    from tests.integration.test_gateway import alias, model
+
+    owner = env["owner"]
+    prov = env["provider"]
+    m = model(admin, prov["id"], model_id, all_projects=True, **CHAT)
+    alias(owner, "default-chat", [m["id"]], url=env["base"])
+
+
+def test_requirements_and_assets(uc_env: dict[str, Any]) -> None:
+    b, base = uc_env["builder"], uc_env["base"]
+    agent = published_agent(uc_env)
+    uc = create_uc(uc_env, requirements="Summarise invoices every week.")
+    assert uc["requirements"] == "Summarise invoices every week."
+    long = b.post(
+        f"{base}/use-cases",
+        headers=csrf(b),
+        json={"name": f"L {uid()}", "pattern": "graph", "requirements": "x" * 4001},
+    )
+    assert long.status_code == 422
+    copy = ok(
+        b.post(
+            f"{base}/use-cases/{uc['id']}/duplicate", headers=csrf(b), json={"name": f"C {uid()}"}
+        ),
+        201,
+    )
+    assert copy["requirements"] == uc["requirements"]
+    assets = ok(b.get(f"{base}/use-case-assets"))
+    assert agent["name"] in [a["name"] for a in assets["agent"]]
+    assert {a["version"] for a in assets["agent"] if a["name"] == agent["name"]} == {1}
+    assert uc_env["end_user"].get(f"{base}/use-case-assets").status_code == 403
+
+
+def test_planner_proposes_validates_and_repairs(
+    uc_env: dict[str, Any], admin: TestClient, mock: str
+) -> None:
+    b, base = uc_env["builder"], uc_env["base"]
+    agent = published_agent(uc_env)
+    planner_alias(uc_env, admin, mock, "a-planner")
+    try:
+        for pattern in ("supervisor", "graph"):
+            uc = create_uc(uc_env, pattern=pattern, definition={}, requirements="Do the work")
+            plan = ok(
+                b.post(
+                    f"{base}/use-cases/{uc['id']}/plan",
+                    headers=csrf(b),
+                    json={"message": "Plan it", "history": [{"role": "user", "content": "hi"}]},
+                )
+            )
+            # First answer pinned an agent that does not exist; the Planner fixed it itself.
+            assert plan["attempts"] == 2, plan
+            assert plan["issues"] == []
+            assert plan["reply"] == "Plan ready (fixed)"
+            assert plan["missing"] == [
+                {"kind": "tool", "name": "crm_lookup", "purpose": "read customers"}
+            ]
+            text = str(plan["definition"])
+            assert "ghost-agent" not in text
+            library = ok(b.get(f"{base}/use-case-assets"))["agent"]
+            names = [f"{a['name']}@{a['version']}" for a in library]
+            assert f"{agent['name']}@1" in names
+            assert any(ref in text for ref in names)
+            # Nothing was saved: the draft is still empty.
+            assert ok(b.get(f"{base}/use-cases/{uc['id']}"))["definition"] == {}
+            ok(
+                b.put(
+                    f"{base}/use-cases/{uc['id']}",
+                    headers=csrf(b),
+                    json={
+                        "definition": plan["definition"],
+                        "requirements": "Do the work",
+                        **uc_env.get("filing", {}),
+                    },
+                )
+            )
+        # The planner can also just answer.
+        planner_alias(uc_env, admin, mock, "a-plannerq")
+        q = ok(
+            b.post(f"{base}/use-cases/{uc['id']}/plan", headers=csrf(b), json={"message": "why?"})
+        )
+        assert q["definition"] is None
+        assert q["reply"] == "It routes by score."
+        assert q["attempts"] == 1
+        # A model that never returns JSON ends with a clear issue after the bounded retries.
+        planner_alias(uc_env, admin, mock, "a-plannerbad")
+        bad = ok(
+            b.post(f"{base}/use-cases/{uc['id']}/plan", headers=csrf(b), json={"message": "go"})
+        )
+        assert bad["definition"] is None
+        assert bad["attempts"] == 3
+        assert [i["code"] for i in bad["issues"]] == ["planner_format"]
+        assert (
+            uc_env["end_user"]
+            .post(
+                f"{base}/use-cases/{uc['id']}/plan",
+                headers=csrf(uc_env["end_user"]),
+                json={"message": "x"},
+            )
+            .status_code
+            == 403
+        )
+    finally:
+        from tests.integration.test_gateway import alias
+
+        alias(uc_env["owner"], "default-chat", [uc_env["models"]["agent"]["id"]], url=base)

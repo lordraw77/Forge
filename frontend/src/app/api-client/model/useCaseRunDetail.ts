@@ -17,11 +17,17 @@ export interface UseCaseRunDetail {
   error_code: string | null;
   error_node: string | null;
   finished_at: string | null;
+  /**
+   * The definition as the builder has it now (default: the draft)
+   */
   graph?: { [key: string]: any } | null;
   id: string;
   inputs: { [key: string]: any };
   limits: { [key: string]: any };
   mode: string;
+  /**
+   * The definition as the builder has it now (default: the draft)
+   */
   outputs: { [key: string]: any } | null;
   started_at: string | null;
   status: UseCaseRunDetail.StatusEnum;

@@ -27,6 +27,7 @@ import {
 } from '../../api-client';
 import { problemMessage } from '../../core/http';
 import { Session } from '../../core/session';
+import { MonacoEditor } from '../../shared/monaco-editor';
 import { UseCaseTestRun } from './usecase-test-run';
 import { emptyDefinition, fieldName, newField, parseJsonObject, splitList } from './usecase-util';
 
@@ -53,6 +54,7 @@ type FieldRow = UseCaseInputField & { optionsText: string; defaultText: string }
     NzTableModule,
     NzTagModule,
     UseCaseTestRun,
+    MonacoEditor,
   ],
   template: `
     <div class="head">
@@ -68,6 +70,10 @@ type FieldRow = UseCaseInputField & { optionsText: string; defaultText: string }
         }
       </h2>
       <span class="spacer"></span>
+      @if (detail(); as d) {
+        <a nz-button [routerLink]="['..', 'workflow']" i18n>Workflow</a>
+        <a nz-button [routerLink]="['..', 'test']" i18n>Test page</a>
+      }
       <a nz-button routerLink="../library" i18n>Back to library</a>
     </div>
 
@@ -294,15 +300,13 @@ type FieldRow = UseCaseInputField & { optionsText: string; defaultText: string }
       </div>
       @if (outputType === 'json') {
         <label for="uc-schema" i18n>Output JSON Schema</label>
-        <textarea
-          nz-input
-          id="uc-schema"
-          name="schema"
-          rows="6"
-          class="mono"
-          [(ngModel)]="schemaText"
+        <forge-monaco
+          [(value)]="schemaText"
+          height="9rem"
+          label="Output JSON Schema"
+          i18n-label
           data-testid="uc-output-schema"
-        ></textarea>
+        />
       }
 
       <h3 i18n>Workflow definition</h3>
@@ -311,17 +315,13 @@ type FieldRow = UseCaseInputField & { optionsText: string; defaultText: string }
         with the next step; agent, tool and prompt references look like
         <code>name&#64;version</code> and must be published.
       </p>
-      <textarea
-        nz-input
-        id="uc-definition"
-        name="definition"
-        rows="14"
-        class="mono"
-        aria-label="Workflow definition"
-        i18n-aria-label
-        [(ngModel)]="definitionText"
+      <forge-monaco
+        [(value)]="definitionText"
+        height="22rem"
+        label="Workflow definition"
+        i18n-label
         data-testid="uc-definition"
-      ></textarea>
+      />
 
       <div class="buttons">
         <button
