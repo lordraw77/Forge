@@ -35,7 +35,7 @@ from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from forge.agents.events import RunEvents
-from forge.agents.models import AgentRun, AgentVersion, RunStep
+from forge.agents.models import Agent, AgentRun, AgentVersion, Conversation, RunStep
 from forge.agents.schemas import AgentConfig
 from forge.agents.tools import (
     ToolContext,
@@ -152,6 +152,85 @@ class AgentRuntime:
             "agent.run", **{"forge.run_id": str(run_id), "forge.project_id": str(project_id)}
         ):
             return await self._execute(record, attempt)
+
+    async def create_run(
+        self,
+        user_id: uuid.UUID | None,
+        project_id: uuid.UUID,
+        agent_name: str,
+        version: int,
+        content: str,
+        *,
+        title: str,
+    ) -> uuid.UUID:
+        """A run started by something other than a chat (a use case step): its own hidden
+        conversation, the pinned version, no workflow of its own; the caller executes it."""
+        async with project_scope(self._d.sessions, project_id, user_id) as s:
+            agent = (
+                await s.execute(select(Agent).where(func.lower(Agent.name) == agent_name.lower()))
+            ).scalar_one_or_none()
+            if agent is None:
+                raise ProblemError(422, "unknown_agent", f"Agent '{agent_name}' does not exist")
+            row = (
+                await s.execute(
+                    select(AgentVersion).where(
+                        AgentVersion.agent_id == agent.id, AgentVersion.version == version
+                    )
+                )
+            ).scalar_one_or_none()
+            if row is None:
+                raise ProblemError(
+                    422, "unknown_version", f"Agent '{agent_name}' has no version {version}"
+                )
+            cfg = AgentConfig.model_validate(row.config)
+            conv = Conversation(
+                project_id=project_id,
+                agent_id=agent.id,
+                agent_version=version,
+                title=title[:80],
+                created_by=user_id,
+            )
+            s.add(conv)
+            await s.flush()
+            run = AgentRun(
+                project_id=project_id,
+                conversation_id=conv.id,
+                agent_id=agent.id,
+                agent_version=version,
+                input=content,
+                limits=cfg.limits.model_dump(),
+                trace_id=None,
+                created_by=user_id,
+            )
+            s.add(run)
+            await s.flush()
+            run.workflow_id = f"agent-run-{run.id}"
+            return run.id
+
+    async def request_cancel(self, project_id: uuid.UUID, run_id: uuid.UUID) -> None:
+        """Ask a running agent run to stop (its own watcher ends it as `cancelled`)."""
+        async with project_scope(self._d.sessions, project_id) as s:
+            await s.execute(
+                update(AgentRun)
+                .where(AgentRun.id == run_id, AgentRun.status.in_(("queued", "running")))
+                .values(cancel_requested=True)
+            )
+
+    async def outcome(self, project_id: uuid.UUID, run_id: uuid.UUID) -> dict[str, Any]:
+        """What a finished run produced, for the step that started it."""
+        async with project_scope(self._d.sessions, project_id) as s:
+            run = await s.get(AgentRun, run_id)
+            if run is None:
+                raise ProblemError(404, "not_found", "Run not found")
+            return {
+                "status": run.status,
+                "output": run.output,
+                "error_code": run.error_code,
+                "error": run.error,
+                "cost": float(run.cost),
+                "tokens_in": run.tokens_in,
+                "tokens_out": run.tokens_out,
+            }
 
     async def _begin(self, project_id: uuid.UUID, run_id: uuid.UUID) -> RunRecord | None:
         """queued → running (first attempt) or pick up a running run (retry after a crash)."""

@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import BigInteger, FetchedValue, ForeignKey, Numeric
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -93,3 +94,57 @@ class UseCaseVersion(Base):
     note: Mapped[str] = mapped_column(default="")
     published_at: Mapped[datetime] = mapped_column(default=utcnow)
     published_by: Mapped[uuid.UUID | None]
+
+
+class UseCaseRun(Base):
+    __tablename__ = "use_case_run"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    project_id: Mapped[uuid.UUID]
+    use_case_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("use_case.id"))
+    use_case_name: Mapped[str]
+    version: Mapped[int | None]
+    mode: Mapped[str]
+    graph: Mapped[dict[str, Any]]
+    inputs: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    outputs: Mapped[dict[str, Any] | None]
+    status: Mapped[str] = mapped_column(default="queued")
+    error_code: Mapped[str | None]
+    error: Mapped[str | None]
+    error_node: Mapped[str | None]
+    limits: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    steps: Mapped[int] = mapped_column(default=0)
+    tokens_in: Mapped[int] = mapped_column(default=0)
+    tokens_out: Mapped[int] = mapped_column(default=0)
+    cost: Mapped[Decimal] = mapped_column(Numeric(18, 8), default=Decimal(0))
+    trace_id: Mapped[str | None]
+    workflow_id: Mapped[str | None]
+    cancel_requested: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    created_by: Mapped[uuid.UUID | None]
+    started_at: Mapped[datetime | None]
+    finished_at: Mapped[datetime | None]
+
+
+class UseCaseRunStep(Base):
+    __tablename__ = "use_case_run_step"
+    run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("use_case_run.id"), primary_key=True)
+    step_key: Mapped[str] = mapped_column(primary_key=True)
+    project_id: Mapped[uuid.UUID]
+    ordinal: Mapped[int] = mapped_column(
+        BigInteger, server_default=FetchedValue(), insert_default=None
+    )
+    node_id: Mapped[str]
+    node_type: Mapped[str]
+    ref: Mapped[str | None]
+    status: Mapped[str]
+    input: Mapped[Any | None] = mapped_column(JSONB)
+    output: Mapped[Any | None] = mapped_column(JSONB)
+    error_code: Mapped[str | None]
+    error: Mapped[str | None]
+    agent_run_id: Mapped[uuid.UUID | None]
+    tokens_in: Mapped[int] = mapped_column(default=0)
+    tokens_out: Mapped[int] = mapped_column(default=0)
+    cost: Mapped[Decimal] = mapped_column(Numeric(18, 8), default=Decimal(0))
+    latency_ms: Mapped[int] = mapped_column(default=0)
+    started_at: Mapped[datetime] = mapped_column(default=utcnow)
+    finished_at: Mapped[datetime | None]

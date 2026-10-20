@@ -51,3 +51,29 @@ class RunStarter:
         except Exception as exc:  # Temporal down: the caller fails the run
             log.error("agents.workflow_start_failed", id=workflow_id, error=str(exc))
             return False
+
+    async def start_named(
+        self, workflow: str, payload: dict[str, object], workflow_id: str
+    ) -> bool:
+        """Start any workflow of the runs queue (use case runs)."""
+        try:
+            client = await self.client()
+            await client.start_workflow(
+                workflow,
+                payload,
+                id=workflow_id,
+                task_queue=self._settings.temporal_runs_queue,
+                id_conflict_policy=WorkflowIDConflictPolicy.FAIL,
+            )
+            return True
+        except Exception as exc:
+            log.error("workflow.start_failed", id=workflow_id, error=str(exc))
+            return False
+
+    async def cancel(self, workflow_id: str) -> None:
+        """Ask Temporal to cancel a workflow; a finished or unknown one is ignored."""
+        try:
+            client = await self.client()
+            await client.get_workflow_handle(workflow_id).cancel()
+        except Exception as exc:
+            log.warning("workflow.cancel_failed", id=workflow_id, error=str(exc)[:200])

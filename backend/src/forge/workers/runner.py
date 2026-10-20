@@ -112,6 +112,7 @@ async def build_runs(reg: QueueRegistration, settings: Settings) -> QueueRegistr
         IngestStarter(settings),
         tenancy.acl_terms,
     )
+    runtime_tools = ToolStudio(sessions, envelope, settings)
     pool = checkpoint_pool(settings)
     await pool.open(wait=True)
     runtime = AgentRuntime(
@@ -123,7 +124,7 @@ async def build_runs(reg: QueueRegistration, settings: Settings) -> QueueRegistr
             events=RunEvents(cache),
             checkpointer=AsyncPostgresSaver(pool),  # type: ignore[arg-type]
             allow_private_hosts=settings.agent_allow_private_hosts,
-            tools=ToolStudio(sessions, envelope, settings),
+            tools=runtime_tools,
         )
     )
 
@@ -143,8 +144,14 @@ async def build_runs(reg: QueueRegistration, settings: Settings) -> QueueRegistr
         with contextlib.suppress(asyncio.CancelledError):
             await purger
 
-    reg.workflows += AGENT_WORKFLOWS
+    from forge.usecases.activities import WORKFLOWS as USECASE_WORKFLOWS
+    from forge.usecases.activities import UseCaseActivities, UseCaseRuntime
+
+    reg.workflows += AGENT_WORKFLOWS + USECASE_WORKFLOWS
     reg.activities += AgentActivities(runtime).all()
+    reg.activities += UseCaseActivities(
+        UseCaseRuntime(sessions, runtime, runtime_tools, prompts)
+    ).all()
     reg.closers += [
         stop_purger,
         gateway.stop,

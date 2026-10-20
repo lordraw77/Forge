@@ -25,6 +25,7 @@ from forge.prompts.service import PromptStudio, ReferenceOut
 from forge.tenancy.service import TenancyService
 from forge.tools.service import ToolReferenceOut, ToolStudio
 from forge.usecases import definition as defs
+from forge.usecases import graph as graphs
 from forge.usecases.definition import extract_refs as extract_refs
 from forge.usecases.models import (
     Catalog,
@@ -547,7 +548,7 @@ class UseCaseStudio:
                 )
             ).scalars()
         )
-        issues = defs.validate_definition(uc.pattern, uc.definition)
+        issues = self.semantic_issues(uc.pattern, uc.definition, uc.input_fields)
         base = self._out(uc, catalogs, categories)
         return UseCaseDetail(
             **base.model_dump(),
@@ -786,9 +787,21 @@ class UseCaseStudio:
                 )
         return issues
 
+    @staticmethod
+    def semantic_issues(
+        pattern: str, definition: dict[str, Any], input_fields: list[dict[str, Any]]
+    ) -> list[defs.Issue]:
+        """Structure first; the graph analysis (reachability, ports, variables, loops) only on
+        a sound structure and a non-empty workflow."""
+        issues = defs.validate_definition(pattern, definition)
+        if issues or not definition.get("nodes" if pattern == "graph" else "agents"):
+            return issues
+        names = [str(f["name"]) for f in input_fields]
+        return graphs.analyze(graphs.executable_graph(pattern, definition, names), names)
+
     async def readiness(self, actor: Actor, project_id: uuid.UUID, uc: UseCase) -> list[defs.Issue]:
         """Everything that blocks testing or publishing, with the nodes to highlight."""
-        issues = defs.validate_definition(uc.pattern, uc.definition)
+        issues = self.semantic_issues(uc.pattern, uc.definition, uc.input_fields)
         issues += defs.completeness(uc.pattern, uc.definition)
         if not issues:
             issues += await self.reference_issues(actor, project_id, uc.pattern, uc.definition)

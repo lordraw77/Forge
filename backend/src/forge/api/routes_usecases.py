@@ -17,11 +17,14 @@ from forge.usecases.schemas import (
     CatalogOut,
     CatalogUseCase,
     CategoryIn,
+    RunStartIn,
     UseCaseCreateIn,
     UseCaseDetail,
     UseCaseDuplicateIn,
     UseCasePage,
     UseCasePublishIn,
+    UseCaseRunDetail,
+    UseCaseRunOut,
     UseCaseStatusIn,
     UseCaseUpdateIn,
     UseCaseVersionDetail,
@@ -35,6 +38,7 @@ Builder = Annotated[ProjectContext, Depends(project_permission("usecase.build"))
 BuilderW = Annotated[ProjectContext, Depends(project_permission("usecase.build", writable=True))]
 Publisher = Annotated[ProjectContext, Depends(project_permission("usecase.publish", writable=True))]
 Runner = Annotated[ProjectContext, Depends(project_permission("usecase.run"))]
+RunnerW = Annotated[ProjectContext, Depends(project_permission("usecase.run", writable=True))]
 Admin = Annotated[ProjectContext, Depends(project_permission("project.manage", writable=True))]
 AdminReader = Annotated[ProjectContext, Depends(project_permission("project.manage"))]
 
@@ -226,3 +230,56 @@ async def get_version(
     use_case_id: uuid.UUID, number: int, ctx: Builder, request: Request
 ) -> UseCaseVersionDetail:
     return await services(request).usecases.version(ctx.actor, ctx.project_id, use_case_id, number)
+
+
+# ---- runs
+def _sees_runs(ctx: ProjectContext) -> bool:
+    return "run.read" in ctx.access.permissions
+
+
+@router.post("/use-cases/{use_case_id}/runs", response_model=UseCaseRunDetail, status_code=202)
+async def start_use_case_run(
+    use_case_id: uuid.UUID, body: RunStartIn, ctx: RunnerW, request: Request
+) -> UseCaseRunDetail:
+    """Start a run. `published` (default) uses the live version with the catalog's visibility
+    rules; `test` runs the draft and needs `usecase.build`."""
+    return await services(request).usecase_runs.start(
+        ctx.actor, ctx.project_id, use_case_id, body, can_build=_builds(ctx)
+    )
+
+
+@router.get("/use-case-runs", response_model=list[UseCaseRunOut])
+async def list_use_case_runs(
+    ctx: Runner,
+    request: Request,
+    use_case_id: uuid.UUID | None = None,
+    status_filter: Annotated[
+        Literal["queued", "running", "waiting_approval", "succeeded", "failed", "cancelled"] | None,
+        Query(alias="status"),
+    ] = None,
+    limit: int = 50,
+) -> list[UseCaseRunOut]:
+    return await services(request).usecase_runs.list_runs(
+        ctx.actor,
+        ctx.project_id,
+        see_all=_sees_runs(ctx),
+        use_case_id=use_case_id,
+        status=status_filter,
+        limit=limit,
+    )
+
+
+@router.get("/use-case-runs/{run_id}", response_model=UseCaseRunDetail)
+async def get_use_case_run(run_id: uuid.UUID, ctx: Runner, request: Request) -> UseCaseRunDetail:
+    return await services(request).usecase_runs.get(
+        ctx.actor, ctx.project_id, run_id, see_all=_sees_runs(ctx)
+    )
+
+
+@router.post("/use-case-runs/{run_id}/cancel", response_model=UseCaseRunDetail)
+async def cancel_use_case_run(
+    run_id: uuid.UUID, ctx: RunnerW, request: Request
+) -> UseCaseRunDetail:
+    return await services(request).usecase_runs.cancel(
+        ctx.actor, ctx.project_id, run_id, see_all=_sees_runs(ctx)
+    )

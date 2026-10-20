@@ -50,6 +50,7 @@ from forge.prompts.service import PromptStudio
 from forge.rag.service import Rag, SearchClient
 from forge.tenancy.service import GroupMappings, TenancyService
 from forge.tools.service import ToolStudio
+from forge.usecases.runs import UseCaseRuns
 from forge.usecases.service import UseCaseStudio
 
 log = get_logger(__name__)
@@ -152,6 +153,7 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
         tools = ToolStudio(app.state.sessions, envelope, settings)
         agents = AgentStudio(app.state.sessions, gateway, prompts, rag, RunStarter(settings), tools)
         usecases = UseCaseStudio(app.state.sessions, agents, tools, prompts, tenancy)
+        usecase_runs = UseCaseRuns(app.state.sessions, usecases, RunStarter(settings))
         auth = AuthService(
             app.state.sessions,
             store,
@@ -183,6 +185,7 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
             agents=agents,
             tools=tools,
             usecases=usecases,
+            usecase_runs=usecase_runs,
             run_events=run_events,
             bundles=Bundles(prompts, rag, gateway, tenancy, agents, usecases),
         )

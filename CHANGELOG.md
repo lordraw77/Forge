@@ -8,6 +8,12 @@ Phase 1 milestones M1.2 (LLM gateway), M1.3 (Prompt Studio), M1.4 (RAG on upload
 
 ### Added
 
+**Graph engine and supervisor (M2.3b)**
+- Use cases now **run**: a graph of `agent`, `tool` and `llm` nodes with `router` (several sections can match, default path), `for_each` and `while` loops (bounded, nestable), parallel branches and AND/OR joins, executed durably on Temporal. A supervisor team runs as a chain of agents.
+- Saving a use case validates the graph (unknown nodes and ports, cycles, loops without bounds, variables that are not defined on every path); the editor lists the problems per node. Testing and publishing need a clean graph.
+- **Test run** panel in the editor and a run API (`POST /use-cases/{id}/runs`, run list, detail with every step, cancel). Runs keep the graph and version they started with, count steps, tokens and cost, and stop at the step, cost or time limits with the failing node named. A JSON output is checked against its schema.
+- A worker killed mid-run resumes from the last completed step; the agent step in flight continues from its checkpoint. Human approval nodes validate but stop the run until human approval ships.
+
 **Catalogs and use cases (M2.3a)**
 - **Catalogs and categories** per project (Projects Studio → Catalogs), with the built-in Forge.Software, Forge.ITOps and Forge.BizOps; **access by Role Name**: enable a catalog for a role and untick single categories. A use case a role may not see answers 404.
 - **Use case library** (Build Your Own Use Case): supervisor or graph pattern, input form (text, long text, number, choice, file, collection) with generated JSON Schema, output type, cost/duration/approval defaults and the workflow definition as JSON.

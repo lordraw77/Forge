@@ -27,6 +27,7 @@ from forge.prompts.service import PromptStudio
 from forge.rag.service import Rag
 from forge.tenancy.service import GroupMappings, ProjectAccess, TenancyService
 from forge.tools.service import ToolStudio
+from forge.usecases.runs import UseCaseRuns
 from forge.usecases.service import UseCaseStudio
 
 ACCESS_COOKIE = "forge_access"
@@ -52,6 +53,7 @@ class Services:
     agents: AgentStudio
     tools: ToolStudio
     usecases: UseCaseStudio
+    usecase_runs: UseCaseRuns
     run_events: RunEvents
     bundles: Bundles
 

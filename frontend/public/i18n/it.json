@@ -867,6 +867,11 @@
     "2599001121587333617": "Eliminare il caso d'uso {$name}?",
     "1188130004248935018": "Il tuo ruolo non può creare casi d'uso in questo progetto.",
     "2130208717326730282": "Libreria dei casi d'uso",
-    "7402932306338446154": "Deve essere un oggetto JSON"
+    "7402932306338446154": "Deve essere un oggetto JSON",
+    "9181681387515602016": "Esecuzione di prova",
+    "1036236510299861434": "Esegue la bozza salvata con gli agenti, gli strumenti e i prompt reali.",
+    "2750922989251976395": "Esegui prova",
+    "405723533678707720": "{$INTERPOLATION} passi · {$INTERPOLATION_1} token · {$INTERPOLATION_2} USD",
+    "8481306396929121357": "In attesa del primo passo…"
   }
 }

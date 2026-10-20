@@ -293,3 +293,61 @@ class CatalogUseCase(Out):
     input_schema: dict[str, Any]
     input_fields: list[dict[str, Any]]
     output_type: str
+
+
+# ------------------------------------------------------------------ runs
+RunStatus = Literal["queued", "running", "waiting_approval", "succeeded", "failed", "cancelled"]
+
+
+class RunStartIn(In):
+    inputs: dict[str, Any] = Field(default_factory=dict)
+    mode: Literal["test", "published"] = Field(
+        default="published",
+        description="`test` runs the current draft (builders); `published` the live version",
+    )
+
+
+class RunStepOut(Out):
+    step_key: str
+    node_id: str
+    node_type: str
+    ref: str | None
+    status: str
+    input: Any | None
+    output: Any | None
+    error_code: str | None
+    error: str | None
+    tokens_in: int
+    tokens_out: int
+    cost: float
+    latency_ms: int
+    started_at: datetime
+    finished_at: datetime | None
+
+
+class UseCaseRunOut(Out):
+    id: uuid.UUID
+    use_case_id: uuid.UUID
+    use_case_name: str
+    version: int | None
+    mode: str
+    status: RunStatus
+    error_code: str | None
+    error: str | None
+    error_node: str | None
+    steps: int
+    tokens_in: int
+    tokens_out: int
+    cost: float
+    created_at: datetime
+    created_by: uuid.UUID | None
+    started_at: datetime | None
+    finished_at: datetime | None
+
+
+class UseCaseRunDetail(UseCaseRunOut):
+    inputs: dict[str, Any]
+    outputs: dict[str, Any] | None
+    limits: dict[str, Any]
+    graph: dict[str, Any] | None = None
+    step_list: list[RunStepOut] = Field(default_factory=list)

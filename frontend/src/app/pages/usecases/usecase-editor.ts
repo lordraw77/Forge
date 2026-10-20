@@ -27,6 +27,7 @@ import {
 } from '../../api-client';
 import { problemMessage } from '../../core/http';
 import { Session } from '../../core/session';
+import { UseCaseTestRun } from './usecase-test-run';
 import { emptyDefinition, fieldName, newField, parseJsonObject, splitList } from './usecase-util';
 
 type Pattern = 'supervisor' | 'graph';
@@ -51,6 +52,7 @@ type FieldRow = UseCaseInputField & { optionsText: string; defaultText: string }
     NzSelectModule,
     NzTableModule,
     NzTagModule,
+    UseCaseTestRun,
   ],
   template: `
     <div class="head">
@@ -363,6 +365,8 @@ type FieldRow = UseCaseInputField & { optionsText: string; defaultText: string }
           }}</span>
         </button>
       </div>
+
+      <forge-usecase-test-run [useCase]="d" />
 
       <h3 i18n>Versions</h3>
       <nz-table

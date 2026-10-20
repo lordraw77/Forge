@@ -1010,6 +1010,22 @@ class ToolStudio:
                 prepared.server = await self._resolve_server(s, srv)
             return prepared
 
+    async def prepare_named(
+        self,
+        actor_id: uuid.UUID | None,
+        project_id: uuid.UUID,
+        name: str,
+        version: int,
+    ) -> PreparedTool:
+        """A library tool by name and version, for use case steps."""
+        async with self._session(actor_id, project_id) as s:
+            tool_id = (
+                await s.execute(select(Tool.id).where(Tool.name == name.lower()))
+            ).scalar_one_or_none()
+        if tool_id is None:
+            raise ProblemError(422, "unknown_tool", f"Tool '{name}' does not exist")
+        return await self.prepare(actor_id, project_id, tool_id, version)
+
     async def log_call(
         self,
         project_id: uuid.UUID,
