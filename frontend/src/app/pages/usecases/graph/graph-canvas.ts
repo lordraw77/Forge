@@ -70,6 +70,7 @@ const PALETTE: { type: NodeType; label: string }[] = [
   { type: 'router', label: $localize`Router` },
   { type: 'for_each', label: $localize`For loop` },
   { type: 'while', label: $localize`While loop` },
+  { type: 'human_approval', label: $localize`Approval` },
   { type: 'end', label: $localize`End` },
 ];
 const OPS: Condition['op'][] = ['=', '!=', '>', '<', 'contains'];
@@ -273,15 +274,6 @@ function jsonText(value: unknown): string {
                   [ngModel]="node.output"
                   (ngModelChange)="patch('output', $event)"
                 />
-                <label
-                  nz-checkbox
-                  [nzId]="'n-hitl'"
-                  [ngModel]="!!node.hitl"
-                  (ngModelChange)="patch('hitl', $event)"
-                  i18n
-                >
-                  Human in the loop
-                </label>
               }
               @case ('tool') {
                 <label for="n-tool" i18n>Tool</label>
@@ -468,6 +460,24 @@ function jsonText(value: unknown): string {
                   (ngModelChange)="patch('max_iterations', +$event)"
                 />
               }
+              @case ('human_approval') {
+                <label for="n-ainput" i18n>Text to review (use &#123;variables&#125;)</label>
+                <textarea
+                  nz-input
+                  id="n-ainput"
+                  rows="4"
+                  data-testid="n-approval-input"
+                  [ngModel]="node.input"
+                  (ngModelChange)="patch('input', $event)"
+                ></textarea>
+                <label for="n-output" i18n>Output variable</label>
+                <input
+                  nz-input
+                  id="n-output"
+                  [ngModel]="node.output"
+                  (ngModelChange)="patch('output', $event)"
+                />
+              }
               @case ('end') {
                 <label for="n-end" i18n>Result (use &#123;variables&#125;)</label>
                 <textarea
@@ -478,6 +488,43 @@ function jsonText(value: unknown): string {
                   (ngModelChange)="patch('output', $event)"
                 ></textarea>
               }
+            }
+
+            @if (node.type === 'agent' || node.type === 'tool' || node.type === 'llm') {
+              <label
+                nz-checkbox
+                [nzId]="'n-hitl'"
+                [ngModel]="!!node.hitl"
+                (ngModelChange)="patch('hitl', $event ? true : undefined)"
+                i18n
+              >
+                Human in the loop (a person reviews the output)
+              </label>
+            }
+            @if (node.type === 'human_approval' || node.hitl) {
+              <label for="n-instr" i18n>Instructions for the reviewer</label>
+              <textarea
+                nz-input
+                id="n-instr"
+                rows="2"
+                [ngModel]="node.instructions"
+                (ngModelChange)="patch('instructions', $event || undefined)"
+              ></textarea>
+              <label for="n-assignees" i18n>Who may decide (Role Names, comma separated)</label>
+              <input
+                nz-input
+                id="n-assignees"
+                [ngModel]="(node.assignees ?? []).join(', ')"
+                (ngModelChange)="patch('assignees', splitNames($event))"
+              />
+              <label for="n-hours" i18n>Hours to wait (1 to 720)</label>
+              <input
+                nz-input
+                id="n-hours"
+                type="number"
+                [ngModel]="node.timeout_hours ?? ''"
+                (ngModelChange)="patch('timeout_hours', $event ? +$event : undefined)"
+              />
             }
 
             @if (node.type !== 'start') {
@@ -514,6 +561,7 @@ export class GraphCanvas {
   readonly selectedNode = output<string | null>();
 
   protected readonly palette = PALETTE;
+  protected splitNames = splitList;
   protected readonly ops = OPS;
   protected readonly deleteLabel = $localize`Delete selection`;
   protected readonly sectionLabel = $localize`Section name`;

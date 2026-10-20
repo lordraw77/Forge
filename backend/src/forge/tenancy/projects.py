@@ -55,6 +55,14 @@ class ApiKeyPrincipal:
     created_by: uuid.UUID | None
 
 
+@dataclass(frozen=True)
+class Approver:
+    user_id: uuid.UUID
+    email: str
+    full_name: str
+    role_name: str
+
+
 @dataclass
 class InviteResult:
     identifier: str
@@ -679,6 +687,34 @@ class TenancyService:
                     )
                 )
             ).scalar_one_or_none()
+
+    async def approvers(
+        self, project_id: uuid.UUID, role_names: list[str] | None = None
+    ) -> list[Approver]:
+        """Active members who may decide approvals (permission `approval.decide`). With
+        `role_names` only those Role Names qualify, plus Project Admins who always can."""
+        async with project_scope(self._sessions, project_id, None) as s:
+            rows = (
+                await s.execute(
+                    text(
+                        """
+                        SELECT u.id, u.email, u.full_name, rn.name
+                        FROM membership m
+                        JOIN app_user u ON u.id = m.user_id
+                        JOIN role_name rn ON rn.id = m.role_name_id
+                        JOIN role_type rt ON rt.id = rn.role_type_id
+                        WHERE m.project_id = :p AND u.status = 'active' AND rn.status = 'active'
+                          AND 'approval.decide' = ANY(rt.permissions)
+                          AND (cardinality(CAST(:names AS text[])) = 0
+                               OR rn.name = ANY(CAST(:names AS text[]))
+                               OR rt.key = 'project_admin')
+                        ORDER BY lower(u.full_name), u.id
+                        """
+                    ),
+                    {"p": project_id, "names": list(role_names or [])},
+                )
+            ).all()
+            return [Approver(r[0], r[1], r[2], r[3]) for r in rows]
 
     async def role_name_of(
         self, project_id: uuid.UUID, user_id: uuid.UUID | None, role_id: uuid.UUID

@@ -48,7 +48,11 @@ agent receives the previous output.
 "<id>.loop" (once per item, with {{item}} and {{index}}) and "<id>.done" (a body node's output \
 variable is then the list of all iterations)
   - while: conditions, combine, max_iterations; outputs "<id>.loop" and "<id>.done"
-  - human_approval: pauses for a person (not available yet; avoid unless asked)
+  - human_approval: input (text with {{variables}} that a person reviews and may edit), \
+instructions (what to check), output (the approved text), optional assignees (Role Names), \
+timeout_hours. Use it where a person must confirm before the workflow goes on. Any agent, tool \
+or llm node can also set "hitl": true to have its output reviewed (a rejected agent re-runs with \
+the feedback); a tool that requires approval always asks before it is called
   - end: output (text with {{variables}}) = the final result
   Every node except start has "after": ["node", "router.section", "loop.loop", "loop.done"]; \
 "after_mode" is "all" (default) or "any". Ids look like [a-z][a-z0-9_]*. Use only variables that \

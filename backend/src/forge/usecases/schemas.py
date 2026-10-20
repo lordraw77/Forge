@@ -401,3 +401,37 @@ class SessionOut(Out):
 
 class SessionDetail(SessionOut):
     run_list: list[UseCaseRunOut] = Field(default_factory=list)
+
+
+# ------------------------------------------------------------------ approvals (M2.4)
+class ApprovalOut(Out):
+    id: uuid.UUID
+    run_id: uuid.UUID
+    use_case_id: uuid.UUID
+    use_case_name: str
+    node_id: str
+    kind: str
+    status: str
+    requested_at: datetime
+    expires_at: datetime
+    decided_by: uuid.UUID | None = None
+    decided_at: datetime | None = None
+    decided_via: str | None = None
+    comment: str | None = None
+
+
+class ApprovalDetail(ApprovalOut):
+    instructions: str
+    content: dict[str, Any]
+    edited: Any | None = None
+    assignees: list[str] = Field(default_factory=list)
+
+
+class DecisionIn(In):
+    decision: Literal["approve", "reject"]
+    edited: Any | None = Field(
+        default=None,
+        description="Approve with changes: the edited text (review) or arguments object "
+        "(tool call). Absent = approve as proposed",
+    )
+    comment: str = Field(default="", max_length=2000)

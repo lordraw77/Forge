@@ -388,7 +388,7 @@ def test_while_repeats_until_the_condition_fails_and_is_bounded() -> None:
     assert exc.value.code == "max_iterations_exceeded"
 
 
-def test_limits_and_unavailable_approval() -> None:
+def test_limits_are_enforced() -> None:
     chain = [n("start", "start"), agent("a", "start"), agent("b", "a"), agent("c", "b")]
     with pytest.raises(g.GraphError) as exc:
         run(chain, {}, Fake(), max_steps=2)
@@ -396,13 +396,143 @@ def test_limits_and_unavailable_approval() -> None:
     with pytest.raises(g.GraphError) as exc:
         run(chain, {}, Fake(), max_cost_usd=0.7)
     assert exc.value.code == "max_cost"
+
+
+# ------------------------------------------------------------------ approvals (M2.4)
+class Reviewer:
+    """Answers approvals from a script and records what was asked."""
+
+    def __init__(self, *answers: dict[str, Any]) -> None:
+        self.asked: list[dict[str, Any]] = []
+        self._answers = list(answers)
+
+    async def __call__(self, call: dict[str, Any]) -> dict[str, Any]:
+        self.asked.append(call)
+        return self._answers.pop(0)
+
+
+def approve(edited: Any = None) -> dict[str, Any]:
+    return {"decision": "approve", "edited": edited, "comment": ""}
+
+
+def reject(comment: str = "no") -> dict[str, Any]:
+    return {"decision": "reject", "edited": None, "comment": comment}
+
+
+def run_with(
+    nodes: list[dict[str, Any]], fake: Fake, reviewer: Reviewer | None, inputs: Any = None
+) -> Any:
+    engine = Engine({"nodes": nodes}, inputs or {}, fake, dict(g.DEFAULT_LIMITS), reviewer)
+    return asyncio.run(engine.run())
+
+
+def test_approval_node_passes_the_possibly_edited_input_on() -> None:
+    nodes = [
+        n("start", "start"),
+        agent("a", "start", output="draft"),
+        n(
+            "ok",
+            "human_approval",
+            "a",
+            input="Please check: {draft}",
+            instructions="Look at {topic}",
+            assignees=["Ops"],
+            output="final",
+        ),
+        n("end", "end", "ok", output="{final}"),
+    ]
+    reviewer = Reviewer(approve("edited text"))
+    res = run_with(nodes, Fake(), reviewer, {"topic": "x"})
+    asked = reviewer.asked[0]
+    assert asked["key"] == "ok~approval"
+    assert asked["kind"] == "review"
+    assert asked["content"] == {"text": "Please check: out:a"}
+    assert asked["instructions"] == "Look at x"
+    assert asked["assignees"] == ["Ops"]
+    assert res.output == "edited text"
+    assert res.steps == 1  # the approval is not a step of the budget
+    res = run_with(nodes, Fake(), Reviewer(approve()), {"topic": "x"})
+    assert res.output == "Please check: out:a"
+
+
+def test_rejecting_an_approval_node_fails_the_run_with_the_feedback() -> None:
+    nodes = [n("start", "start"), n("ok", "human_approval", "start", input="x")]
     with pytest.raises(g.GraphError) as exc:
-        run([n("start", "start"), n("h", "human_approval", "start")], {}, Fake())
-    assert exc.value.code == "approval_not_available"
+        run_with(nodes, Fake(), Reviewer(reject("too risky")))
+    assert exc.value.code == "approval_rejected"
+    assert "too risky" in exc.value.message
+    assert exc.value.node == "ok"
     with pytest.raises(g.GraphError) as exc:
-        run([n("start", "start"), agent("a", "start", hitl=True)], {}, Fake())
+        run_with(nodes, Fake(), None)
     assert exc.value.code == "approval_not_available"
-    assert exc.value.node == "a"
+
+
+def test_hitl_agent_is_reviewed_and_rerun_with_the_feedback() -> None:
+    fake = Fake(script={"a": lambda c: f"answer {len(fake.calls)}"})
+    nodes = [n("start", "start"), agent("a", "start", hitl=True, input="{x}")]
+    reviewer = Reviewer(reject("be shorter"), approve("final words"))
+    res = run_with(nodes, fake, reviewer, {"x": "q"})
+    assert [c["key"] for c in fake.calls] == ["a", "a~r1"]
+    assert "Feedback: be shorter" in fake.calls[1]["message"]
+    assert "answer 1" in fake.calls[1]["message"]
+    assert [a["key"] for a in reviewer.asked] == ["a~approval", "a~r1~approval"]
+    assert res.output == "final words"
+    assert res.steps == 2
+
+
+def test_hitl_gives_up_after_three_rejections() -> None:
+    nodes = [n("start", "start"), agent("a", "start", hitl=True)]
+    with pytest.raises(g.GraphError) as exc:
+        run_with(nodes, Fake(), Reviewer(*[reject("again")] * 4))
+    assert exc.value.code == "approval_rejected"
+    llm = [n("start", "start"), n("l", "llm", "start", prompt_ref="p@1", hitl=True)]
+    fake = Fake()
+    with pytest.raises(g.GraphError):
+        run_with(llm, fake, Reviewer(reject("no")))
+    assert len(fake.calls) == 1  # only an agent can act on feedback
+
+
+def test_tool_that_requires_approval_runs_with_the_approved_arguments() -> None:
+    calls: list[dict[str, Any]] = []
+
+    async def execute(call: dict[str, Any]) -> dict[str, Any]:
+        calls.append(call)
+        if not call.get("approved"):
+            return {"needs_approval": True, "planned_args": call["args"]}
+        return {"output": f"sent {call['args']}", "cost": 0}
+
+    nodes = [n("start", "start"), n("t", "tool", "start", tool_ref="mail@1", args={"to": "{who}"})]
+    reviewer = Reviewer(approve({"to": "boss"}))
+    engine = Engine({"nodes": nodes}, {"who": "me"}, execute, dict(g.DEFAULT_LIMITS), reviewer)
+    res = asyncio.run(engine.run())
+    assert reviewer.asked[0]["kind"] == "tool_call"
+    assert reviewer.asked[0]["content"] == {"tool": "mail@1", "args": {"to": "me"}}
+    assert [c.get("approved") for c in calls] == [None, True]
+    assert calls[1]["args"] == {"to": "boss"}
+    assert calls[0]["key"] == calls[1]["key"] == "t"
+    assert res.output == "sent {'to': 'boss'}"
+    calls.clear()
+    engine = Engine(
+        {"nodes": nodes}, {"who": "me"}, execute, dict(g.DEFAULT_LIMITS), Reviewer(reject())
+    )
+    with pytest.raises(g.GraphError) as exc:
+        asyncio.run(engine.run())
+    assert exc.value.code == "approval_rejected"
+    assert len(calls) == 1  # the tool never ran
+
+
+def test_approval_fields_are_validated() -> None:
+    ok = [n("start", "start"), n("h", "human_approval", "start", input="x")]
+    assert codes(ok) == []
+    assert "missing_input" in codes([n("start", "start"), n("h", "human_approval", "start")])
+    bad = [n("start", "start"), n("h", "human_approval", "start", input="x", assignees="Ops")]
+    assert "bad_assignees" in codes(bad)
+    bad = [n("start", "start"), n("h", "human_approval", "start", input="x", timeout_hours=0)]
+    assert "bad_timeout" in codes(bad)
+    undefined = [n("start", "start"), n("h", "human_approval", "start", input="{nope}")]
+    assert "undefined_variable" in codes(undefined)
+    note = [n("start", "start"), agent("a", "start", instructions="see {nope}")]
+    assert "undefined_variable" in codes(note)
 
 
 def test_undefined_variable_at_run_time_names_it() -> None:

@@ -18,6 +18,7 @@ from forge.api import (
     health,
     routes_admin,
     routes_agents,
+    routes_approvals,
     routes_auth,
     routes_bundles,
     routes_data,
@@ -50,6 +51,7 @@ from forge.prompts.service import PromptStudio
 from forge.rag.service import Rag, SearchClient
 from forge.tenancy.service import GroupMappings, TenancyService
 from forge.tools.service import ToolStudio
+from forge.usecases.approvals import Approvals
 from forge.usecases.files import UseCaseFiles
 from forge.usecases.planner import Planner
 from forge.usecases.runs import UseCaseRuns
@@ -191,6 +193,7 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
             tools=tools,
             usecases=usecases,
             usecase_runs=usecase_runs,
+            approvals=Approvals(app.state.sessions, tenancy),
             planner=Planner(gateway, usecases, usecase_files),
             run_events=run_events,
             bundles=Bundles(prompts, rag, gateway, tenancy, agents, usecases),
@@ -242,6 +245,8 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
     app.include_router(routes_agents.router)
     app.include_router(routes_tools.router)
     app.include_router(routes_usecases.router)
+    app.include_router(routes_approvals.router)
+    app.include_router(routes_approvals.public_router)
     app.include_router(routes_bundles.router)
     app.add_middleware(routes_data.BodyLimit)
     app.include_router(routes_v1.router)

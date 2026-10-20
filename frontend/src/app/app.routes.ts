@@ -27,6 +27,12 @@ export const routes: Routes = [
     ],
   },
   {
+    // Public: the one-time link of an approval email (the token is the credential).
+    path: 'approve/:token',
+    title: 'Approval · Forge',
+    loadComponent: () => import('./pages/approvals/approve-link').then((m) => m.ApproveLink),
+  },
+  {
     path: '',
     component: Shell,
     canActivate: [authGuard],
@@ -247,6 +253,12 @@ export const routes: Routes = [
             loadComponent: () => import('./pages/tools/tool-editor').then((m) => m.ToolEditor),
           },
         ],
+      },
+      {
+        path: 'approvals',
+        title: 'Approvals · Forge',
+        loadComponent: () =>
+          import('./pages/approvals/approvals-page').then((m) => m.ApprovalsPage),
       },
       {
         path: 'catalog',

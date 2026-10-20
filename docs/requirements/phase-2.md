@@ -203,7 +203,7 @@ M2.3 is large and is built in four steps, each ending with tests and a commit: *
 1. `agent` runs a pinned published agent with a task and input and stores its output in a variable; `tool` runs a library tool with arguments built from variables (tools with `requires_approval` follow M2.4); `llm` runs a pinned prompt on a model alias.
 2. `router` evaluates ordered sections (`=`, `!=`, `>`, `<`, `contains`, `and`/`or`), several may match, default path when none does.
 3. `for_each` iterates a list variable or static list, exposing `{item}` and `{index}`, with Loop and Done outputs; `while` repeats while its condition holds; both stop at `max_iterations` with a clear failure.
-4. `human_approval` and `hitl: true` are accepted by validation; execution stops at them with "approval is not available yet" until M2.4.
+4. `human_approval` and `hitl: true` are validated and pause the run for a person (M2.4, E2.10).
 5. Variables are resolved from a run-scoped map; an undefined or non-serialisable value at run time fails the step with the variable name.
 
 ### E2.7 Supervisor pattern
@@ -269,3 +269,44 @@ M2.3 is large and is built in four steps, each ending with tests and a commit: *
 1. Tenant isolation: catalogs, use cases, versions, sessions, runs, steps and outputs of another project are invisible (isolation suite extended).
 2. A published version is immutable; a run started before a new publish finishes on its original version.
 3. Acceptance: a use case is built, published, run by an End User from the catalog and its outputs downloaded; a worker killed mid-run resumes from the last completed step; rollback works.
+
+---
+
+## M2.4 Human in the loop
+
+M2.4 is built in one step. Scope decisions: approvals pause **graph and supervisor runs** (the `human_approval` node, `hitl: true` on a node, and `tool` nodes whose tool has `requires_approval`); a `requires_approval` tool called inside an agent's own loop stays refused with an explicit result, because pausing an agent mid-loop needs the agent runtime to checkpoint at the call (planned with the agent chat HITL, backlog).
+
+### E2.10 Approvals
+
+**US-2.10.1 (M) – Pause and resume.** As an operator, I want a run to wait for a person.
+
+1. A run reaching a `human_approval` node, a node with `hitl: true` (after it produced its output) or a `tool` node whose tool has `requires_approval` (before the call) creates an **approval** and the run becomes `waiting_approval` while any approval of it is pending; it returns to `running` when the last one is decided. The wait is durable (days) and survives worker restarts.
+2. The approval holds what to review: the text to approve, or the planned tool call (tool name and arguments), the node's instructions, the use case, run and version, and who asked.
+3. Decisions: **approve** (as is or **edited**: the edited text becomes the node's output, or the edited arguments are used for the call), **reject with feedback**. Rejecting a `hitl` node re-runs it with the feedback added to its task, up to 3 rejections, then the run fails (`approval_rejected`); rejecting a `human_approval` node or a tool call fails the run with the feedback as the reason.
+4. An approval not decided within its time limit (node `timeout_hours`, default 72, at most 720) expires and the run fails with `approval_timeout`. Cancelling the run cancels its pending approvals.
+5. The paused step is a step of the run (visible in the timeline) and finishes when decided; the decision, editor and comment are kept and audited.
+
+**US-2.10.2 (M) – Who decides.** As a PA, I want only the right people to approve.
+
+1. Deciding needs the permission `approval.decide` (Project Admin, Builder, Operator by default). A node may restrict approvers to Role Names (`assignees`); Project Admins can always decide. A decider must not need to be the person who started the run.
+2. Everyone else gets 404 for the approval. The starter of a run sees the status "waiting for approval" on their run, without the content under review.
+3. Decisions through the API are checked like those in the UI (same endpoint, CSRF for sessions, API keys with the scope).
+
+**US-2.10.3 (M) – Approvals inbox and review.** As an approver, I want to review from the UI.
+
+1. An **Approvals** page lists the pending approvals the user may decide (and recent decided ones), with use case, node, who started the run, age and expiry.
+2. The review dialog shows the instructions and the content in an editor (Monaco), and the actions **Approve**, **Approve with changes** and **Reject** (feedback required).
+3. The builder's test page links to the approval when a test run is waiting.
+
+**US-2.10.4 (M) – Notifications and links.** As an approver, I want to be told and to decide from the message.
+
+1. When an approval is created, every member allowed to decide with an email address gets an **email** (SMTP configured by the deployment; none configured = no email, the inbox still works). The email names the use case and node and carries a link to the review page and **signed one-time links**.
+2. The link opens a public review page (no sign-in) that shows the content and asks for the decision; **opening a link never decides** (mail scanners follow links). The token is random, 256 bits, stored hashed, bound to the approval and the user, expires with the approval, and is consumed by the first decision (any decision, by any means, invalidates all tokens of the approval). The decider is recorded as the user the link was sent to, who must still be allowed to decide.
+3. If the run has a `webhook_url`, it also receives `use_case_run.approval_requested` with the approval id and the review URL (no content, no token).
+4. Unknown, used or expired tokens answer 404 with no detail.
+
+**US-2.10.5 (M) – Security and tests.**
+
+1. Tenant isolation: approvals and tokens of another project are invisible; RLS is forced.
+2. An approver cannot decide twice (409), cannot decide after expiry or cancellation, and edits are size-bounded like step outputs.
+3. Acceptance (AC5, AC12): a run with an approval node stops, notifies and resumes after approval from the UI or API; the same from an email link; rejection with feedback re-runs a `hitl` node.

@@ -9,6 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule } from 'ng-zorro-antd/icon';
@@ -37,6 +38,7 @@ const COLOR: Record<string, string> = {
   selector: 'forge-usecase-test-run',
   imports: [
     FormsModule,
+    RouterLink,
     NzAlertModule,
     NzButtonModule,
     NzIconModule,
@@ -102,6 +104,16 @@ const COLOR: Record<string, string> = {
             >{{ r.steps }} steps · {{ r.tokens_in + r.tokens_out }} tokens · {{ r.cost }} USD</span
           >
         </p>
+        @if (r.status === 'waiting_approval') {
+          <nz-alert
+            nzType="warning"
+            nzShowIcon
+            nzMessage="The run waits for a person to approve a step."
+            i18n-nzMessage
+            data-testid="uc-run-waiting"
+          />
+          <a nz-button routerLink="/approvals" data-testid="uc-run-review" i18n>Open Approvals</a>
+        }
         @if (r.error) {
           <nz-alert
             nzType="error"

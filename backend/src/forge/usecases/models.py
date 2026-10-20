@@ -188,3 +188,36 @@ class UseCaseFile(Base):
     storage_key: Mapped[str]
     created_by: Mapped[uuid.UUID | None]
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+
+class Approval(Base):
+    __tablename__ = "approval"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    project_id: Mapped[uuid.UUID]
+    run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("use_case_run.id"))
+    step_key: Mapped[str]
+    node_id: Mapped[str]
+    kind: Mapped[str]
+    instructions: Mapped[str] = mapped_column(default="")
+    content: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    assignees: Mapped[list[str]] = mapped_column(default=list)
+    status: Mapped[str] = mapped_column(default="pending")
+    requested_by: Mapped[uuid.UUID | None]
+    requested_at: Mapped[datetime] = mapped_column(default=utcnow)
+    expires_at: Mapped[datetime]
+    notified_at: Mapped[datetime | None]
+    decided_by: Mapped[uuid.UUID | None]
+    decided_at: Mapped[datetime | None]
+    decided_via: Mapped[str | None]
+    edited: Mapped[Any | None] = mapped_column(JSONB)
+    comment: Mapped[str | None]
+
+
+class ApprovalToken(Base):
+    __tablename__ = "approval_token"
+    token_hash: Mapped[str] = mapped_column(primary_key=True)
+    project_id: Mapped[uuid.UUID]
+    approval_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("approval.id"))
+    user_id: Mapped[uuid.UUID]
+    expires_at: Mapped[datetime]
+    used_at: Mapped[datetime | None]

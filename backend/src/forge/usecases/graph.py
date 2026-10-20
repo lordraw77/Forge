@@ -168,7 +168,7 @@ def ports_of(node: dict[str, Any]) -> list[str]:
 
 def output_var(node: dict[str, Any]) -> str | None:
     t = node.get("type")
-    if t in EXECUTABLE or t == "start":
+    if t in EXECUTABLE or t in ("start", "human_approval"):
         return str(node.get("output") or node.get("id"))
     return None
 
@@ -303,6 +303,17 @@ def analyze(graph: dict[str, Any], input_names: list[str]) -> list[Issue]:
             bad("missing_ref", "A tool node needs tool_ref", nid)
         if t == "llm" and not n.get("prompt_ref"):
             bad("missing_ref", "An llm node needs prompt_ref", nid)
+        if t == "human_approval" and not n.get("input"):
+            bad("missing_input", "An approval node needs the input to review", nid)
+        if t in {"human_approval", "agent", "tool", "llm"}:
+            assignees = n.get("assignees", [])
+            if not isinstance(assignees, list) or not all(
+                isinstance(a, str) and a.strip() for a in assignees
+            ):
+                bad("bad_assignees", "assignees is a list of Role Names", nid)
+            hours = n.get("timeout_hours", 1)
+            if not isinstance(hours, int) or isinstance(hours, bool) or not 1 <= hours <= 720:
+                bad("bad_timeout", "timeout_hours is a whole number from 1 to 720", nid)
         if t == "router":
             names = [str(s.get("name")) for s in n.get("sections") or []]
             if not names:
@@ -457,6 +468,11 @@ def _variables(
 
 
 def _templates(node: dict[str, Any]) -> list[str]:
+    extra = templates_of(node.get("instructions")) if node.get("type") != "human_approval" else []
+    return _node_templates(node) + extra
+
+
+def _node_templates(node: dict[str, Any]) -> list[str]:
     t = node.get("type")
     if t == "agent":
         return templates_of([node.get("task"), node.get("input")])
@@ -468,6 +484,8 @@ def _templates(node: dict[str, Any]) -> list[str]:
         return templates_of(node.get("items")) if isinstance(node.get("items"), str) else []
     if t == "end":
         return templates_of(node.get("output"))
+    if t == "human_approval":
+        return templates_of([node.get("input"), node.get("instructions")])
     if t == "router":
         return [
             v

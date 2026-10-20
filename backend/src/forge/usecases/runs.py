@@ -327,7 +327,9 @@ class UseCaseRuns:
                 step_list = [
                     st.model_copy(
                         update={
-                            "step_key": st.node_id,
+                            "step_key": st.node_id
+                            if st.node_type != "human_approval"
+                            else f"{st.node_id}:approval",
                             "agent_run_id": None,
                             "ref": None,
                             "input": None,

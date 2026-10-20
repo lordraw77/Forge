@@ -27,9 +27,11 @@ from forge.core.logging import get_logger
 from forge.core.models import utcnow
 from forge.prompts.service import PromptStudio, RunIn
 from forge.tools.service import ToolStudio
+from forge.usecases.approvals import ApprovalRuntime
 from forge.usecases.files import UseCaseFiles
-from forge.usecases.models import UseCaseRun, UseCaseRunStep
+from forge.usecases.models import Approval, UseCaseRun, UseCaseRunStep
 from forge.usecases.workflow import (
+    APPROVAL_ACTIVITY,
     BEGIN_ACTIVITY,
     FINISH_ACTIVITY,
     NODE_ACTIVITY,
@@ -67,7 +69,9 @@ class UseCaseRuntime:
         tools: ToolStudio,
         prompts: PromptStudio,
         files: UseCaseFiles,
+        approvals: ApprovalRuntime,
     ) -> None:
+        self.approvals = approvals
         self._sessions = sessions
         self._agents = agents
         self._tools = tools
@@ -97,7 +101,7 @@ class UseCaseRuntime:
     ) -> None:
         async with project_scope(self._sessions, project_id) as s:
             run = await s.get(UseCaseRun, run_id)
-            if run is None or run.status not in ("queued", "running"):
+            if run is None or run.status not in ("queued", "running", "waiting_approval"):
                 return
             status, code, message = (
                 str(result["status"]),
@@ -133,7 +137,7 @@ class UseCaseRuntime:
                 outputs = {**outputs, "file_error": problem_text}
         async with project_scope(self._sessions, project_id) as s:
             run = await s.get(UseCaseRun, run_id)
-            if run is None or run.status not in ("queued", "running"):
+            if run is None or run.status not in ("queued", "running", "waiting_approval"):
                 return
             run.status = status
             run.outputs = outputs
@@ -153,6 +157,11 @@ class UseCaseRuntime:
                 )
             if run.webhook_url:
                 run.webhook_status = "pending"
+            await s.execute(  # nobody can decide on a run that has ended
+                update(Approval)
+                .where(Approval.run_id == run_id, Approval.status == "pending")
+                .values(status="cancelled", decided_at=utcnow())
+            )
 
     async def _store_file(
         self,
@@ -278,6 +287,8 @@ class UseCaseRuntime:
             raise
         except ProblemError as exc:
             result = {"error_code": exc.code, "error": exc.title}
+        if result.get("needs_approval"):  # the step stays open while a person decides
+            return result
         latency = int((time.monotonic() - started) * 1000)
         async with project_scope(self._sessions, project_id) as s:
             row = await s.get(UseCaseRunStep, (run_id, key))
@@ -376,12 +387,9 @@ class UseCaseRuntime:
         version: int,
     ) -> dict[str, Any]:
         prepared = await self._tools.prepare_named(user_id, project_id, name, version)
-        if prepared.requires_approval:
-            return {
-                "error_code": "approval_not_available",
-                "error": "Human approval is not available yet",
-            }
         args = payload.get("args") or {}
+        if prepared.requires_approval and not payload.get("approved"):
+            return {"needs_approval": True, "planned_args": args}
         res = await prepared.execute(args)
         await self._tools.log_call(
             project_id, user_id, prepared, args, res, source="agent", run_id=run_id
@@ -427,7 +435,7 @@ class UseCaseActivities:
         self._rt = runtime
 
     def all(self) -> list[Any]:
-        return [self.begin, self.run_node, self.finish, self.notify]
+        return [self.begin, self.run_node, self.finish, self.notify, self.approval]
 
     @activity.defn(name=BEGIN_ACTIVITY)
     async def begin(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -461,3 +469,20 @@ class UseCaseActivities:
             uuid.UUID(payload["run_id"]),
             activity.info().attempt,
         )
+
+    @activity.defn(name=APPROVAL_ACTIVITY)
+    async def approval(self, payload: dict[str, Any]) -> dict[str, Any]:
+        async def beat() -> None:
+            while True:
+                activity.heartbeat()
+                await asyncio.sleep(HEARTBEAT_EVERY_S)
+
+        heartbeat = asyncio.create_task(beat())
+        try:
+            return await self._rt.approvals.wait(
+                uuid.UUID(payload["project_id"]), uuid.UUID(payload["run_id"]), payload
+            )
+        finally:
+            heartbeat.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await heartbeat

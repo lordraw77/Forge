@@ -38,6 +38,10 @@ export interface GraphNode {
   combine?: 'and' | 'or';
   max_iterations?: number;
   hitl?: boolean;
+  /** Approval: what to check, which Role Names may decide, hours to wait. */
+  instructions?: string;
+  assignees?: string[];
+  timeout_hours?: number;
 }
 
 export interface UseCaseGraph {

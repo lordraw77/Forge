@@ -38,6 +38,9 @@ import { CatalogView, filterCatalog } from './catalog-util';
     <header class="head">
       <h1 i18n>Use Cases Catalog</h1>
       <span class="spacer"></span>
+      @if (session.can('approval.decide')) {
+        <a nz-button routerLink="/approvals" data-testid="catalog-approvals-link" i18n>Approvals</a>
+      }
       <a nz-button routerLink="/catalog/runs" data-testid="catalog-runs-link" i18n>My runs</a>
     </header>
     @if (!session.project()) {

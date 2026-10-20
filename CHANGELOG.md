@@ -8,6 +8,11 @@ Phase 1 milestones M1.2 (LLM gateway), M1.3 (Prompt Studio), M1.4 (RAG on upload
 
 ### Added
 
+**Human in the loop (M2.4)**
+- Runs can **wait for a person**: an *Approval* node, a *Human in the loop* box on agent/tool/prompt nodes (the output is reviewed; a rejected agent re-runs with the feedback, up to 3 times) and tools flagged *requires approval* (the planned call is shown before it happens). The wait is durable (days), survives restarts and does not count against the run's time limit.
+- **Approvals page**: a review dialog with the text or tool arguments in an editor — approve, approve with changes, or reject with feedback. Decisions through the API too. Nodes can limit who decides by Role Name; approvals expire (default 72 h) and are cancelled with their run.
+- **Notifications**: email to the people who may decide (set `FORGE_SMTP_*`) with a **personal one-time link** to a public review page; opening the link decides nothing. The run's webhook is told when an approval is requested.
+
 **Catalog, sessions and runs for end users (M2.3d)**
 - **Use Cases Catalog** (`/catalog`): cards with search, category and tag filters, favorites and recently used; only the use cases the user's Role Name may run. The use case page builds the **input form** from the published version (including **file upload**: text, Markdown, CSV, JSON, PDF, DOCX, XLSX up to 100 MB) and lists the user's own runs.
 - **Runs and sessions**: a run page with live progress (server-sent events; a refreshed page picks the run up), the result, *Stop*, *Run again* with the same inputs, and the runs of the session; a run history. End users see progress and result only, never agents, prompts or graphs.

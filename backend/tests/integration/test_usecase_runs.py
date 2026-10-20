@@ -326,20 +326,6 @@ def test_failures_and_limits_name_the_cause_and_node(rt: dict[str, Any]) -> None
         "succeeded",
         "succeeded",
     ]
-    approval = new_uc(
-        rt,
-        "graph",
-        {
-            "nodes": [
-                node("start", "start"),
-                node("a", "agent", "start", agent_ref=worker),
-                node("ok", "human_approval", "a"),
-            ]
-        },
-    )
-    run = run_ok(rt, approval["id"])
-    assert run["status"] == "failed"
-    assert run["error_code"] == "approval_not_available"
     loop = new_uc(
         rt,
         "graph",

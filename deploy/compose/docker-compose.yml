@@ -28,6 +28,13 @@ x-backend: &backend
     FORGE_AGENT_ALLOW_PRIVATE_HOSTS: ${FORGE_AGENT_ALLOW_PRIVATE_HOSTS:-false}
     FORGE_TOOLS_ALLOW_PRIVATE_HOSTS: ${FORGE_TOOLS_ALLOW_PRIVATE_HOSTS:-false}
     FORGE_MCP_STDIO_ALLOWED: ${FORGE_MCP_STDIO_ALLOWED:-}
+    # Email for approval notifications (optional; no host = no email).
+    FORGE_SMTP_HOST: ${FORGE_SMTP_HOST:-}
+    FORGE_SMTP_PORT: ${FORGE_SMTP_PORT:-587}
+    FORGE_SMTP_USERNAME: ${FORGE_SMTP_USERNAME:-}
+    FORGE_SMTP_PASSWORD: ${FORGE_SMTP_PASSWORD:-}
+    FORGE_SMTP_FROM: ${FORGE_SMTP_FROM:-forge@localhost}
+    FORGE_SMTP_STARTTLS: ${FORGE_SMTP_STARTTLS:-true}
     # Corporate egress proxy (optional). Forge's own services never go through it.
     HTTP_PROXY: ${FORGE_HTTP_PROXY:-}
     HTTPS_PROXY: ${FORGE_HTTPS_PROXY:-}

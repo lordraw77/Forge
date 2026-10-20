@@ -11,6 +11,7 @@ export interface MenuEntry {
 export const MENU: readonly MenuEntry[] = [
   { path: 'projects', label: $localize`Projects Studio`, icon: 'project', phase: 1 },
   { path: 'catalog', label: $localize`Use Cases Catalog`, icon: 'appstore', phase: 2 },
+  { path: 'approvals', label: $localize`Approvals`, icon: 'safety-certificate', phase: 2 },
   { path: 'build', label: $localize`Build Your Own Use Case`, icon: 'apartment', phase: 2 },
   { path: 'prompts', label: $localize`Prompt Studio`, icon: 'edit', phase: 1 },
   { path: 'tools', label: $localize`Tools Studio`, icon: 'tool', phase: 1 },

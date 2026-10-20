@@ -4,6 +4,8 @@ export * from './adminModels.service';
 import { AdminModelsService } from './adminModels.service';
 export * from './agents.service';
 import { AgentsService } from './agents.service';
+export * from './approvals.service';
+import { ApprovalsService } from './approvals.service';
 export * from './auth.service';
 import { AuthService } from './auth.service';
 export * from './bundles.service';
@@ -36,6 +38,7 @@ export const APIS = [
   AdminService,
   AdminModelsService,
   AgentsService,
+  ApprovalsService,
   AuthService,
   BundlesService,
   DataService,

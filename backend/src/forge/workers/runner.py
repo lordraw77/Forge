@@ -150,7 +150,10 @@ async def build_runs(reg: QueueRegistration, settings: Settings) -> QueueRegistr
     reg.workflows += AGENT_WORKFLOWS + USECASE_WORKFLOWS
     reg.activities += AgentActivities(runtime).all()
     from forge.rag.service import ObjectStore
+    from forge.tenancy.service import TenancyService
+    from forge.usecases.approvals import ApprovalRuntime
     from forge.usecases.files import UseCaseFiles
+    from forge.usecases.mail import Mailer
 
     reg.activities += UseCaseActivities(
         UseCaseRuntime(
@@ -159,6 +162,9 @@ async def build_runs(reg: QueueRegistration, settings: Settings) -> QueueRegistr
             runtime_tools,
             prompts,
             UseCaseFiles(sessions, ObjectStore(settings)),
+            ApprovalRuntime(
+                sessions, TenancyService(sessions), Mailer(settings), settings, runtime_tools
+            ),
         )
     ).all()
     reg.closers += [

@@ -66,6 +66,16 @@ class Settings(BaseSettings):
     tools_allow_private_hosts: bool = False
     mcp_stdio_allowed: str = ""
 
+    # Email for approval notifications (M2.4); no host = no email, the Approvals page still works.
+    smtp_host: str = ""
+    smtp_port: int = Field(default=587, ge=1, le=65535)
+    smtp_username: str = ""
+    smtp_password: SecretStr | None = None
+    smtp_from: str = "forge@localhost"
+    smtp_starttls: bool = True
+    # Hours an approval waits when the node does not say (at most 720 per node).
+    approval_default_hours: int = Field(default=72, ge=1, le=720)
+
     # Boot-time log level, used until the GUI setting is loaded from the database.
     log_level: str = "INFO"
 
