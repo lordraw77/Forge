@@ -5,6 +5,7 @@ most the activity in flight; completed steps are in the workflow history."""
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from datetime import timedelta
 from typing import Any
 
@@ -20,6 +21,8 @@ with workflow.unsafe.imports_passed_through():
 BEGIN_ACTIVITY = "uc_begin_run"
 NODE_ACTIVITY = "uc_run_node"
 FINISH_ACTIVITY = "uc_finish_run"
+NOTIFY_ACTIVITY = "uc_notify_run"
+NOTIFY_ATTEMPTS = 4
 HEARTBEAT_TIMEOUT = timedelta(seconds=15)
 NODE_RETRY = RetryPolicy(
     maximum_attempts=4,
@@ -100,7 +103,18 @@ class UseCaseRunWorkflow:
         await workflow.execute_activity(
             FINISH_ACTIVITY,
             {**payload, "result": done},
-            start_to_close_timeout=timedelta(seconds=30),
+            start_to_close_timeout=timedelta(seconds=120),  # may render the output file
             retry_policy=EDGE_RETRY,
         )
+        with contextlib.suppress(ActivityError):  # a dead webhook never changes the run
+            await workflow.execute_activity(
+                NOTIFY_ACTIVITY,
+                payload,
+                start_to_close_timeout=timedelta(seconds=30),
+                retry_policy=RetryPolicy(
+                    maximum_attempts=NOTIFY_ATTEMPTS,
+                    initial_interval=timedelta(seconds=2),
+                    backoff_coefficient=3.0,
+                ),
+            )
         return {"status": done["status"]}

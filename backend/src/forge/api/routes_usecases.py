@@ -3,13 +3,19 @@ library with versions and lifecycle, end-user catalog view."""
 
 from __future__ import annotations
 
+import json
 import uuid
+from collections.abc import AsyncIterator
 from datetime import datetime
 from typing import Annotated, Any, Literal
+from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, File, Query, Request, Response, UploadFile, status
+from fastapi.responses import StreamingResponse
 
 from forge.api.deps import ProjectContext, project_permission, services
+from forge.core.errors import ProblemError
+from forge.usecases import render
 from forge.usecases.planner import PlanIn, PlanOut
 from forge.usecases.schemas import (
     CatalogAccessIn,
@@ -18,7 +24,10 @@ from forge.usecases.schemas import (
     CatalogOut,
     CatalogUseCase,
     CategoryIn,
+    RunFileOut,
     RunStartIn,
+    SessionDetail,
+    SessionOut,
     UseCaseCreateIn,
     UseCaseDetail,
     UseCaseDuplicateIn,
@@ -135,6 +144,20 @@ async def catalog_use_case(use_case_id: uuid.UUID, ctx: Runner, request: Request
     )
 
 
+@router.put("/catalog/use-cases/{use_case_id}/favorite", status_code=status.HTTP_204_NO_CONTENT)
+async def add_favorite(use_case_id: uuid.UUID, ctx: RunnerW, request: Request) -> None:
+    await services(request).usecases.set_favorite(
+        ctx.actor, ctx.project_id, use_case_id, True, see_all=_builds(ctx)
+    )
+
+
+@router.delete("/catalog/use-cases/{use_case_id}/favorite", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_favorite(use_case_id: uuid.UUID, ctx: RunnerW, request: Request) -> None:
+    await services(request).usecases.set_favorite(
+        ctx.actor, ctx.project_id, use_case_id, False, see_all=_builds(ctx)
+    )
+
+
 # ---- library
 @router.get("/use-cases", response_model=UseCasePage)
 async def list_use_cases(
@@ -238,15 +261,74 @@ def _sees_runs(ctx: ProjectContext) -> bool:
     return "run.read" in ctx.access.permissions
 
 
+_SSE_HEADERS = {"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no"}
+
+
+def _sse(event: dict[str, Any], event_id: int) -> bytes:
+    data = json.dumps(event, default=str)
+    return f"id: {event_id}\nevent: {event['type']}\ndata: {data}\n\n".encode()
+
+
+async def _event_stream(
+    request: Request, events: AsyncIterator[dict[str, Any]]
+) -> AsyncIterator[bytes]:
+    n = 0
+    async for event in events:
+        if await request.is_disconnected():
+            return
+        n += 1
+        yield _sse(event, n)
+
+
 @router.post("/use-cases/{use_case_id}/runs", response_model=UseCaseRunDetail, status_code=202)
 async def start_use_case_run(
-    use_case_id: uuid.UUID, body: RunStartIn, ctx: RunnerW, request: Request
-) -> UseCaseRunDetail:
+    use_case_id: uuid.UUID,
+    body: RunStartIn,
+    ctx: RunnerW,
+    request: Request,
+    response: Response,
+) -> UseCaseRunDetail | StreamingResponse:
     """Start a run. `published` (default) uses the live version with the catalog's visibility
-    rules; `test` runs the draft and needs `usecase.build`."""
-    return await services(request).usecase_runs.start(
-        ctx.actor, ctx.project_id, use_case_id, body, can_build=_builds(ctx)
+    rules; `test` runs the draft and needs `usecase.build`.
+
+    `delivery`: `async` answers 202 with the run (poll it, or give a `webhook_url`); `sync`
+    waits up to `timeout_s` and answers 200 with the finished run, or 202 if it is still going;
+    `stream` answers with server-sent events (`run`, `step`, `done`) until the run ends.
+    """
+    runs = services(request).usecase_runs
+    inspect = _sees_runs(ctx)
+    started = await runs.start(
+        ctx.actor, ctx.project_id, use_case_id, body, can_build=_builds(ctx), inspect=inspect
     )
+    if body.delivery == "stream":
+        return StreamingResponse(
+            _event_stream(
+                request,
+                runs.watch(
+                    ctx.actor,
+                    ctx.project_id,
+                    started.id,
+                    see_all=True,
+                    inspect=inspect,
+                ),
+            ),
+            status_code=200,
+            media_type="text/event-stream",
+            headers=_SSE_HEADERS,
+        )
+    if body.delivery == "sync":
+        done = await runs.wait(
+            ctx.actor,
+            ctx.project_id,
+            started.id,
+            see_all=True,
+            inspect=inspect,
+            timeout_s=body.timeout_s,
+        )
+        if done.status in ("succeeded", "failed", "cancelled"):
+            response.status_code = status.HTTP_200_OK
+        return done
+    return started
 
 
 @router.get("/use-case-runs", response_model=list[UseCaseRunOut])
@@ -254,6 +336,7 @@ async def list_use_case_runs(
     ctx: Runner,
     request: Request,
     use_case_id: uuid.UUID | None = None,
+    session_id: uuid.UUID | None = None,
     status_filter: Annotated[
         Literal["queued", "running", "waiting_approval", "succeeded", "failed", "cancelled"] | None,
         Query(alias="status"),
@@ -265,6 +348,7 @@ async def list_use_case_runs(
         ctx.project_id,
         see_all=_sees_runs(ctx),
         use_case_id=use_case_id,
+        session_id=session_id,
         status=status_filter,
         limit=limit,
     )
@@ -273,7 +357,27 @@ async def list_use_case_runs(
 @router.get("/use-case-runs/{run_id}", response_model=UseCaseRunDetail)
 async def get_use_case_run(run_id: uuid.UUID, ctx: Runner, request: Request) -> UseCaseRunDetail:
     return await services(request).usecase_runs.get(
-        ctx.actor, ctx.project_id, run_id, see_all=_sees_runs(ctx)
+        ctx.actor, ctx.project_id, run_id, see_all=_sees_runs(ctx), inspect=_sees_runs(ctx)
+    )
+
+
+@router.get("/use-case-runs/{run_id}/events")
+async def use_case_run_events(
+    run_id: uuid.UUID, ctx: Runner, request: Request
+) -> StreamingResponse:
+    """Progress of a run as server-sent events: `run`, `step` (one per step start/end) and
+    `done`. A reconnecting client gets the whole state again, so a refreshed page picks a
+    running run up. End users get step names and status only, never agents or prompts."""
+    runs = services(request).usecase_runs
+    see_all = _sees_runs(ctx)
+    await runs.get(ctx.actor, ctx.project_id, run_id, see_all=see_all, inspect=see_all)
+    return StreamingResponse(
+        _event_stream(
+            request,
+            runs.watch(ctx.actor, ctx.project_id, run_id, see_all=see_all, inspect=see_all),
+        ),
+        media_type="text/event-stream",
+        headers=_SSE_HEADERS,
     )
 
 
@@ -282,7 +386,130 @@ async def cancel_use_case_run(
     run_id: uuid.UUID, ctx: RunnerW, request: Request
 ) -> UseCaseRunDetail:
     return await services(request).usecase_runs.cancel(
-        ctx.actor, ctx.project_id, run_id, see_all=_sees_runs(ctx)
+        ctx.actor, ctx.project_id, run_id, see_all=_sees_runs(ctx), inspect=_sees_runs(ctx)
+    )
+
+
+@router.post("/use-case-runs/{run_id}/rerun", response_model=UseCaseRunDetail, status_code=202)
+async def rerun_use_case_run(run_id: uuid.UUID, ctx: RunnerW, request: Request) -> UseCaseRunDetail:
+    """Run again with the same inputs on the version live now, in the same session."""
+    return await services(request).usecase_runs.rerun(
+        ctx.actor,
+        ctx.project_id,
+        run_id,
+        see_all=_sees_runs(ctx),
+        can_build=_builds(ctx),
+        inspect=_sees_runs(ctx),
+    )
+
+
+def _attachment(name: str, content_type: str, size: int | None, body: Any) -> StreamingResponse:
+    ascii_name = name.encode("ascii", "replace").decode().replace('"', "'")
+    headers = {
+        "Content-Disposition": f'attachment; filename="{ascii_name}"; '
+        f"filename*=UTF-8''{quote(name)}",
+        "X-Content-Type-Options": "nosniff",
+        "Cache-Control": "private, no-store",
+    }
+    if size is not None:
+        headers["Content-Length"] = str(size)
+    return StreamingResponse(body, media_type=content_type, headers=headers)
+
+
+@router.get("/use-case-runs/{run_id}/export")
+async def export_use_case_run(
+    run_id: uuid.UUID,
+    ctx: Runner,
+    request: Request,
+    fmt: Annotated[Literal["markdown", "json"], Query(alias="format")] = "markdown",
+) -> StreamingResponse:
+    """The final output of a finished run as a Markdown or JSON file."""
+    run = await services(request).usecase_runs.get(
+        ctx.actor, ctx.project_id, run_id, see_all=_sees_runs(ctx), inspect=False
+    )
+    if run.status != "succeeded" or run.outputs is None:
+        raise ProblemError(409, "run_not_finished", "The run has no output to download")
+    value = run.outputs.get("result")
+    data = render.render(fmt, run.use_case_name, value)
+    stem = run.use_case_name.replace(" ", "_")[:80]
+    return _attachment(
+        f"{stem}.{render.EXTENSIONS[fmt]}", render.CONTENT_TYPES[fmt], len(data), iter([data])
+    )
+
+
+# ---- sessions
+@router.get("/use-case-sessions", response_model=list[SessionOut])
+async def list_use_case_sessions(
+    ctx: Runner, request: Request, use_case_id: uuid.UUID | None = None, limit: int = 50
+) -> list[SessionOut]:
+    """The caller's own sessions, latest first."""
+    return await services(request).usecase_runs.list_sessions(
+        ctx.actor, ctx.project_id, use_case_id=use_case_id, limit=limit
+    )
+
+
+@router.get("/use-case-sessions/{session_id}", response_model=SessionDetail)
+async def get_use_case_session(
+    session_id: uuid.UUID, ctx: Runner, request: Request
+) -> SessionDetail:
+    return await services(request).usecase_runs.get_session(ctx.actor, ctx.project_id, session_id)
+
+
+# ---- files
+@router.post("/use-case-files", response_model=RunFileOut, status_code=201)
+async def upload_input_file(
+    ctx: RunnerW, request: Request, file: Annotated[UploadFile, File()]
+) -> RunFileOut:
+    """Upload a file for a form field of type `file`; pass the returned id as the field value.
+    Text, Markdown, CSV, JSON, PDF, DOCX and XLSX up to 100 MB."""
+    return await services(request).usecase_runs.files.upload(
+        ctx.actor, ctx.project_id, "input", file.filename or "file", file.file, file.content_type
+    )
+
+
+@router.get("/use-case-files/{file_id}/content")
+async def download_use_case_file(
+    file_id: uuid.UUID, ctx: Runner, request: Request
+) -> StreamingResponse:
+    """An output file of a run (same visibility as the run) or a file the caller uploaded."""
+    item = await services(request).usecase_runs.files.download(
+        ctx.actor, ctx.project_id, file_id, see_all=_sees_runs(ctx)
+    )
+    return _attachment(item.name, item.content_type, item.size, item.body)
+
+
+@router.get("/use-cases/{use_case_id}/requirements-file", response_model=RunFileOut | None)
+async def get_requirements_file(
+    use_case_id: uuid.UUID, ctx: Builder, request: Request
+) -> RunFileOut | None:
+    return await services(request).usecase_runs.files.requirements_file(
+        ctx.actor, ctx.project_id, use_case_id
+    )
+
+
+@router.post(
+    "/use-cases/{use_case_id}/requirements-file", response_model=RunFileOut, status_code=201
+)
+async def upload_requirements_file(
+    use_case_id: uuid.UUID, ctx: BuilderW, request: Request, file: Annotated[UploadFile, File()]
+) -> RunFileOut:
+    """The optional document attached to the requirements (up to 100 MB); a new one replaces
+    the old. The Planner reads an excerpt of its text."""
+    return await services(request).usecase_runs.files.upload(
+        ctx.actor,
+        ctx.project_id,
+        "requirements",
+        file.filename or "file",
+        file.file,
+        file.content_type,
+        use_case_id=use_case_id,
+    )
+
+
+@router.delete("/use-cases/{use_case_id}/requirements-file", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_requirements_file(use_case_id: uuid.UUID, ctx: BuilderW, request: Request) -> None:
+    await services(request).usecase_runs.files.delete_requirements(
+        ctx.actor, ctx.project_id, use_case_id
     )
 
 

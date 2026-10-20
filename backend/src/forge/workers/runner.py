@@ -149,8 +149,17 @@ async def build_runs(reg: QueueRegistration, settings: Settings) -> QueueRegistr
 
     reg.workflows += AGENT_WORKFLOWS + USECASE_WORKFLOWS
     reg.activities += AgentActivities(runtime).all()
+    from forge.rag.service import ObjectStore
+    from forge.usecases.files import UseCaseFiles
+
     reg.activities += UseCaseActivities(
-        UseCaseRuntime(sessions, runtime, runtime_tools, prompts)
+        UseCaseRuntime(
+            sessions,
+            runtime,
+            runtime_tools,
+            prompts,
+            UseCaseFiles(sessions, ObjectStore(settings)),
+        )
     ).all()
     reg.closers += [
         stop_purger,

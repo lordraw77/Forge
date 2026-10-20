@@ -17,6 +17,7 @@ from forge.core.context import Actor
 from forge.core.errors import ProblemError
 from forge.gateway.service import Caller, Gateway
 from forge.usecases import definition as defs
+from forge.usecases.files import UseCaseFiles
 from forge.usecases.schemas import UseCaseIssueOut
 from forge.usecases.service import UseCaseStudio
 
@@ -109,9 +110,10 @@ def extract_json(text: str) -> dict[str, Any] | None:
 
 
 class Planner:
-    def __init__(self, gateway: Gateway, studio: UseCaseStudio) -> None:
+    def __init__(self, gateway: Gateway, studio: UseCaseStudio, files: UseCaseFiles) -> None:
         self._gateway = gateway
         self._studio = studio
+        self._files = files
 
     @staticmethod
     def _library(assets: dict[str, list[dict[str, Any]]]) -> str:
@@ -132,10 +134,15 @@ class Planner:
         assets = await self._studio.assets(actor, project_id)
         current = body.definition if body.definition is not None else uc.definition
         names = [str(f["name"]) for f in uc.input_fields]
+        attachment = await self._files.requirements_text(actor, project_id, use_case_id)
+        attached = (
+            f"Attached requirements document (excerpt):\n{attachment}\n\n" if attachment else ""
+        )
         context = (
             f"Pattern: {uc.pattern}\n"
             f"Use case: {uc.name}\n"
             f"Requirements:\n{uc.requirements or uc.description or '(none written yet)'}\n\n"
+            f"{attached}"
             f"Input form fields (variables): {', '.join(names) or '(none)'}\n"
             f"Output type: {uc.output_type}\n\n"
             f"Library\n{self._library(assets)}\n\n"

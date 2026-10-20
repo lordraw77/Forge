@@ -124,6 +124,10 @@ class UseCaseRun(Base):
     created_by: Mapped[uuid.UUID | None]
     started_at: Mapped[datetime | None]
     finished_at: Mapped[datetime | None]
+    session_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("use_case_session.id"))
+    webhook_url: Mapped[str | None]
+    webhook_status: Mapped[str | None]
+    webhook_error: Mapped[str | None]
 
 
 class UseCaseRunStep(Base):
@@ -149,3 +153,38 @@ class UseCaseRunStep(Base):
     latency_ms: Mapped[int] = mapped_column(default=0)
     started_at: Mapped[datetime] = mapped_column(default=utcnow)
     finished_at: Mapped[datetime | None]
+
+
+class UseCaseSession(Base):
+    __tablename__ = "use_case_session"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    project_id: Mapped[uuid.UUID]
+    use_case_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("use_case.id"))
+    title: Mapped[str] = mapped_column(default="")
+    created_by: Mapped[uuid.UUID | None]
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+
+class UseCaseFavorite(Base):
+    __tablename__ = "use_case_favorite"
+    project_id: Mapped[uuid.UUID]
+    user_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    use_case_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+
+class UseCaseFile(Base):
+    __tablename__ = "use_case_file"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    project_id: Mapped[uuid.UUID]
+    kind: Mapped[str]
+    use_case_id: Mapped[uuid.UUID | None]
+    run_id: Mapped[uuid.UUID | None]
+    name: Mapped[str]
+    content_type: Mapped[str]
+    size: Mapped[int] = mapped_column(BigInteger)
+    sha256: Mapped[str]
+    storage_key: Mapped[str]
+    created_by: Mapped[uuid.UUID | None]
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)

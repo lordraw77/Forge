@@ -40,7 +40,13 @@ import { PlanIn } from '../model/planIn';
 // @ts-ignore
 import { PlanOut } from '../model/planOut';
 // @ts-ignore
+import { RunFileOut } from '../model/runFileOut';
+// @ts-ignore
 import { RunStartIn } from '../model/runStartIn';
+// @ts-ignore
+import { SessionDetail } from '../model/sessionDetail';
+// @ts-ignore
+import { SessionOut } from '../model/sessionOut';
 // @ts-ignore
 import { UseCaseCreateIn } from '../model/useCaseCreateIn';
 // @ts-ignore
@@ -70,6 +76,11 @@ import { UseCaseVersionSummary } from '../model/useCaseVersionSummary';
 import { BASE_PATH, COLLECTION_FORMATS } from '../variables';
 import { Configuration } from '../configuration';
 import { BaseService } from '../api.base.service';
+
+export interface AddFavoriteRequestParams {
+  useCaseId: string;
+  projectId: string;
+}
 
 export interface CancelUseCaseRunRequestParams {
   runId: string;
@@ -114,6 +125,11 @@ export interface DeleteCategoryRequestParams {
   projectId: string;
 }
 
+export interface DeleteRequirementsFileRequestParams {
+  useCaseId: string;
+  projectId: string;
+}
+
 export interface DeleteUseCaseRequestParams {
   useCaseId: string;
   projectId: string;
@@ -126,14 +142,30 @@ export interface DiffVersionsRequestParams {
   right: number;
 }
 
+export interface DownloadUseCaseFileRequestParams {
+  fileId: string;
+  projectId: string;
+}
+
 export interface DuplicateUseCaseRequestParams {
   useCaseId: string;
   projectId: string;
   useCaseDuplicateIn: UseCaseDuplicateIn;
 }
 
+export interface ExportUseCaseRunRequestParams {
+  runId: string;
+  projectId: string;
+  format?: 'markdown' | 'json';
+}
+
 export interface GetCatalogAccessRequestParams {
   roleNameId: string;
+  projectId: string;
+}
+
+export interface GetRequirementsFileRequestParams {
+  useCaseId: string;
   projectId: string;
 }
 
@@ -144,6 +176,11 @@ export interface GetUseCaseRequestParams {
 
 export interface GetUseCaseRunRequestParams {
   runId: string;
+  projectId: string;
+}
+
+export interface GetUseCaseSessionRequestParams {
+  sessionId: string;
   projectId: string;
 }
 
@@ -160,7 +197,14 @@ export interface ListCatalogsRequestParams {
 export interface ListUseCaseRunsRequestParams {
   projectId: string;
   useCaseId?: string | null;
+  sessionId?: string | null;
   status?: 'queued' | 'running' | 'waiting_approval' | 'succeeded' | 'failed' | 'cancelled' | null;
+  limit?: number;
+}
+
+export interface ListUseCaseSessionsRequestParams {
+  projectId: string;
+  useCaseId?: string | null;
   limit?: number;
 }
 
@@ -189,6 +233,16 @@ export interface PublishUseCaseRequestParams {
   useCaseId: string;
   projectId: string;
   useCasePublishIn: UseCasePublishIn;
+}
+
+export interface RemoveFavoriteRequestParams {
+  useCaseId: string;
+  projectId: string;
+}
+
+export interface RerunUseCaseRunRequestParams {
+  runId: string;
+  projectId: string;
 }
 
 export interface SetCatalogAccessRequestParams {
@@ -227,7 +281,23 @@ export interface UpdateUseCaseRequestParams {
   useCaseUpdateIn: UseCaseUpdateIn;
 }
 
+export interface UploadInputFileRequestParams {
+  projectId: string;
+  file: Blob;
+}
+
+export interface UploadRequirementsFileRequestParams {
+  useCaseId: string;
+  projectId: string;
+  file: Blob;
+}
+
 export interface UseCaseAssetsRequestParams {
+  projectId: string;
+}
+
+export interface UseCaseRunEventsRequestParams {
+  runId: string;
   projectId: string;
 }
 
@@ -241,6 +311,103 @@ export class UseCasesService extends BaseService {
     @Optional() configuration?: Configuration,
   ) {
     super(basePath, configuration);
+  }
+
+  /**
+   * Add Favorite
+   * @endpoint put /api/v1/projects/{project_id}/catalog/use-cases/{use_case_id}/favorite
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public addFavorite(
+    requestParameters: AddFavoriteRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any>;
+  public addFavorite(
+    requestParameters: AddFavoriteRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<any>>;
+  public addFavorite(
+    requestParameters: AddFavoriteRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<any>>;
+  public addFavorite(
+    requestParameters: AddFavoriteRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const useCaseId = requestParameters?.useCaseId;
+    if (useCaseId === null || useCaseId === undefined) {
+      throw new Error(
+        'Required parameter useCaseId was null or undefined when calling addFavorite.',
+      );
+    }
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error(
+        'Required parameter projectId was null or undefined when calling addFavorite.',
+      );
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/catalog/use-cases/${this.configuration.encodeParam({ name: 'useCaseId', value: useCaseId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/favorite`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<any>('put', `${basePath}${localVarPath}`, {
+      context: localVarHttpContext,
+      responseType: <any>responseType_,
+      ...(withCredentials ? { withCredentials } : {}),
+      headers: localVarHeaders,
+      observe: observe,
+      ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+      reportProgress: reportProgress,
+    });
   }
 
   /**
@@ -1077,6 +1244,103 @@ export class UseCasesService extends BaseService {
   }
 
   /**
+   * Delete Requirements File
+   * @endpoint delete /api/v1/projects/{project_id}/use-cases/{use_case_id}/requirements-file
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public deleteRequirementsFile(
+    requestParameters: DeleteRequirementsFileRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any>;
+  public deleteRequirementsFile(
+    requestParameters: DeleteRequirementsFileRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<any>>;
+  public deleteRequirementsFile(
+    requestParameters: DeleteRequirementsFileRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<any>>;
+  public deleteRequirementsFile(
+    requestParameters: DeleteRequirementsFileRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const useCaseId = requestParameters?.useCaseId;
+    if (useCaseId === null || useCaseId === undefined) {
+      throw new Error(
+        'Required parameter useCaseId was null or undefined when calling deleteRequirementsFile.',
+      );
+    }
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error(
+        'Required parameter projectId was null or undefined when calling deleteRequirementsFile.',
+      );
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/use-cases/${this.configuration.encodeParam({ name: 'useCaseId', value: useCaseId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/requirements-file`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<any>('delete', `${basePath}${localVarPath}`, {
+      context: localVarHttpContext,
+      responseType: <any>responseType_,
+      ...(withCredentials ? { withCredentials } : {}),
+      headers: localVarHeaders,
+      observe: observe,
+      ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+      reportProgress: reportProgress,
+    });
+  }
+
+  /**
    * Delete Use Case
    * @endpoint delete /api/v1/projects/{project_id}/use-cases/{use_case_id}
    * @param requestParameters
@@ -1298,6 +1562,104 @@ export class UseCasesService extends BaseService {
   }
 
   /**
+   * Download Use Case File
+   * An output file of a run (same visibility as the run) or a file the caller uploaded.
+   * @endpoint get /api/v1/projects/{project_id}/use-case-files/{file_id}/content
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public downloadUseCaseFile(
+    requestParameters: DownloadUseCaseFileRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any>;
+  public downloadUseCaseFile(
+    requestParameters: DownloadUseCaseFileRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<any>>;
+  public downloadUseCaseFile(
+    requestParameters: DownloadUseCaseFileRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<any>>;
+  public downloadUseCaseFile(
+    requestParameters: DownloadUseCaseFileRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const fileId = requestParameters?.fileId;
+    if (fileId === null || fileId === undefined) {
+      throw new Error(
+        'Required parameter fileId was null or undefined when calling downloadUseCaseFile.',
+      );
+    }
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error(
+        'Required parameter projectId was null or undefined when calling downloadUseCaseFile.',
+      );
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/use-case-files/${this.configuration.encodeParam({ name: 'fileId', value: fileId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/content`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<any>('get', `${basePath}${localVarPath}`, {
+      context: localVarHttpContext,
+      responseType: <any>responseType_,
+      ...(withCredentials ? { withCredentials } : {}),
+      headers: localVarHeaders,
+      observe: observe,
+      ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+      reportProgress: reportProgress,
+    });
+  }
+
+  /**
    * Duplicate Use Case
    * @endpoint post /api/v1/projects/{project_id}/use-cases/{use_case_id}/duplicate
    * @param requestParameters
@@ -1410,6 +1772,116 @@ export class UseCasesService extends BaseService {
   }
 
   /**
+   * Export Use Case Run
+   * The final output of a finished run as a Markdown or JSON file.
+   * @endpoint get /api/v1/projects/{project_id}/use-case-runs/{run_id}/export
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public exportUseCaseRun(
+    requestParameters: ExportUseCaseRunRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any>;
+  public exportUseCaseRun(
+    requestParameters: ExportUseCaseRunRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<any>>;
+  public exportUseCaseRun(
+    requestParameters: ExportUseCaseRunRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<any>>;
+  public exportUseCaseRun(
+    requestParameters: ExportUseCaseRunRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const runId = requestParameters?.runId;
+    if (runId === null || runId === undefined) {
+      throw new Error(
+        'Required parameter runId was null or undefined when calling exportUseCaseRun.',
+      );
+    }
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error(
+        'Required parameter projectId was null or undefined when calling exportUseCaseRun.',
+      );
+    }
+    const format = requestParameters?.format;
+
+    let localVarQueryParameters = new OpenApiHttpParams(this.encoder);
+
+    localVarQueryParameters = this.addToHttpParams(
+      localVarQueryParameters,
+      'format',
+      <any>format,
+      QueryParamStyle.Form,
+      true,
+    );
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/use-case-runs/${this.configuration.encodeParam({ name: 'runId', value: runId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/export`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<any>('get', `${basePath}${localVarPath}`, {
+      context: localVarHttpContext,
+      params: localVarQueryParameters.toHttpParams(),
+      responseType: <any>responseType_,
+      ...(withCredentials ? { withCredentials } : {}),
+      headers: localVarHeaders,
+      observe: observe,
+      ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+      reportProgress: reportProgress,
+    });
+  }
+
+  /**
    * Get Catalog Access
    * @endpoint get /api/v1/projects/{project_id}/roles/{role_name_id}/catalog-access
    * @param requestParameters
@@ -1496,6 +1968,103 @@ export class UseCasesService extends BaseService {
     let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/roles/${this.configuration.encodeParam({ name: 'roleNameId', value: roleNameId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/catalog-access`;
     const { basePath, withCredentials } = this.configuration;
     return this.httpClient.request<CatalogAccessOut>('get', `${basePath}${localVarPath}`, {
+      context: localVarHttpContext,
+      responseType: <any>responseType_,
+      ...(withCredentials ? { withCredentials } : {}),
+      headers: localVarHeaders,
+      observe: observe,
+      ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+      reportProgress: reportProgress,
+    });
+  }
+
+  /**
+   * Get Requirements File
+   * @endpoint get /api/v1/projects/{project_id}/use-cases/{use_case_id}/requirements-file
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public getRequirementsFile(
+    requestParameters: GetRequirementsFileRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<RunFileOut>;
+  public getRequirementsFile(
+    requestParameters: GetRequirementsFileRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<RunFileOut>>;
+  public getRequirementsFile(
+    requestParameters: GetRequirementsFileRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<RunFileOut>>;
+  public getRequirementsFile(
+    requestParameters: GetRequirementsFileRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const useCaseId = requestParameters?.useCaseId;
+    if (useCaseId === null || useCaseId === undefined) {
+      throw new Error(
+        'Required parameter useCaseId was null or undefined when calling getRequirementsFile.',
+      );
+    }
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error(
+        'Required parameter projectId was null or undefined when calling getRequirementsFile.',
+      );
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/use-cases/${this.configuration.encodeParam({ name: 'useCaseId', value: useCaseId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/requirements-file`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<RunFileOut>('get', `${basePath}${localVarPath}`, {
       context: localVarHttpContext,
       responseType: <any>responseType_,
       ...(withCredentials ? { withCredentials } : {}),
@@ -1688,6 +2257,103 @@ export class UseCasesService extends BaseService {
     let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/use-case-runs/${this.configuration.encodeParam({ name: 'runId', value: runId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}`;
     const { basePath, withCredentials } = this.configuration;
     return this.httpClient.request<UseCaseRunDetail>('get', `${basePath}${localVarPath}`, {
+      context: localVarHttpContext,
+      responseType: <any>responseType_,
+      ...(withCredentials ? { withCredentials } : {}),
+      headers: localVarHeaders,
+      observe: observe,
+      ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+      reportProgress: reportProgress,
+    });
+  }
+
+  /**
+   * Get Use Case Session
+   * @endpoint get /api/v1/projects/{project_id}/use-case-sessions/{session_id}
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public getUseCaseSession(
+    requestParameters: GetUseCaseSessionRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<SessionDetail>;
+  public getUseCaseSession(
+    requestParameters: GetUseCaseSessionRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<SessionDetail>>;
+  public getUseCaseSession(
+    requestParameters: GetUseCaseSessionRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<SessionDetail>>;
+  public getUseCaseSession(
+    requestParameters: GetUseCaseSessionRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const sessionId = requestParameters?.sessionId;
+    if (sessionId === null || sessionId === undefined) {
+      throw new Error(
+        'Required parameter sessionId was null or undefined when calling getUseCaseSession.',
+      );
+    }
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error(
+        'Required parameter projectId was null or undefined when calling getUseCaseSession.',
+      );
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/use-case-sessions/${this.configuration.encodeParam({ name: 'sessionId', value: sessionId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<SessionDetail>('get', `${basePath}${localVarPath}`, {
       context: localVarHttpContext,
       responseType: <any>responseType_,
       ...(withCredentials ? { withCredentials } : {}),
@@ -1945,6 +2611,7 @@ export class UseCasesService extends BaseService {
       );
     }
     const useCaseId = requestParameters?.useCaseId;
+    const sessionId = requestParameters?.sessionId;
     const status = requestParameters?.status;
     const limit = requestParameters?.limit;
 
@@ -1954,6 +2621,14 @@ export class UseCasesService extends BaseService {
       localVarQueryParameters,
       'use_case_id',
       <any>useCaseId,
+      QueryParamStyle.Form,
+      true,
+    );
+
+    localVarQueryParameters = this.addToHttpParams(
+      localVarQueryParameters,
+      'session_id',
+      <any>sessionId,
       QueryParamStyle.Form,
       true,
     );
@@ -2000,6 +2675,119 @@ export class UseCasesService extends BaseService {
     let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/use-case-runs`;
     const { basePath, withCredentials } = this.configuration;
     return this.httpClient.request<Array<UseCaseRunOut>>('get', `${basePath}${localVarPath}`, {
+      context: localVarHttpContext,
+      params: localVarQueryParameters.toHttpParams(),
+      responseType: <any>responseType_,
+      ...(withCredentials ? { withCredentials } : {}),
+      headers: localVarHeaders,
+      observe: observe,
+      ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+      reportProgress: reportProgress,
+    });
+  }
+
+  /**
+   * List Use Case Sessions
+   * The caller\&#39;s own sessions, latest first.
+   * @endpoint get /api/v1/projects/{project_id}/use-case-sessions
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public listUseCaseSessions(
+    requestParameters: ListUseCaseSessionsRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<Array<SessionOut>>;
+  public listUseCaseSessions(
+    requestParameters: ListUseCaseSessionsRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<Array<SessionOut>>>;
+  public listUseCaseSessions(
+    requestParameters: ListUseCaseSessionsRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<Array<SessionOut>>>;
+  public listUseCaseSessions(
+    requestParameters: ListUseCaseSessionsRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error(
+        'Required parameter projectId was null or undefined when calling listUseCaseSessions.',
+      );
+    }
+    const useCaseId = requestParameters?.useCaseId;
+    const limit = requestParameters?.limit;
+
+    let localVarQueryParameters = new OpenApiHttpParams(this.encoder);
+
+    localVarQueryParameters = this.addToHttpParams(
+      localVarQueryParameters,
+      'use_case_id',
+      <any>useCaseId,
+      QueryParamStyle.Form,
+      true,
+    );
+
+    localVarQueryParameters = this.addToHttpParams(
+      localVarQueryParameters,
+      'limit',
+      <any>limit,
+      QueryParamStyle.Form,
+      true,
+    );
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/use-case-sessions`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<Array<SessionOut>>('get', `${basePath}${localVarPath}`, {
       context: localVarHttpContext,
       params: localVarQueryParameters.toHttpParams(),
       responseType: <any>responseType_,
@@ -2484,6 +3272,201 @@ export class UseCasesService extends BaseService {
   }
 
   /**
+   * Remove Favorite
+   * @endpoint delete /api/v1/projects/{project_id}/catalog/use-cases/{use_case_id}/favorite
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public removeFavorite(
+    requestParameters: RemoveFavoriteRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any>;
+  public removeFavorite(
+    requestParameters: RemoveFavoriteRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<any>>;
+  public removeFavorite(
+    requestParameters: RemoveFavoriteRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<any>>;
+  public removeFavorite(
+    requestParameters: RemoveFavoriteRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const useCaseId = requestParameters?.useCaseId;
+    if (useCaseId === null || useCaseId === undefined) {
+      throw new Error(
+        'Required parameter useCaseId was null or undefined when calling removeFavorite.',
+      );
+    }
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error(
+        'Required parameter projectId was null or undefined when calling removeFavorite.',
+      );
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/catalog/use-cases/${this.configuration.encodeParam({ name: 'useCaseId', value: useCaseId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/favorite`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<any>('delete', `${basePath}${localVarPath}`, {
+      context: localVarHttpContext,
+      responseType: <any>responseType_,
+      ...(withCredentials ? { withCredentials } : {}),
+      headers: localVarHeaders,
+      observe: observe,
+      ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+      reportProgress: reportProgress,
+    });
+  }
+
+  /**
+   * Rerun Use Case Run
+   * Run again with the same inputs on the version live now, in the same session.
+   * @endpoint post /api/v1/projects/{project_id}/use-case-runs/{run_id}/rerun
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public rerunUseCaseRun(
+    requestParameters: RerunUseCaseRunRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<UseCaseRunDetail>;
+  public rerunUseCaseRun(
+    requestParameters: RerunUseCaseRunRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<UseCaseRunDetail>>;
+  public rerunUseCaseRun(
+    requestParameters: RerunUseCaseRunRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<UseCaseRunDetail>>;
+  public rerunUseCaseRun(
+    requestParameters: RerunUseCaseRunRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const runId = requestParameters?.runId;
+    if (runId === null || runId === undefined) {
+      throw new Error(
+        'Required parameter runId was null or undefined when calling rerunUseCaseRun.',
+      );
+    }
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error(
+        'Required parameter projectId was null or undefined when calling rerunUseCaseRun.',
+      );
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/use-case-runs/${this.configuration.encodeParam({ name: 'runId', value: runId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/rerun`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<UseCaseRunDetail>('post', `${basePath}${localVarPath}`, {
+      context: localVarHttpContext,
+      responseType: <any>responseType_,
+      ...(withCredentials ? { withCredentials } : {}),
+      headers: localVarHeaders,
+      observe: observe,
+      ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+      reportProgress: reportProgress,
+    });
+  }
+
+  /**
    * Set Catalog Access
    * @endpoint put /api/v1/projects/{project_id}/roles/{role_name_id}/catalog-access
    * @param requestParameters
@@ -2709,7 +3692,7 @@ export class UseCasesService extends BaseService {
 
   /**
    * Start Use Case Run
-   * Start a run. &#x60;published&#x60; (default) uses the live version with the catalog\&#39;s visibility rules; &#x60;test&#x60; runs the draft and needs &#x60;usecase.build&#x60;.
+   * Start a run. &#x60;published&#x60; (default) uses the live version with the catalog\&#39;s visibility rules; &#x60;test&#x60; runs the draft and needs &#x60;usecase.build&#x60;.  &#x60;delivery&#x60;: &#x60;async&#x60; answers 202 with the run (poll it, or give a &#x60;webhook_url&#x60;); &#x60;sync&#x60; waits up to &#x60;timeout_s&#x60; and answers 200 with the finished run, or 202 if it is still going; &#x60;stream&#x60; answers with server-sent events (&#x60;run&#x60;, &#x60;step&#x60;, &#x60;done&#x60;) until the run ends.
    * @endpoint post /api/v1/projects/{project_id}/use-cases/{use_case_id}/runs
    * @param requestParameters
    * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
@@ -3157,6 +4140,254 @@ export class UseCasesService extends BaseService {
   }
 
   /**
+   * Upload Input File
+   * Upload a file for a form field of type &#x60;file&#x60;; pass the returned id as the field value. Text, Markdown, CSV, JSON, PDF, DOCX and XLSX up to 100 MB.
+   * @endpoint post /api/v1/projects/{project_id}/use-case-files
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public uploadInputFile(
+    requestParameters: UploadInputFileRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<RunFileOut>;
+  public uploadInputFile(
+    requestParameters: UploadInputFileRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<RunFileOut>>;
+  public uploadInputFile(
+    requestParameters: UploadInputFileRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<RunFileOut>>;
+  public uploadInputFile(
+    requestParameters: UploadInputFileRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error(
+        'Required parameter projectId was null or undefined when calling uploadInputFile.',
+      );
+    }
+    const file = requestParameters?.file;
+    if (file === null || file === undefined) {
+      throw new Error(
+        'Required parameter file was null or undefined when calling uploadInputFile.',
+      );
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    // to determine the Content-Type header
+    const consumes: string[] = ['multipart/form-data'];
+
+    const canConsumeForm = this.canConsumeForm(consumes);
+
+    let localVarFormParams: { append(param: string, value: any): any };
+    let localVarUseForm = false;
+    let localVarConvertFormParamsToString = false;
+    // use FormData to transmit files using content-type "multipart/form-data"
+    // see https://stackoverflow.com/questions/4007969/application-x-www-form-urlencoded-or-multipart-form-data
+    localVarUseForm = canConsumeForm;
+    if (localVarUseForm) {
+      localVarFormParams = new FormData();
+    } else {
+      localVarFormParams = new HttpParams({ encoder: this.encoder });
+    }
+
+    if (file !== undefined) {
+      localVarFormParams =
+        (localVarFormParams.append('file', <any>file) as any) || localVarFormParams;
+    }
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/use-case-files`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<RunFileOut>('post', `${basePath}${localVarPath}`, {
+      context: localVarHttpContext,
+      body: localVarConvertFormParamsToString ? localVarFormParams.toString() : localVarFormParams,
+      responseType: <any>responseType_,
+      ...(withCredentials ? { withCredentials } : {}),
+      headers: localVarHeaders,
+      observe: observe,
+      ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+      reportProgress: reportProgress,
+    });
+  }
+
+  /**
+   * Upload Requirements File
+   * The optional document attached to the requirements (up to 100 MB); a new one replaces the old. The Planner reads an excerpt of its text.
+   * @endpoint post /api/v1/projects/{project_id}/use-cases/{use_case_id}/requirements-file
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public uploadRequirementsFile(
+    requestParameters: UploadRequirementsFileRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<RunFileOut>;
+  public uploadRequirementsFile(
+    requestParameters: UploadRequirementsFileRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<RunFileOut>>;
+  public uploadRequirementsFile(
+    requestParameters: UploadRequirementsFileRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<RunFileOut>>;
+  public uploadRequirementsFile(
+    requestParameters: UploadRequirementsFileRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const useCaseId = requestParameters?.useCaseId;
+    if (useCaseId === null || useCaseId === undefined) {
+      throw new Error(
+        'Required parameter useCaseId was null or undefined when calling uploadRequirementsFile.',
+      );
+    }
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error(
+        'Required parameter projectId was null or undefined when calling uploadRequirementsFile.',
+      );
+    }
+    const file = requestParameters?.file;
+    if (file === null || file === undefined) {
+      throw new Error(
+        'Required parameter file was null or undefined when calling uploadRequirementsFile.',
+      );
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    // to determine the Content-Type header
+    const consumes: string[] = ['multipart/form-data'];
+
+    const canConsumeForm = this.canConsumeForm(consumes);
+
+    let localVarFormParams: { append(param: string, value: any): any };
+    let localVarUseForm = false;
+    let localVarConvertFormParamsToString = false;
+    // use FormData to transmit files using content-type "multipart/form-data"
+    // see https://stackoverflow.com/questions/4007969/application-x-www-form-urlencoded-or-multipart-form-data
+    localVarUseForm = canConsumeForm;
+    if (localVarUseForm) {
+      localVarFormParams = new FormData();
+    } else {
+      localVarFormParams = new HttpParams({ encoder: this.encoder });
+    }
+
+    if (file !== undefined) {
+      localVarFormParams =
+        (localVarFormParams.append('file', <any>file) as any) || localVarFormParams;
+    }
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/use-cases/${this.configuration.encodeParam({ name: 'useCaseId', value: useCaseId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/requirements-file`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<RunFileOut>('post', `${basePath}${localVarPath}`, {
+      context: localVarHttpContext,
+      body: localVarConvertFormParamsToString ? localVarFormParams.toString() : localVarFormParams,
+      responseType: <any>responseType_,
+      ...(withCredentials ? { withCredentials } : {}),
+      headers: localVarHeaders,
+      observe: observe,
+      ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+      reportProgress: reportProgress,
+    });
+  }
+
+  /**
    * Use Case Assets
    * The published agents, tools and prompts a workflow can pin (name, version, description).
    * @endpoint get /api/v1/projects/{project_id}/use-case-assets
@@ -3250,5 +4481,103 @@ export class UseCasesService extends BaseService {
         reportProgress: reportProgress,
       },
     );
+  }
+
+  /**
+   * Use Case Run Events
+   * Progress of a run as server-sent events: &#x60;run&#x60;, &#x60;step&#x60; (one per step start/end) and &#x60;done&#x60;. A reconnecting client gets the whole state again, so a refreshed page picks a running run up. End users get step names and status only, never agents or prompts.
+   * @endpoint get /api/v1/projects/{project_id}/use-case-runs/{run_id}/events
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public useCaseRunEvents(
+    requestParameters: UseCaseRunEventsRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any>;
+  public useCaseRunEvents(
+    requestParameters: UseCaseRunEventsRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<any>>;
+  public useCaseRunEvents(
+    requestParameters: UseCaseRunEventsRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<any>>;
+  public useCaseRunEvents(
+    requestParameters: UseCaseRunEventsRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const runId = requestParameters?.runId;
+    if (runId === null || runId === undefined) {
+      throw new Error(
+        'Required parameter runId was null or undefined when calling useCaseRunEvents.',
+      );
+    }
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error(
+        'Required parameter projectId was null or undefined when calling useCaseRunEvents.',
+      );
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/use-case-runs/${this.configuration.encodeParam({ name: 'runId', value: runId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/events`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<any>('get', `${basePath}${localVarPath}`, {
+      context: localVarHttpContext,
+      responseType: <any>responseType_,
+      ...(withCredentials ? { withCredentials } : {}),
+      headers: localVarHeaders,
+      observe: observe,
+      ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+      reportProgress: reportProgress,
+    });
   }
 }

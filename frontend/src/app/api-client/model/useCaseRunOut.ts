@@ -18,6 +18,7 @@ export interface UseCaseRunOut {
   finished_at: string | null;
   id: string;
   mode: string;
+  session_id?: string | null;
   started_at: string | null;
   status: UseCaseRunOut.StatusEnum;
   steps: number;

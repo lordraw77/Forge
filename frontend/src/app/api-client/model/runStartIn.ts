@@ -9,13 +9,35 @@
  */
 
 export interface RunStartIn {
+  /**
+   * `async` returns the run id at once; `sync` waits up to `timeout_s`; `stream` answers with server-sent events until the run ends
+   */
+  delivery?: RunStartIn.DeliveryEnum;
   inputs?: { [key: string]: any };
   /**
    * `test` runs the current draft (builders); `published` the live version
    */
   mode?: RunStartIn.ModeEnum;
+  /**
+   * Add the run to this session; a new session is opened if absent
+   */
+  session_id?: string | null;
+  /**
+   * Wait of `sync` delivery
+   */
+  timeout_s?: number;
+  /**
+   * Called with the run id and status when the run ends (host must be in the project\'s egress allowlist)
+   */
+  webhook_url?: string | null;
 }
 export namespace RunStartIn {
+  export const DeliveryEnum = {
+    Async: 'async',
+    Sync: 'sync',
+    Stream: 'stream',
+  } as const;
+  export type DeliveryEnum = (typeof DeliveryEnum)[keyof typeof DeliveryEnum];
   export const ModeEnum = {
     Test: 'test',
     Published: 'published',

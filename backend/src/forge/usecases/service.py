@@ -33,6 +33,8 @@ from forge.usecases.models import (
     Category,
     CategoryExclusion,
     UseCase,
+    UseCaseFavorite,
+    UseCaseRun,
     UseCaseVersion,
 )
 from forge.usecases.schemas import (
@@ -1187,8 +1189,29 @@ class UseCaseStudio:
                     )
                 )
             rows = (await s.execute(stmt)).all()
+            favorites = set(
+                (
+                    await s.execute(
+                        select(UseCaseFavorite.use_case_id).where(
+                            UseCaseFavorite.user_id == actor.id
+                        )
+                    )
+                ).scalars()
+            )
+            last_used = {
+                use_case: at
+                for use_case, at in (
+                    await s.execute(
+                        select(UseCaseRun.use_case_id, func.max(UseCaseRun.created_at))
+                        .where(UseCaseRun.created_by == actor.id, UseCaseRun.mode == "published")
+                        .group_by(UseCaseRun.use_case_id)
+                    )
+                ).all()
+            }
             return [
                 CatalogUseCase(
+                    favorite=uc.id in favorites,
+                    last_run_at=last_used.get(uc.id),
                     id=uc.id,
                     name=v.name,
                     description=v.description,
@@ -1214,6 +1237,33 @@ class UseCaseStudio:
             if item.id == use_case_id:
                 return item
         raise NOT_FOUND
+
+    async def set_favorite(
+        self,
+        actor: Actor,
+        project_id: uuid.UUID,
+        use_case_id: uuid.UUID,
+        favorite: bool,
+        *,
+        see_all: bool,
+    ) -> None:
+        """Mark or unmark a use case the caller can see (the same 404 rule as the catalog)."""
+        await self.catalog_item(actor, project_id, use_case_id, see_all=see_all)
+        assert actor.id is not None
+        async with self._session(actor, project_id) as s:
+            if favorite:
+                await s.execute(
+                    pg_insert(UseCaseFavorite)
+                    .values(project_id=project_id, user_id=actor.id, use_case_id=use_case_id)
+                    .on_conflict_do_nothing()
+                )
+            else:
+                await s.execute(
+                    delete(UseCaseFavorite).where(
+                        UseCaseFavorite.user_id == actor.id,
+                        UseCaseFavorite.use_case_id == use_case_id,
+                    )
+                )
 
     # ================================================================== bundles (ADR-018)
     async def export_use_case(

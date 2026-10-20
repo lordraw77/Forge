@@ -7,6 +7,7 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
+import { RunFileOut } from './runFileOut';
 import { RunStepOut } from './runStepOut';
 
 export interface UseCaseRunDetail {
@@ -16,6 +17,7 @@ export interface UseCaseRunDetail {
   error: string | null;
   error_code: string | null;
   error_node: string | null;
+  files?: Array<RunFileOut>;
   finished_at: string | null;
   /**
    * The definition as the builder has it now (default: the draft)
@@ -29,6 +31,7 @@ export interface UseCaseRunDetail {
    * The definition as the builder has it now (default: the draft)
    */
   outputs: { [key: string]: any } | null;
+  session_id?: string | null;
   started_at: string | null;
   status: UseCaseRunDetail.StatusEnum;
   step_list?: Array<RunStepOut>;
@@ -38,6 +41,9 @@ export interface UseCaseRunDetail {
   use_case_id: string;
   use_case_name: string;
   version: number | null;
+  webhook_error?: string | null;
+  webhook_status?: string | null;
+  webhook_url?: string | null;
 }
 export namespace UseCaseRunDetail {
   export const StatusEnum = {

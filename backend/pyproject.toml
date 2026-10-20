@@ -42,6 +42,10 @@ dependencies = [
     "pyyaml>=6.0.3",
     "jsonschema>=4.26.0",
     "httpx2>=2.13.1",
+    "python-docx>=1.2.0",
+    "openpyxl>=3.1.5",
+    "reportlab>=5.0.1",
+    "pypdf>=6.21.1",
 ]
 
 [project.optional-dependencies]
@@ -118,6 +122,8 @@ module = [
     "docling.*",
     "docling_core.*",
     "pgvector.*",
+    "openpyxl.*",
+    "reportlab.*",
 ]
 ignore_missing_imports = true
 

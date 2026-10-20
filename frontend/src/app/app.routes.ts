@@ -249,6 +249,30 @@ export const routes: Routes = [
         ],
       },
       {
+        path: 'catalog',
+        title: 'Use Cases Catalog · Forge',
+        children: [
+          {
+            path: '',
+            pathMatch: 'full',
+            loadComponent: () => import('./pages/catalog/catalog-page').then((m) => m.CatalogPage),
+          },
+          {
+            path: 'runs',
+            loadComponent: () => import('./pages/catalog/catalog-runs').then((m) => m.CatalogRuns),
+          },
+          {
+            path: 'runs/:runId',
+            loadComponent: () => import('./pages/catalog/catalog-run').then((m) => m.CatalogRun),
+          },
+          {
+            path: ':id',
+            loadComponent: () =>
+              import('./pages/catalog/catalog-use-case').then((m) => m.CatalogUseCasePage),
+          },
+        ],
+      },
+      {
         path: 'build',
         title: 'Build Your Own Use Case · Forge',
         loadComponent: () => import('./pages/usecases/usecase-studio').then((m) => m.UseCaseStudio),
@@ -304,7 +328,10 @@ export const routes: Routes = [
           import('./spikes/graph-editor/graph-editor').then((m) => m.GraphEditor),
       },
       ...MENU.filter(
-        (entry) => !['projects', 'prompts', 'rag', 'agents', 'tools', 'build'].includes(entry.path),
+        (entry) =>
+          !['projects', 'prompts', 'rag', 'agents', 'tools', 'build', 'catalog'].includes(
+            entry.path,
+          ),
       ).map((entry) => ({
         path: entry.path,
         component: Placeholder,

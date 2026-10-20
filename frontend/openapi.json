@@ -1828,6 +1828,34 @@
         "title": "Body_upload_documents",
         "type": "object"
       },
+      "Body_upload_input_file": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_input_file",
+        "type": "object"
+      },
+      "Body_upload_requirements_file": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_requirements_file",
+        "type": "object"
+      },
       "BuiltinToolRef": {
         "additionalProperties": false,
         "properties": {
@@ -2035,6 +2063,11 @@
             "title": "Description",
             "type": "string"
           },
+          "favorite": {
+            "default": false,
+            "title": "Favorite",
+            "type": "boolean"
+          },
           "icon": {
             "title": "Icon",
             "type": "string"
@@ -2056,6 +2089,18 @@
             "additionalProperties": true,
             "title": "Input Schema",
             "type": "object"
+          },
+          "last_run_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run At"
           },
           "name": {
             "title": "Name",
@@ -8328,6 +8373,46 @@
         "title": "RunDetail",
         "type": "object"
       },
+      "RunFileOut": {
+        "properties": {
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "content_type",
+          "size",
+          "created_at"
+        ],
+        "title": "RunFileOut",
+        "type": "object"
+      },
       "RunIn": {
         "additionalProperties": false,
         "properties": {
@@ -8548,6 +8633,17 @@
       "RunStartIn": {
         "additionalProperties": false,
         "properties": {
+          "delivery": {
+            "default": "async",
+            "description": "`async` returns the run id at once; `sync` waits up to `timeout_s`; `stream` answers with server-sent events until the run ends",
+            "enum": [
+              "async",
+              "sync",
+              "stream"
+            ],
+            "title": "Delivery",
+            "type": "string"
+          },
           "inputs": {
             "additionalProperties": true,
             "title": "Inputs",
@@ -8562,6 +8658,40 @@
             ],
             "title": "Mode",
             "type": "string"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Add the run to this session; a new session is opened if absent",
+            "title": "Session Id"
+          },
+          "timeout_s": {
+            "default": 60,
+            "description": "Wait of `sync` delivery",
+            "maximum": 300.0,
+            "minimum": 1.0,
+            "title": "Timeout S",
+            "type": "integer"
+          },
+          "webhook_url": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Called with the run id and status when the run ends (host must be in the project's egress allowlist)",
+            "title": "Webhook Url"
           }
         },
         "title": "RunStartIn",
@@ -8700,6 +8830,157 @@
           "finished_at"
         ],
         "title": "RunStepOut",
+        "type": "object"
+      },
+      "SessionDetail": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Status"
+          },
+          "run_list": {
+            "items": {
+              "$ref": "#/components/schemas/UseCaseRunOut"
+            },
+            "title": "Run List",
+            "type": "array"
+          },
+          "runs": {
+            "title": "Runs",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "use_case_id": {
+            "format": "uuid",
+            "title": "Use Case Id",
+            "type": "string"
+          },
+          "use_case_name": {
+            "title": "Use Case Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "use_case_id",
+          "use_case_name",
+          "title",
+          "runs",
+          "last_status",
+          "created_by",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "SessionDetail",
+        "type": "object"
+      },
+      "SessionOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Status"
+          },
+          "runs": {
+            "title": "Runs",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "use_case_id": {
+            "format": "uuid",
+            "title": "Use Case Id",
+            "type": "string"
+          },
+          "use_case_name": {
+            "title": "Use Case Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "use_case_id",
+          "use_case_name",
+          "title",
+          "runs",
+          "last_status",
+          "created_by",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "SessionOut",
         "type": "object"
       },
       "SettingOut": {
@@ -10522,6 +10803,13 @@
             ],
             "title": "Error Node"
           },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/RunFileOut"
+            },
+            "title": "Files",
+            "type": "array"
+          },
           "finished_at": {
             "anyOf": [
               {
@@ -10576,6 +10864,18 @@
               }
             ],
             "title": "Outputs"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
           },
           "started_at": {
             "anyOf": [
@@ -10639,6 +10939,39 @@
               }
             ],
             "title": "Version"
+          },
+          "webhook_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Webhook Error"
+          },
+          "webhook_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Webhook Status"
+          },
+          "webhook_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Webhook Url"
           }
         },
         "required": [
@@ -10742,6 +11075,18 @@
           "mode": {
             "title": "Mode",
             "type": "string"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
           },
           "started_at": {
             "anyOf": [
@@ -14936,6 +15281,96 @@
           }
         },
         "summary": "Catalog Use Case",
+        "tags": [
+          "use-cases"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/catalog/use-cases/{use_case_id}/favorite": {
+      "delete": {
+        "operationId": "remove_favorite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "use_case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Use Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Favorite",
+        "tags": [
+          "use-cases"
+        ]
+      },
+      "put": {
+        "operationId": "add_favorite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "use_case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Use Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Favorite",
         "tags": [
           "use-cases"
         ]
@@ -22020,6 +22455,112 @@
         ]
       }
     },
+    "/api/v1/projects/{project_id}/use-case-files": {
+      "post": {
+        "description": "Upload a file for a form field of type `file`; pass the returned id as the field value.\nText, Markdown, CSV, JSON, PDF, DOCX and XLSX up to 100 MB.",
+        "operationId": "upload_input_file",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_input_file"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunFileOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Input File",
+        "tags": [
+          "use-cases"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/use-case-files/{file_id}/content": {
+      "get": {
+        "description": "An output file of a run (same visibility as the run) or a file the caller uploaded.",
+        "operationId": "download_use_case_file",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "File Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Use Case File",
+        "tags": [
+          "use-cases"
+        ]
+      }
+    },
     "/api/v1/projects/{project_id}/use-case-runs": {
       "get": {
         "operationId": "list_use_case_runs",
@@ -22049,6 +22590,23 @@
                 }
               ],
               "title": "Use Case Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
             }
           },
           {
@@ -22219,6 +22777,306 @@
           }
         },
         "summary": "Cancel Use Case Run",
+        "tags": [
+          "use-cases"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/use-case-runs/{run_id}/events": {
+      "get": {
+        "description": "Progress of a run as server-sent events: `run`, `step` (one per step start/end) and\n`done`. A reconnecting client gets the whole state again, so a refreshed page picks a\nrunning run up. End users get step names and status only, never agents or prompts.",
+        "operationId": "use_case_run_events",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Use Case Run Events",
+        "tags": [
+          "use-cases"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/use-case-runs/{run_id}/export": {
+      "get": {
+        "description": "The final output of a finished run as a Markdown or JSON file.",
+        "operationId": "export_use_case_run",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "markdown",
+              "enum": [
+                "markdown",
+                "json"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Use Case Run",
+        "tags": [
+          "use-cases"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/use-case-runs/{run_id}/rerun": {
+      "post": {
+        "description": "Run again with the same inputs on the version live now, in the same session.",
+        "operationId": "rerun_use_case_run",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UseCaseRunDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rerun Use Case Run",
+        "tags": [
+          "use-cases"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/use-case-sessions": {
+      "get": {
+        "description": "The caller's own sessions, latest first.",
+        "operationId": "list_use_case_sessions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "use_case_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Use Case Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SessionOut"
+                  },
+                  "title": "Response List Use Case Sessions",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Use Case Sessions",
+        "tags": [
+          "use-cases"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/use-case-sessions/{session_id}": {
+      "get": {
+        "operationId": "get_use_case_session",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Use Case Session",
         "tags": [
           "use-cases"
         ]
@@ -22843,9 +23701,176 @@
         ]
       }
     },
+    "/api/v1/projects/{project_id}/use-cases/{use_case_id}/requirements-file": {
+      "delete": {
+        "operationId": "delete_requirements_file",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "use_case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Use Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Requirements File",
+        "tags": [
+          "use-cases"
+        ]
+      },
+      "get": {
+        "operationId": "get_requirements_file",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "use_case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Use Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/RunFileOut"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Requirements File"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Requirements File",
+        "tags": [
+          "use-cases"
+        ]
+      },
+      "post": {
+        "description": "The optional document attached to the requirements (up to 100 MB); a new one replaces\nthe old. The Planner reads an excerpt of its text.",
+        "operationId": "upload_requirements_file",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "use_case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Use Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_requirements_file"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunFileOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Requirements File",
+        "tags": [
+          "use-cases"
+        ]
+      }
+    },
     "/api/v1/projects/{project_id}/use-cases/{use_case_id}/runs": {
       "post": {
-        "description": "Start a run. `published` (default) uses the live version with the catalog's visibility\nrules; `test` runs the draft and needs `usecase.build`.",
+        "description": "Start a run. `published` (default) uses the live version with the catalog's visibility\nrules; `test` runs the draft and needs `usecase.build`.\n\n`delivery`: `async` answers 202 with the run (poll it, or give a `webhook_url`); `sync`\nwaits up to `timeout_s` and answers 200 with the finished run, or 202 if it is still going;\n`stream` answers with server-sent events (`run`, `step`, `done`) until the run ends.",
         "operationId": "start_use_case_run",
         "parameters": [
           {

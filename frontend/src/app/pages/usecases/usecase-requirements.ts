@@ -64,8 +64,25 @@ const MAX_REQUIREMENTS = 4000;
           i18n-nzLabel
         />
       </nz-select>
+      <label for="rq-file" i18n>Attach a document (optional)</label>
+      <input
+        type="file"
+        id="rq-file"
+        data-testid="rq-file"
+        accept=".txt,.md,.csv,.json,.pdf,.docx,.xlsx"
+        (change)="pick($event)"
+      />
+      <small class="muted" i18n
+        >Text, Markdown, CSV, JSON, PDF, DOCX or XLSX, up to 100 MB. The Planner reads an
+        excerpt.</small
+      >
       @if (error(); as e) {
         <nz-alert nzType="error" [nzMessage]="e" nzShowIcon />
+        @if (createdId(); as id) {
+          <a nz-button [routerLink]="['/build', id, 'workflow']" data-testid="rq-continue" i18n
+            >Continue without the file</a
+          >
+        }
       }
       <div class="buttons">
         <button
@@ -98,8 +115,14 @@ export class UseCaseRequirements {
   protected requirements = '';
   protected pattern: 'supervisor' | 'graph' = 'graph';
   protected readonly error = signal<string | null>(null);
+  protected readonly createdId = signal<string | null>(null);
+  private file: File | null = null;
   private readonly busy = signal(false);
   protected readonly canCreate = computed(() => !this.busy());
+
+  protected pick(event: Event): void {
+    this.file = (event.target as HTMLInputElement).files?.[0] ?? null;
+  }
 
   protected async create(): Promise<void> {
     const projectId = this.session.project()?.id;
@@ -119,6 +142,16 @@ export class UseCaseRequirements {
           },
         }),
       );
+      this.createdId.set(created.id);
+      if (this.file) {
+        await firstValueFrom(
+          this.api.uploadRequirementsFile({
+            projectId,
+            useCaseId: created.id,
+            file: this.file,
+          }),
+        );
+      }
       await this.router.navigate(['/build', created.id, 'workflow']);
     } catch (e) {
       this.error.set(problemMessage(e));

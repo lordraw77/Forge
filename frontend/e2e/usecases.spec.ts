@@ -30,7 +30,10 @@ test.describe('M2.3 use cases', () => {
       data: { name: uniqueName('Cases '), admin_user_id: me.user.id },
     });
     expect(project.status()).toBe(201);
-    await page.evaluate((id) => localStorage.setItem('forge.project', id), (await project.json()).project.id);
+    await page.evaluate(
+      (id) => localStorage.setItem('forge.project', id),
+      (await project.json()).project.id,
+    );
     await page.reload();
 
     // ---- Catalogs: built-ins, a new catalog with a category, access for a role
@@ -73,11 +76,7 @@ test.describe('M2.3 use cases', () => {
     // ---- Settings: Monaco edits the JSON definition
     await page.getByRole('link', { name: 'Settings' }).click();
     await expect(page.getByTestId('uc-definition').locator('.monaco-editor')).toBeVisible();
-    await fillTemplate(
-      page,
-      'uc-definition',
-      '{"nodes": [{"id": "start", "type": "start"}]}',
-    );
+    await fillTemplate(page, 'uc-definition', '{"nodes": [{"id": "start", "type": "start"}]}');
     await page.getByTestId('uc-save').click();
     await expect(page.getByText('Draft saved')).toBeVisible();
     expect(errors).toEqual([]);

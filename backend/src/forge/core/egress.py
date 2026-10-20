@@ -103,6 +103,11 @@ async def _check(url: str, allowed: list[str], allow_private: bool) -> tuple[str
     return host, port, addresses
 
 
+async def check_url(url: str, allowed_hosts: list[str], allow_private: bool = False) -> None:
+    """Raise EgressError when `request` would refuse this URL (same rules, no request)."""
+    await _check(url, allowed_hosts, allow_private)
+
+
 SENSITIVE_HEADERS = frozenset({"authorization", "proxy-authorization", "cookie"})
 
 

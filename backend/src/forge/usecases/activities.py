@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from temporalio import activity
 
 from forge.agents.service import AgentRuntime
+from forge.core import egress
 from forge.core.context import Actor
 from forge.core.db import project_scope
 from forge.core.errors import ProblemError
@@ -26,11 +27,14 @@ from forge.core.logging import get_logger
 from forge.core.models import utcnow
 from forge.prompts.service import PromptStudio, RunIn
 from forge.tools.service import ToolStudio
+from forge.usecases.files import UseCaseFiles
 from forge.usecases.models import UseCaseRun, UseCaseRunStep
 from forge.usecases.workflow import (
     BEGIN_ACTIVITY,
     FINISH_ACTIVITY,
     NODE_ACTIVITY,
+    NOTIFY_ACTIVITY,
+    NOTIFY_ATTEMPTS,
     UseCaseRunWorkflow,
 )
 
@@ -62,11 +66,13 @@ class UseCaseRuntime:
         agents: AgentRuntime,
         tools: ToolStudio,
         prompts: PromptStudio,
+        files: UseCaseFiles,
     ) -> None:
         self._sessions = sessions
         self._agents = agents
         self._tools = tools
         self._prompts = prompts
+        self._files = files
 
     # ------------------------------------------------------------------ begin / finish
     async def begin(self, project_id: uuid.UUID, run_id: uuid.UUID) -> dict[str, Any]:
@@ -76,7 +82,15 @@ class UseCaseRuntime:
                 return {"skipped": True}
             if run.status == "queued":
                 run.status, run.started_at = "running", utcnow()
-            return {"graph": run.graph, "inputs": run.inputs, "limits": run.limits}
+            graph, inputs, limits = run.graph, dict(run.inputs), run.limits
+        names = [n for n in graph.get("_files", []) if inputs.get(n)]
+        if names:  # file fields reach the graph as the text extracted at upload
+            texts = await self._files.file_texts(
+                project_id, [uuid.UUID(str(inputs[n])) for n in names]
+            )
+            for n in names:
+                inputs[n] = texts.get(str(inputs[n]), "")
+        return {"graph": graph, "inputs": inputs, "limits": limits}
 
     async def finish(
         self, project_id: uuid.UUID, run_id: uuid.UUID, result: dict[str, Any]
@@ -103,10 +117,24 @@ class UseCaseRuntime:
                             "decisions": result.get("decisions", []),
                         }
                     )
-            if outputs is None and status != "queued":
-                outputs = _json(
-                    {"skipped": result.get("skipped", []), "decisions": result.get("decisions", [])}
-                )
+            kind = (run.graph.get("_output") or {}).get("type")
+            created_by, name = run.created_by, run.use_case_name
+        if outputs is None and status != "queued":
+            outputs = _json(
+                {"skipped": result.get("skipped", []), "decisions": result.get("decisions", [])}
+            )
+        # The file is stored before the status changes: a reader who sees "succeeded" finds it.
+        wants_file = status == "succeeded" and kind in ("docx", "xlsx", "pdf")
+        if wants_file and outputs is not None:
+            problem_text = await self._store_file(
+                project_id, run_id, created_by, str(kind), name, outputs
+            )
+            if problem_text:
+                outputs = {**outputs, "file_error": problem_text}
+        async with project_scope(self._sessions, project_id) as s:
+            run = await s.get(UseCaseRun, run_id)
+            if run is None or run.status not in ("queued", "running"):
+                return
             run.status = status
             run.outputs = outputs
             run.error_code = str(code) if code else None
@@ -123,6 +151,70 @@ class UseCaseRuntime:
                     .where(UseCaseRunStep.run_id == run_id, UseCaseRunStep.status == "running")
                     .values(status="failed", error_code="run_ended", finished_at=utcnow())
                 )
+            if run.webhook_url:
+                run.webhook_status = "pending"
+
+    async def _store_file(
+        self,
+        project_id: uuid.UUID,
+        run_id: uuid.UUID,
+        created_by: uuid.UUID | None,
+        kind: str,
+        title: str,
+        outputs: dict[str, Any],
+    ) -> str | None:
+        """The DOCX, XLSX or PDF promised by the use case. A failure leaves the run succeeded
+        (the text output is intact) and is reported in the outputs."""
+        try:
+            await self._files.store_output(
+                project_id, run_id, created_by, kind, title, outputs.get("result")
+            )
+        except Exception as exc:
+            log.warning("usecase.output_file_failed", run=str(run_id), error=str(exc)[:200])
+            return f"The {kind} file could not be created"
+        return None
+
+    async def notify(self, project_id: uuid.UUID, run_id: uuid.UUID, attempt: int) -> None:
+        """Call the webhook of an asynchronous run (raises to be retried; the last attempt
+        records the failure). The body names the run and its status, never the output: the
+        receiver fetches the result with its own API key."""
+        async with project_scope(self._sessions, project_id) as s:
+            run = await s.get(UseCaseRun, run_id)
+            if run is None or not run.webhook_url or run.webhook_status == "delivered":
+                return
+            url = run.webhook_url
+            body = {
+                "event": "use_case_run.finished",
+                "run_id": str(run.id),
+                "use_case_id": str(run.use_case_id),
+                "use_case_name": run.use_case_name,
+                "version": run.version,
+                "status": run.status,
+                "error_code": run.error_code,
+                "cost": float(run.cost),
+                "finished_at": run.finished_at.isoformat() if run.finished_at else None,
+            }
+            actor = Actor(id=run.created_by, label="use_case_run")
+        problem: str | None = None
+        try:
+            hosts, allow_private = await self._tools.get_policy(actor, project_id)
+            res = await egress.request(
+                "POST", url, hosts, allow_private=allow_private, json_body=body, timeout_s=10
+            )
+            if not 200 <= res.status < 300:
+                problem = f"The receiver answered HTTP {res.status}"
+        except egress.EgressError as exc:
+            problem = exc.message
+        last = attempt >= NOTIFY_ATTEMPTS
+        async with project_scope(self._sessions, project_id) as s:
+            run = await s.get(UseCaseRun, run_id)
+            if run is not None:
+                if problem is None:
+                    run.webhook_status, run.webhook_error = "delivered", None
+                elif last:
+                    run.webhook_status, run.webhook_error = "failed", problem[:300]
+        if problem is not None and not last:
+            raise RuntimeError(problem)
 
     @staticmethod
     def _deliverable(run: UseCaseRun, value: Any) -> tuple[Any, str | None]:
@@ -335,7 +427,7 @@ class UseCaseActivities:
         self._rt = runtime
 
     def all(self) -> list[Any]:
-        return [self.begin, self.run_node, self.finish]
+        return [self.begin, self.run_node, self.finish, self.notify]
 
     @activity.defn(name=BEGIN_ACTIVITY)
     async def begin(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -360,4 +452,12 @@ class UseCaseActivities:
     async def finish(self, payload: dict[str, Any]) -> None:
         await self._rt.finish(
             uuid.UUID(payload["project_id"]), uuid.UUID(payload["run_id"]), payload["result"]
+        )
+
+    @activity.defn(name=NOTIFY_ACTIVITY)
+    async def notify(self, payload: dict[str, Any]) -> None:
+        await self._rt.notify(
+            uuid.UUID(payload["project_id"]),
+            uuid.UUID(payload["run_id"]),
+            activity.info().attempt,
         )

@@ -17,10 +17,12 @@ export interface CatalogUseCase {
   category: string;
   category_id: string;
   description: string;
+  favorite?: boolean;
   icon: string;
   id: string;
   input_fields: Array<{ [key: string]: any }>;
   input_schema: { [key: string]: any };
+  last_run_at?: string | null;
   name: string;
   output_type: string;
   tags: Array<string>;

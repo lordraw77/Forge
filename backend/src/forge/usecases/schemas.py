@@ -295,6 +295,8 @@ class CatalogUseCase(Out):
     input_schema: dict[str, Any]
     input_fields: list[dict[str, Any]]
     output_type: str
+    favorite: bool = False
+    last_run_at: datetime | None = None
 
 
 # ------------------------------------------------------------------ runs
@@ -306,6 +308,21 @@ class RunStartIn(In):
     mode: Literal["test", "published"] = Field(
         default="published",
         description="`test` runs the current draft (builders); `published` the live version",
+    )
+    session_id: uuid.UUID | None = Field(
+        default=None, description="Add the run to this session; a new session is opened if absent"
+    )
+    delivery: Literal["async", "sync", "stream"] = Field(
+        default="async",
+        description="`async` returns the run id at once; `sync` waits up to `timeout_s`; "
+        "`stream` answers with server-sent events until the run ends",
+    )
+    timeout_s: int = Field(default=60, ge=1, le=300, description="Wait of `sync` delivery")
+    webhook_url: str | None = Field(
+        default=None,
+        max_length=2000,
+        description="Called with the run id and status when the run ends (host must be in the "
+        "project's egress allowlist)",
     )
 
 
@@ -328,8 +345,18 @@ class RunStepOut(Out):
     finished_at: datetime | None
 
 
+class RunFileOut(Out):
+    id: uuid.UUID
+    kind: str
+    name: str
+    content_type: str
+    size: int
+    created_at: datetime
+
+
 class UseCaseRunOut(Out):
     id: uuid.UUID
+    session_id: uuid.UUID | None = None
     use_case_id: uuid.UUID
     use_case_name: str
     version: int | None
@@ -354,3 +381,23 @@ class UseCaseRunDetail(UseCaseRunOut):
     limits: dict[str, Any]
     graph: dict[str, Any] | None = None
     step_list: list[RunStepOut] = Field(default_factory=list)
+    files: list[RunFileOut] = Field(default_factory=list)
+    webhook_url: str | None = None
+    webhook_status: str | None = None
+    webhook_error: str | None = None
+
+
+class SessionOut(Out):
+    id: uuid.UUID
+    use_case_id: uuid.UUID
+    use_case_name: str
+    title: str
+    runs: int
+    last_status: str | None
+    created_by: uuid.UUID | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class SessionDetail(SessionOut):
+    run_list: list[UseCaseRunOut] = Field(default_factory=list)

@@ -8,6 +8,13 @@ Phase 1 milestones M1.2 (LLM gateway), M1.3 (Prompt Studio), M1.4 (RAG on upload
 
 ### Added
 
+**Catalog, sessions and runs for end users (M2.3d)**
+- **Use Cases Catalog** (`/catalog`): cards with search, category and tag filters, favorites and recently used; only the use cases the user's Role Name may run. The use case page builds the **input form** from the published version (including **file upload**: text, Markdown, CSV, JSON, PDF, DOCX, XLSX up to 100 MB) and lists the user's own runs.
+- **Runs and sessions**: a run page with live progress (server-sent events; a refreshed page picks the run up), the result, *Stop*, *Run again* with the same inputs, and the runs of the session; a run history. End users see progress and result only, never agents, prompts or graphs.
+- **Outputs**: Markdown and JSON downloads; **DOCX, XLSX and PDF** generated from the final output, stored in object storage with the run and checked against the run's visibility.
+- **Run API**: `delivery` `async` (with an optional **webhook** called when the run ends, retried, restricted to the project's egress hosts), `sync` (waits up to a timeout) or `stream` (SSE). API keys see the use cases of their creator's Role Name.
+- The requirements page accepts an **attached document** (up to 100 MB) that the Planner reads. The home page opens the catalog and Build Your Own.
+
 **Build Your Own (M2.3c)**
 - Three pages: **requirements** (natural language, up to 4000 characters, pattern), **workflow** with the Planner chat and either the agent team (drag to reorder) or the **visual canvas** with a node drawer, and a **test page** with the input form, the graph with the current node highlighted, a timeline and one live pane per agent. *Publish* asks description, catalog, category and note.
 - **Planner Agent**: knows the project's published agents, tools and prompts, proposes a complete workflow, checks it with the same validator as the editor and repairs it (up to 3 attempts), lists the capabilities the library lacks. It only proposes; you apply and save.

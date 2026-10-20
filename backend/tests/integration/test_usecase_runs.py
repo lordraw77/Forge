@@ -188,9 +188,10 @@ def test_published_run_pins_the_version_and_follows_catalog_access(rt: dict[str,
             },
         )
     )
-    again = ok(e.get(f"{base}/use-case-runs/{run['id']}"))
+    again = ok(b.get(f"{base}/use-case-runs/{run['id']}"))
     assert again["version"] == 1
     assert again["graph"]["nodes"][1]["type"] == "agent"
+    assert ok(e.get(f"{base}/use-case-runs/{run['id']}"))["graph"] is None  # end users: no graph
     # End users see their own runs only; a builder sees all.
     mine = ok(e.get(f"{base}/use-case-runs"))
     assert [r["id"] for r in mine] == [run["id"]]

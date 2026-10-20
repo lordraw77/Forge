@@ -1,4 +1,5 @@
 import { Component, computed, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzIconModule } from 'ng-zorro-antd/icon';
@@ -8,18 +9,18 @@ import { Session } from '../../core/session';
 /** Home (spec Part 2): greeting, two main actions, recent activity of the last 15 days. */
 @Component({
   selector: 'forge-home',
-  imports: [NzButtonModule, NzCardModule, NzIconModule],
+  imports: [RouterLink, NzButtonModule, NzCardModule, NzIconModule],
   template: `
     <section class="hero">
       <h1 i18n>Welcome, {{ userName() }}</h1>
       <p i18n>Build, publish and run generative and agentic AI solutions.</p>
       <div class="actions">
-        <button nz-button nzType="primary" [disabled]="true">
+        <a nz-button nzType="primary" routerLink="/catalog" data-testid="home-catalog">
           <span nz-icon nzType="appstore"></span><span i18n>Explore Use Cases Catalog</span>
-        </button>
-        <button nz-button [disabled]="true">
+        </a>
+        <a nz-button routerLink="/build" data-testid="home-build">
           <span nz-icon nzType="apartment"></span><span i18n>Build Your Own Use Case</span>
-        </button>
+        </a>
       </div>
     </section>
 
