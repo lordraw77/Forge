@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -34,6 +35,7 @@ DEFAULT_ROLE_NAMES = {
 }
 DEFAULT_KEY_SCOPES = ["llm.invoke", "usecase.run", "run.read"]
 KEY_PREFIX = "fk"
+TOUCH_EVERY_S = 60.0
 MAX_INVITES = 500
 
 NOT_FOUND = ProblemError(404, "not_found", "Project not found")
@@ -112,6 +114,7 @@ class ProjectSummary:
 class TenancyService:
     def __init__(self, sessions: async_sessionmaker[AsyncSession]) -> None:
         self._sessions = sessions
+        self._touched: dict[uuid.UUID, float] = {}
 
     # ---- role types
     async def role_types(self, s: AsyncSession) -> dict[str, RoleType]:
@@ -892,12 +895,17 @@ class TenancyService:
                 row.expires_at is not None and row.expires_at <= utcnow()
             ):
                 return None
-        async with project_scope(self._sessions, row.project_id) as s:
-            await s.execute(
-                text(
-                    "UPDATE api_key SET last_used_at = now() WHERE id = :k "
-                    "AND (last_used_at IS NULL OR last_used_at < now() - interval '1 minute')"
-                ),
-                {"k": row.id},
-            )
+        # `last_used_at` has minute resolution: touching it costs a transaction, so once per
+        # minute per process is enough (the SQL guard still covers several processes).
+        now = time.monotonic()
+        if now - self._touched.get(row.id, -TOUCH_EVERY_S) >= TOUCH_EVERY_S:
+            self._touched[row.id] = now
+            async with project_scope(self._sessions, row.project_id) as s:
+                await s.execute(
+                    text(
+                        "UPDATE api_key SET last_used_at = now() WHERE id = :k "
+                        "AND (last_used_at IS NULL OR last_used_at < now() - interval '1 minute')"
+                    ),
+                    {"k": row.id},
+                )
         return ApiKeyPrincipal(row.id, row.project_id, frozenset(row.scopes), row.created_by)

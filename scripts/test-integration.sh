@@ -26,8 +26,21 @@ SQL
 
 url="postgresql+asyncpg://${FORGE_DB_USER}:${FORGE_DB_PASSWORD}@127.0.0.1:${port}/${test_db}"
 
+# AC11: a database that is empty at every run, migrated by `forge migrate` like a first install.
+fresh_db="${FORGE_DB_NAME}_fresh"
+"${compose[@]}" exec -T db psql -v ON_ERROR_STOP=1 -U postgres -d postgres -q <<SQL
+DROP DATABASE IF EXISTS ${fresh_db} WITH (FORCE);
+CREATE DATABASE ${fresh_db} OWNER ${FORGE_DB_USER};
+SQL
+"${compose[@]}" exec -T db psql -v ON_ERROR_STOP=1 -U postgres -d "${fresh_db}" -q \
+  -c "CREATE EXTENSION IF NOT EXISTS vector" \
+  -c "REVOKE CREATE ON SCHEMA public FROM PUBLIC"
+fresh_url="postgresql+asyncpg://${FORGE_DB_USER}:${FORGE_DB_PASSWORD}@127.0.0.1:${port}/${fresh_db}"
+
 cd backend
 FORGE_DATABASE_URL="$url" uv run forge migrate
+FORGE_DATABASE_URL="$fresh_url" uv run forge migrate
+export FORGE_TEST_FRESH_DATABASE_URL="$fresh_url"
 # RAG tests use their own index alias, bucket and Temporal task queue (see test_rag.py).
 FORGE_TEST_DATABASE_URL="$url" \
 FORGE_TEST_REDIS_URL="redis://:${VALKEY_PASSWORD}@127.0.0.1:${FORGE_VALKEY_PORT:-6379}/15" \
