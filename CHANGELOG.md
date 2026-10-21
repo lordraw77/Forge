@@ -8,6 +8,10 @@ Phase 1 milestones M1.2 (LLM gateway), M1.3 (Prompt Studio), M1.4 (RAG on upload
 
 ### Added
 
+**MVP hardening (M2.7)**
+- **Email settings in the console** (Super Admin → Email): mail server, sender, STARTTLS and an encrypted password, with a test message. Applies without restart; the `FORGE_SMTP_*` environment values still work when nothing is set there.
+- Gateway overhead cut by a database transaction per call (`last_used_at` of API keys is touched once a minute); a fresh-install test (AC11) and a performance baseline (`FORGE_PERF=1`) join the suite; `filesystem` sources are bound to projects in `FORGE_SOURCE_ROOTS`.
+
 **Analytics and scheduled sources (M2.6)**
 - **Analytics** page for Project Admins: calls, cost, tokens, errors and latency (p50/p95, TTFT) over time and by model, user and error code; guardrail interventions; adoption (active users, use case and agent runs); a reconciliation of agent run totals against the gateway calls of their steps (AC9). **Model Insights** in the Super Admin console covers every model, provider and project. The **activity log** (admin actions and runs, searchable) and the home page's **recent activity** (last 15 days) read from the same records; how far back they reach is the setting `activity.retention` (default 180 days, nothing is deleted).
 - **Scheduled sources** for data collections (Projects Studio → Sources): S3 and compatible stores, a web crawler, REST/JSON APIs, SQL queries on a project data source, Git repositories over HTTPS, and mounted directories (SMB/NFS shares, enabled with `FORGE_SOURCE_ROOTS`). Each source has an interval or is manual, keeps its credentials encrypted, fetches only what changed and deletes from the collection what disappeared at the source (a mass disappearance is held back until confirmed). Run history per source. The ingest worker image now includes `git`.

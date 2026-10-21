@@ -13,6 +13,7 @@ from forge.agents.service import AgentStudio, RunEvents
 from forge.analytics.service import Analytics
 from forge.bundles.service import Bundles
 from forge.core.context import Actor, RequestContext
+from forge.core.crypto import Envelope
 from forge.core.errors import ProblemError
 from forge.core.settings import Settings
 from forge.gateway.service import Gateway
@@ -30,6 +31,7 @@ from forge.rag.service import Rag
 from forge.tenancy.service import GroupMappings, ProjectAccess, TenancyService
 from forge.tools.service import ToolStudio
 from forge.usecases.approvals import Approvals
+from forge.usecases.mail import Mailer
 from forge.usecases.planner import Planner
 from forge.usecases.runs import UseCaseRuns
 from forge.usecases.service import UseCaseStudio
@@ -61,6 +63,8 @@ class Services:
     approvals: Approvals
     guardrails: Guardrails
     analytics: Analytics
+    mailer: Mailer
+    envelope: Envelope
     planner: Planner
     run_events: RunEvents
     bundles: Bundles

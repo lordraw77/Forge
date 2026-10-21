@@ -22,6 +22,8 @@ export * from './identity.service';
 import { IdentityService } from './identity.service';
 export * from './me.service';
 import { MeService } from './me.service';
+export * from './notifications.service';
+import { NotificationsService } from './notifications.service';
 export * from './openai.service';
 import { OpenaiService } from './openai.service';
 export * from './projectModels.service';
@@ -53,6 +55,7 @@ export const APIS = [
   HealthService,
   IdentityService,
   MeService,
+  NotificationsService,
   OpenaiService,
   ProjectModelsService,
   ProjectsService,

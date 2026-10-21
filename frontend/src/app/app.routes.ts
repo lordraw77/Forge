@@ -129,6 +129,10 @@ export const routes: Routes = [
             loadComponent: () => import('./pages/admin/admin-audit').then((m) => m.AdminAudit),
           },
           {
+            path: 'email',
+            loadComponent: () => import('./pages/admin/admin-email').then((m) => m.AdminEmail),
+          },
+          {
             path: 'insights',
             loadComponent: () =>
               import('./pages/admin/admin-insights').then((m) => m.AdminInsights),

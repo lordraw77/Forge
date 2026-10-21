@@ -9,7 +9,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Request, status
 from pydantic import ValidationError
 
-from forge.admin.service import UnknownSettingError, audit
+from forge.admin.service import DEDICATED, UnknownSettingError, audit
 from forge.api.deps import Principal, services, super_admin
 from forge.api.schemas import (
     AdminProjectOut,
@@ -175,7 +175,9 @@ async def query_audit(
 async def list_settings(_p: Admin, request: Request) -> list[SettingOut]:
     snap = services(request).store.snapshot()
     return [
-        SettingOut(key=k, value=v["value"], version=v["version"]) for k, v in sorted(snap.items())
+        SettingOut(key=k, value=v["value"], version=v["version"])
+        for k, v in sorted(snap.items())
+        if k not in DEDICATED
     ]
 
 
@@ -183,6 +185,8 @@ async def list_settings(_p: Admin, request: Request) -> list[SettingOut]:
 async def put_setting(key: str, body: dict[str, Any], p: Admin, request: Request) -> SettingOut:
     svc = services(request)
     store = svc.store
+    if key in DEDICATED:
+        raise ProblemError(409, "dedicated_setting", f"'{key}' has its own screen and endpoint")
     if key == "auth.local_login" and body.get("enabled") is False:
         listed = await svc.providers.list_providers()
         if not any(v.provider.enabled for v in listed):

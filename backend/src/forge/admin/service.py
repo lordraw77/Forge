@@ -2,6 +2,7 @@
 
 from forge.admin import audit, secrets
 from forge.admin.settings_store import (
+    DEDICATED,
     REGISTRY,
     Eula,
     GatewayLimits,
@@ -10,6 +11,7 @@ from forge.admin.settings_store import (
     PasswordPolicy,
     SessionPolicy,
     SettingsStore,
+    SmtpSettings,
     TotpPolicy,
     UnknownSettingError,
     listen_dsn,
@@ -17,6 +19,7 @@ from forge.admin.settings_store import (
 )
 
 __all__ = [
+    "DEDICATED",
     "REGISTRY",
     "Eula",
     "GatewayLimits",
@@ -25,6 +28,7 @@ __all__ = [
     "PasswordPolicy",
     "SessionPolicy",
     "SettingsStore",
+    "SmtpSettings",
     "TotpPolicy",
     "UnknownSettingError",
     "audit",

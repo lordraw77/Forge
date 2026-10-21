@@ -27,6 +27,7 @@ from forge.api import (
     routes_guardrails,
     routes_idp,
     routes_models,
+    routes_notifications,
     routes_projects,
     routes_prompts,
     routes_rag,
@@ -57,6 +58,7 @@ from forge.tenancy.service import GroupMappings, TenancyService
 from forge.tools.service import ToolStudio
 from forge.usecases.approvals import Approvals
 from forge.usecases.files import UseCaseFiles
+from forge.usecases.mail import Mailer
 from forge.usecases.planner import Planner
 from forge.usecases.runs import UseCaseRuns
 from forge.usecases.service import UseCaseStudio
@@ -201,6 +203,8 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
             approvals=Approvals(app.state.sessions, tenancy),
             guardrails=gateway.guardrails,
             analytics=Analytics(app.state.sessions, store),
+            mailer=Mailer(settings, store, app.state.sessions, envelope),
+            envelope=envelope,
             planner=Planner(gateway, usecases, usecase_files),
             run_events=run_events,
             bundles=Bundles(prompts, rag, gateway, tenancy, agents, usecases),
@@ -256,6 +260,7 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
     app.include_router(routes_approvals.router)
     app.include_router(routes_approvals.public_router)
     app.include_router(routes_guardrails.router)
+    app.include_router(routes_notifications.router)
     app.include_router(routes_analytics.project_router)
     app.include_router(routes_analytics.admin_router)
     app.include_router(routes_analytics.me_router)

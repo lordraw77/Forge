@@ -75,6 +75,20 @@ class ActivityRetention(BaseModel):
     days: int = Field(default=180, ge=1, le=3650)
 
 
+class SmtpSettings(BaseModel):
+    """Outgoing mail for approval notifications, set from the console (Super Admin → Email).
+    The password lives in the encrypted secret store; this row only points at it. Empty host =
+    use the FORGE_SMTP_* environment values, if any. Not editable through the generic
+    settings route (it could point at any secret)."""
+
+    host: str = Field(default="", max_length=255)
+    port: int = Field(default=587, ge=1, le=65535)
+    username: str = Field(default="", max_length=255)
+    from_address: str = Field(default="forge@localhost", max_length=255)
+    starttls: bool = True
+    password_secret_id: str | None = None
+
+
 REGISTRY: dict[str, type[BaseModel]] = {
     "auth.password_policy": PasswordPolicy,
     "auth.lockout": LockoutPolicy,
@@ -84,7 +98,10 @@ REGISTRY: dict[str, type[BaseModel]] = {
     "system.eula": Eula,
     "gateway.limits": GatewayLimits,
     "activity.retention": ActivityRetention,
+    "notifications.smtp": SmtpSettings,
 }
+# Settings with their own endpoints: absent from the generic list and not writable through it.
+DEDICATED = frozenset({"notifications.smtp"})
 
 M = TypeVar("M", bound=BaseModel)
 

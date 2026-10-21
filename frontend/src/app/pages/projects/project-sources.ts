@@ -144,13 +144,18 @@ const CREDENTIAL_EXAMPLES: Record<string, string> = {
           <label for="src-name" i18n>Name</label>
           <input nz-input id="src-name" [(ngModel)]="form.name" />
           <label i18n>Collection</label>
-          <nz-select [(ngModel)]="form.collection_id" [nzDisabled]="!!editing">
+          <nz-select
+            nzId="src-collection"
+            [(ngModel)]="form.collection_id"
+            [nzDisabled]="!!editing"
+          >
             @for (c of collections(); track c.id) {
               <nz-option [nzValue]="c.id" [nzLabel]="c.name" />
             }
           </nz-select>
           <label i18n>Type</label>
           <nz-select
+            nzId="src-type"
             [(ngModel)]="form.type"
             [nzDisabled]="!!editing"
             (ngModelChange)="typeChanged()"

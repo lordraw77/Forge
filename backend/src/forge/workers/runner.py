@@ -164,7 +164,11 @@ async def build_runs(reg: QueueRegistration, settings: Settings) -> QueueRegistr
             prompts,
             UseCaseFiles(sessions, ObjectStore(settings)),
             ApprovalRuntime(
-                sessions, TenancyService(sessions), Mailer(settings), settings, runtime_tools
+                sessions,
+                TenancyService(sessions),
+                Mailer(settings, store, sessions, envelope),
+                settings,
+                runtime_tools,
             ),
             gateway.guardrails,
         )

@@ -1082,6 +1082,17 @@
     "2437959718409217676": "Nuova sorgente",
     "1798549187808915011": "Modifica sorgente",
     "8063509250247192672": "{$PH} deve essere un oggetto JSON",
-    "3008420115644088420": "Configurazione"
+    "3008420115644088420": "Configurazione",
+    "821734627168206971": " Le richieste di approvazione arrivano via email alle persone che possono deciderle. Lascia vuoto il server per non inviare nulla; la pagina Approvazioni funziona anche senza email. ",
+    "2859740933719126012": "Questi valori arrivano dall'ambiente FORGE_SMTP_*. Salvando qui li sostituisci.",
+    "2188854519574316630": "Server",
+    "6117946241126833991": "Porta",
+    "5312727456282218392": "Nome utente",
+    "1747890577780176954": "Indirizzo mittente",
+    "750941674056336957": "Usa STARTTLS",
+    "1980007958971234231": "Rimuovi password",
+    "8286386665879349285": "Invia un messaggio di prova",
+    "8775141552411690432": "(invariata)",
+    "5853597265344459552": "Messaggio inviato"
   }
 }
