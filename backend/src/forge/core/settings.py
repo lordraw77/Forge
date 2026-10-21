@@ -65,6 +65,9 @@ class Settings(BaseSettings):
     # this flag is on; MCP `stdio` runs only the executables listed here (comma separated).
     tools_allow_private_hosts: bool = False
     mcp_stdio_allowed: str = ""
+    # Directories (comma separated) that `filesystem` RAG sources may read: mount SMB or NFS shares
+    # there. Empty = the connector is off (E2.13).
+    source_roots: str = ""
 
     # Email for approval notifications (M2.4); no host = no email, the Approvals page still works.
     smtp_host: str = ""

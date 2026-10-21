@@ -25,6 +25,7 @@ const LABELS: Record<string, string> = {
   'auth.local_login': $localize`Local login`,
   'system.eula': $localize`Terms of use (EULA)`,
   'gateway.limits': $localize`LLM gateway limits (0 = unlimited)`,
+  'activity.retention': $localize`Activity and analytics retention (days)`,
 };
 
 /** Super Admin console → Settings: GUI for runtime settings, applied without restart (ADR-007). */

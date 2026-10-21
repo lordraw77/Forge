@@ -10,6 +10,7 @@ from fastapi import Request
 
 from forge.admin.service import SettingsStore
 from forge.agents.service import AgentStudio, RunEvents
+from forge.analytics.service import Analytics
 from forge.bundles.service import Bundles
 from forge.core.context import Actor, RequestContext
 from forge.core.errors import ProblemError
@@ -59,6 +60,7 @@ class Services:
     usecase_runs: UseCaseRuns
     approvals: Approvals
     guardrails: Guardrails
+    analytics: Analytics
     planner: Planner
     run_events: RunEvents
     bundles: Bundles

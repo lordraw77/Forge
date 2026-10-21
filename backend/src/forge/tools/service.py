@@ -205,6 +205,43 @@ class ToolStudio:
         async with self._session(actor.id, project_id) as s:
             return await self._hosts(s, project_id), self._settings.tools_allow_private_hosts
 
+    async def read_rows(
+        self, project_id: uuid.UUID, datasource: str, query: str, row_limit: int
+    ) -> tuple[list[str], list[list[Any]], bool]:
+        """Run one read-only query on a project data source, for scheduled RAG sources (E2.13).
+        Same guards as the SQL tool: one SELECT, read-only transaction, host policy."""
+        async with self._session(None, project_id) as s:
+            hosts = await self._hosts(s, project_id)
+            ds = (
+                await s.execute(
+                    select(DataSource).where(func.lower(DataSource.name) == datasource.lower())
+                )
+            ).scalar_one_or_none()
+            if ds is None:
+                raise ProblemError(
+                    422, "unknown_datasource", f"Data source '{datasource}' not found"
+                )
+            source = runtime.ResolvedDataSource(
+                ds.host,
+                ds.port,
+                ds.database,
+                ds.username,
+                await secrets.get(s, self._envelope, ds.secret_id),
+                ds.ssl_mode,
+            )
+        result = await runtime.run_sql(
+            SqlConfig(datasource=datasource, query=query, row_limit=row_limit),
+            {},
+            timeout_s=60,
+            allowed_hosts=hosts,
+            allow_private=self._settings.tools_allow_private_hosts,
+            source=source,
+        )
+        if result.status != "ok":
+            raise ProblemError(422, result.error_code or "query_failed", result.content)
+        out = result.output
+        return list(out["columns"]), [list(r) for r in out["rows"]], bool(out["truncated"])
+
     @staticmethod
     async def _hosts(s: AsyncSession, project_id: uuid.UUID) -> list[str]:
         row = await s.get(ToolPolicy, project_id)

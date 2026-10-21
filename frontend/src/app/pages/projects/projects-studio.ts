@@ -33,6 +33,9 @@ type Notice = { severity: 'success' | 'error' | 'info'; text: string } | null;
         <a routerLink="models" routerLinkActive="active" i18n>Models</a>
         @if (session.can('asset.write')) {
           <a routerLink="data" routerLinkActive="active" data-testid="tab-data" i18n>Data</a>
+          <a routerLink="sources" routerLinkActive="active" data-testid="tab-sources" i18n
+            >Sources</a
+          >
           <a routerLink="transfer" routerLinkActive="active" data-testid="tab-transfer" i18n
             >Export / Import</a
           >

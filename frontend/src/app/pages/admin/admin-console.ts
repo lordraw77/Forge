@@ -13,6 +13,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
       <a routerLink="auth" routerLinkActive="active" i18n>Authentication</a>
       <a routerLink="settings" routerLinkActive="active" i18n>Settings</a>
       <a routerLink="audit" routerLinkActive="active" i18n>Audit log</a>
+      <a routerLink="insights" routerLinkActive="active" i18n>Model Insights</a>
     </nav>
     <router-outlet />
   `,

@@ -69,6 +69,12 @@ class GatewayLimits(BaseModel):
     cache_ttl_max_s: int = Field(default=86400, ge=1, le=2_592_000)
 
 
+class ActivityRetention(BaseModel):
+    """How far back dashboards and the activity log read (E2.14). Nothing is deleted."""
+
+    days: int = Field(default=180, ge=1, le=3650)
+
+
 REGISTRY: dict[str, type[BaseModel]] = {
     "auth.password_policy": PasswordPolicy,
     "auth.lockout": LockoutPolicy,
@@ -77,6 +83,7 @@ REGISTRY: dict[str, type[BaseModel]] = {
     "auth.local_login": LocalLogin,
     "system.eula": Eula,
     "gateway.limits": GatewayLimits,
+    "activity.retention": ActivityRetention,
 }
 
 M = TypeVar("M", bound=BaseModel)

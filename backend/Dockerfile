@@ -32,6 +32,12 @@ LABEL org.opencontainers.image.title="forge-backend" \
       org.opencontainers.image.version="${VERSION}"
 RUN groupadd --system --gid 10001 forge \
  && useradd --system --uid 10001 --gid forge --home-dir /app --shell /usr/sbin/nologin forge
+# git: the ingestion worker clones repositories for scheduled RAG sources (E2.13).
+RUN case " $EXTRAS " in *" ingest "*) \
+      apt-get update \
+      && apt-get install -y --no-install-recommends git ca-certificates \
+      && rm -rf /var/lib/apt/lists/* ;; \
+    esac
 WORKDIR /app
 COPY --from=build --chown=forge:forge /app/.venv /app/.venv
 COPY --from=build --chown=forge:forge /app/alembic.ini /app/alembic.ini

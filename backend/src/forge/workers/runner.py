@@ -11,6 +11,7 @@ import contextlib
 import os
 import signal
 import time
+import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -180,6 +181,61 @@ async def build_runs(reg: QueueRegistration, settings: Settings) -> QueueRegistr
     return reg
 
 
+async def _start_sources(
+    reg: QueueRegistration,
+    settings: Settings,
+    sessions: Any,
+    objects: Any,
+    search: Any,
+) -> Callable[[], Awaitable[None]]:
+    """Scheduled RAG sources (E2.13): the sync workflow and the loop that starts due syncs."""
+    from types import SimpleNamespace
+
+    from forge.core.context import SYSTEM
+    from forge.core.crypto import Envelope
+    from forge.rag.collections import CollectionService
+    from forge.rag.service import roots_for, source_roots
+    from forge.rag.sources.activities import (
+        SOURCE_WORKFLOWS,
+        SourceActivities,
+        scheduler_loop,
+    )
+    from forge.rag.sources.connectors import SourceContext
+    from forge.rag.sources.sync import SyncEngine
+    from forge.rag.starter import IngestStarter
+    from forge.tools.service import ToolStudio
+
+    assert settings.master_key is not None
+    envelope = Envelope.from_master_key(settings.master_key.get_secret_value())
+    tools = ToolStudio(sessions, envelope, settings)
+    starter = IngestStarter(settings)
+    roots = source_roots(settings)
+
+    async def no_principals(_project_id: uuid.UUID) -> Any:
+        return SimpleNamespace(groups={}, roles={})
+
+    collections = CollectionService(sessions, objects, search, starter, no_principals)
+
+    async def context(project_id: uuid.UUID, secret: dict[str, Any]) -> SourceContext:
+        hosts, allow_private = await tools.get_policy(SYSTEM, project_id)
+
+        async def rows(ds: str, query: str, limit: int) -> Any:
+            return await tools.read_rows(project_id, ds, query, limit)
+
+        return SourceContext(hosts, allow_private, secret, roots_for(roots, project_id), rows)
+
+    reg.workflows += SOURCE_WORKFLOWS
+    reg.activities += SourceActivities(SyncEngine(sessions, collections, envelope, context)).all()
+    task = asyncio.create_task(scheduler_loop(sessions, starter))
+
+    async def stop() -> None:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+
+    return stop
+
+
 async def build_registrations(queue: str, settings: Settings) -> QueueRegistration:
     """`runs` runs agents (E1.18); `ingest` runs RAG ingestion (E1.15), which needs the
     database, object storage, OpenSearch and the gateway (embeddings) in this process."""
@@ -228,7 +284,15 @@ async def build_registrations(queue: str, settings: Settings) -> QueueRegistrati
     reg.warming = asyncio.get_running_loop().run_in_executor(None, warm_up)
     reg.workflows += WORKFLOWS
     reg.activities += activities.all()
-    reg.closers += [gateway.stop, store.stop, search.aclose, cache.aclose, engine.dispose]
+    scheduler = await _start_sources(reg, settings, sessions, objects, search)
+    reg.closers += [
+        scheduler,
+        gateway.stop,
+        store.stop,
+        search.aclose,
+        cache.aclose,
+        engine.dispose,
+    ]
     return reg
 
 

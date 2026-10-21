@@ -14,10 +14,12 @@ from fastapi import FastAPI, Request, Response
 from forge import __version__
 from forge.admin.service import SettingsStore, listen_dsn
 from forge.agents.service import AgentStudio, RunEvents, RunStarter
+from forge.analytics.service import Analytics
 from forge.api import (
     health,
     routes_admin,
     routes_agents,
+    routes_analytics,
     routes_approvals,
     routes_auth,
     routes_bundles,
@@ -28,6 +30,7 @@ from forge.api import (
     routes_projects,
     routes_prompts,
     routes_rag,
+    routes_sources,
     routes_tools,
     routes_usecases,
     routes_v1,
@@ -153,6 +156,7 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
             prompts,
             tenancy.acl_terms,
             tenancy.acl_principals,
+            envelope,
         )
         run_events = RunEvents(app.state.redis)
         tools = ToolStudio(app.state.sessions, envelope, settings)
@@ -196,6 +200,7 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
             usecase_runs=usecase_runs,
             approvals=Approvals(app.state.sessions, tenancy),
             guardrails=gateway.guardrails,
+            analytics=Analytics(app.state.sessions, store),
             planner=Planner(gateway, usecases, usecase_files),
             run_events=run_events,
             bundles=Bundles(prompts, rag, gateway, tenancy, agents, usecases),
@@ -244,12 +249,16 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
     app.include_router(routes_prompts.router)
     app.include_router(routes_data.router)
     app.include_router(routes_rag.router)
+    app.include_router(routes_sources.router)
     app.include_router(routes_agents.router)
     app.include_router(routes_tools.router)
     app.include_router(routes_usecases.router)
     app.include_router(routes_approvals.router)
     app.include_router(routes_approvals.public_router)
     app.include_router(routes_guardrails.router)
+    app.include_router(routes_analytics.project_router)
+    app.include_router(routes_analytics.admin_router)
+    app.include_router(routes_analytics.me_router)
     app.include_router(routes_bundles.router)
     app.add_middleware(routes_data.BodyLimit)
     app.include_router(routes_v1.router)

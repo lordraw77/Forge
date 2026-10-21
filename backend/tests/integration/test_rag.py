@@ -51,8 +51,7 @@ Engineering salary bands are reviewed every March by the compensation committee.
 """
 
 
-@pytest.fixture(scope="module")
-def settings() -> Settings:
+def make_settings(**extra: Any) -> Settings:
     run = uuid.uuid4().hex[:8]
     return Settings(
         database_url=os.environ["FORGE_TEST_DATABASE_URL"],
@@ -70,7 +69,13 @@ def settings() -> Settings:
         search_index="forge-test-chunks",
         temporal_address=os.environ["FORGE_TEST_TEMPORAL_ADDRESS"],
         temporal_ingest_queue=f"ingest-test-{run}",
+        **extra,
     )
+
+
+@pytest.fixture(scope="module")
+def settings() -> Settings:
+    return make_settings()
 
 
 @pytest.fixture(scope="module")

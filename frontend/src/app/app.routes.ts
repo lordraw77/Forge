@@ -60,6 +60,11 @@ export const routes: Routes = [
             loadComponent: () => import('./pages/projects/project-data').then((m) => m.ProjectData),
           },
           {
+            path: 'sources',
+            loadComponent: () =>
+              import('./pages/projects/project-sources').then((m) => m.ProjectSources),
+          },
+          {
             path: 'transfer',
             loadComponent: () =>
               import('./pages/projects/project-bundles').then((m) => m.ProjectBundles),
@@ -122,6 +127,11 @@ export const routes: Routes = [
           {
             path: 'audit',
             loadComponent: () => import('./pages/admin/admin-audit').then((m) => m.AdminAudit),
+          },
+          {
+            path: 'insights',
+            loadComponent: () =>
+              import('./pages/admin/admin-insights').then((m) => m.AdminInsights),
           },
         ],
       },
@@ -261,6 +271,12 @@ export const routes: Routes = [
           import('./pages/governance/guardrails-page').then((m) => m.GuardrailsPage),
       },
       {
+        path: 'analytics',
+        title: 'Analytics · Forge',
+        loadComponent: () =>
+          import('./pages/analytics/analytics-page').then((m) => m.AnalyticsPage),
+      },
+      {
         path: 'approvals',
         title: 'Approvals · Forge',
         loadComponent: () =>
@@ -356,6 +372,7 @@ export const routes: Routes = [
             'build',
             'catalog',
             'governance',
+            'analytics',
           ].includes(entry.path),
       ).map((entry) => ({
         path: entry.path,

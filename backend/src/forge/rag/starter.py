@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from typing import Any
 
 from temporalio.client import Client
 from temporalio.common import WorkflowIDConflictPolicy
@@ -17,6 +18,7 @@ log = get_logger(__name__)
 
 DOCUMENT_WORKFLOW = "IngestDocument"
 KB_WORKFLOW = "IndexKnowledgeBase"
+SOURCE_WORKFLOW = "SyncSource"
 
 
 class IngestStarter:
@@ -37,7 +39,13 @@ class IngestStarter:
                 )
             return self._client
 
-    async def _start(self, workflow: str, workflow_id: str, payload: dict[str, str]) -> bool:
+    async def _start(
+        self,
+        workflow: str,
+        workflow_id: str,
+        payload: dict[str, Any],
+        conflict: WorkflowIDConflictPolicy = WorkflowIDConflictPolicy.TERMINATE_EXISTING,
+    ) -> bool:
         try:
             client = await self.client()
             await client.start_workflow(
@@ -45,7 +53,7 @@ class IngestStarter:
                 payload,
                 id=workflow_id,
                 task_queue=self.queue,
-                id_conflict_policy=WorkflowIDConflictPolicy.TERMINATE_EXISTING,
+                id_conflict_policy=conflict,
             )
             return True
         except Exception as exc:  # Temporal down: the caller reports `pending`
@@ -66,4 +74,24 @@ class IngestStarter:
             KB_WORKFLOW,
             f"index-kb-{kb_id}",
             {"project_id": str(project_id), "kb_id": str(kb_id)},
+        )
+
+    async def source(
+        self,
+        project_id: uuid.UUID,
+        source_id: uuid.UUID,
+        trigger: str,
+        allow_mass_delete: bool = False,
+    ) -> bool:
+        """A sync already running for this source is left alone."""
+        return await self._start(
+            SOURCE_WORKFLOW,
+            f"sync-source-{source_id}",
+            {
+                "project_id": str(project_id),
+                "source_id": str(source_id),
+                "trigger": trigger,
+                "allow_mass_delete": allow_mass_delete,
+            },
+            WorkflowIDConflictPolicy.USE_EXISTING,
         )

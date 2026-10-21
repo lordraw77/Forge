@@ -112,6 +112,25 @@ async def hook(request: Request) -> Any:
     return JSONResponse({"received": True})
 
 
+# Data for scheduled RAG sources: tests change these between syncs.
+KB_ITEMS: list[dict[str, Any]] = []
+SITE: dict[str, str] = {}
+
+
+@app.get("/kb/items")
+async def kb_items() -> Any:
+    return {"data": KB_ITEMS}
+
+
+@app.get("/site/{page}")
+async def site(page: str) -> Any:
+    from fastapi.responses import HTMLResponse
+
+    if page not in SITE:
+        return PlainTextResponse("missing", status_code=404)
+    return HTMLResponse(SITE[page])
+
+
 @app.get("/openapi.json")
 async def spec() -> Any:
     return OPENAPI

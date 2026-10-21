@@ -24,4 +24,5 @@ export const MENU: readonly MenuEntry[] = [
     icon: 'safety-certificate',
     phase: 2,
   },
+  { path: 'analytics', label: $localize`Analytics`, icon: 'bar-chart', phase: 2 },
 ];

@@ -155,3 +155,57 @@ class RagRun(Base):
     latency_ms: Mapped[int]
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     created_by: Mapped[uuid.UUID | None]
+
+
+class Source(Base):
+    """A scheduled external source feeding a collection (E2.13)."""
+
+    __tablename__ = "rag_source"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    project_id: Mapped[uuid.UUID]
+    collection_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("data_collection.id"))
+    name: Mapped[str]
+    type: Mapped[str]
+    config: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    secret_id: Mapped[uuid.UUID | None]
+    interval_minutes: Mapped[int | None]
+    enabled: Mapped[bool] = mapped_column(default=True)
+    acl_groups: Mapped[list[str]] = mapped_column(default=list)
+    delete_missing: Mapped[bool] = mapped_column(default=True)
+    status: Mapped[str] = mapped_column(default="idle")
+    next_run_at: Mapped[datetime | None]
+    last_run_at: Mapped[datetime | None]
+    last_status: Mapped[str | None]
+    last_error: Mapped[str | None]
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    created_by: Mapped[uuid.UUID | None]
+    updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
+
+
+class SourceItem(Base):
+    __tablename__ = "rag_source_item"
+    source_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("rag_source.id"), primary_key=True)
+    external_id: Mapped[str] = mapped_column(primary_key=True)
+    project_id: Mapped[uuid.UUID]
+    document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("rag_document.id"))
+    version: Mapped[str]
+    seen_run: Mapped[uuid.UUID | None]
+
+
+class SourceRun(Base):
+    __tablename__ = "rag_source_run"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    project_id: Mapped[uuid.UUID]
+    source_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("rag_source.id"))
+    trigger: Mapped[str]
+    status: Mapped[str] = mapped_column(default="running")
+    started_at: Mapped[datetime] = mapped_column(default=utcnow)
+    finished_at: Mapped[datetime | None]
+    added: Mapped[int] = mapped_column(default=0)
+    updated: Mapped[int] = mapped_column(default=0)
+    unchanged: Mapped[int] = mapped_column(default=0)
+    deleted: Mapped[int] = mapped_column(default=0)
+    skipped: Mapped[int] = mapped_column(default=0)
+    failed: Mapped[int] = mapped_column(default=0)
+    message: Mapped[str | None]
+    errors: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)

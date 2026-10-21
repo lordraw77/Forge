@@ -4,6 +4,8 @@ export * from './adminModels.service';
 import { AdminModelsService } from './adminModels.service';
 export * from './agents.service';
 import { AgentsService } from './agents.service';
+export * from './analytics.service';
+import { AnalyticsService } from './analytics.service';
 export * from './approvals.service';
 import { ApprovalsService } from './approvals.service';
 export * from './auth.service';
@@ -30,6 +32,8 @@ export * from './prompts.service';
 import { PromptsService } from './prompts.service';
 export * from './rag.service';
 import { RagService } from './rag.service';
+export * from './sources.service';
+import { SourcesService } from './sources.service';
 export * from './system.service';
 import { SystemService } from './system.service';
 export * from './tools.service';
@@ -40,6 +44,7 @@ export const APIS = [
   AdminService,
   AdminModelsService,
   AgentsService,
+  AnalyticsService,
   ApprovalsService,
   AuthService,
   BundlesService,
@@ -53,6 +58,7 @@ export const APIS = [
   ProjectsService,
   PromptsService,
   RagService,
+  SourcesService,
   SystemService,
   ToolsService,
   UseCasesService,
