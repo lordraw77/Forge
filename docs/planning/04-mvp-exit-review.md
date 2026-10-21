@@ -32,7 +32,7 @@ Twelve criteria are met by automated tests; **AC8 is met only with an LLM judge*
 | Backend integration, full run (clean host, 2026-10-21) | **168 passed, 2 skipped** in 22 min 32 s (the skips are the performance baseline, which needs `FORGE_PERF=1`, and one guardrail test that needs the spaCy models) |
 | Frontend unit | 51 passed |
 | ruff, mypy (149 files), import contracts (3 kept), ng build, i18n check (1074 messages, 0 missing) | clean |
-| Playwright E2E | not run: needs the stack rebuilt with the M2.5–M2.7 code |
+| Playwright E2E (stack rebuilt: api, web, worker-runs, migration 0018) | **20 passed** in 2.7 min. No spec yet covers the M2.6 pages (Analytics, Sources, Model Insights, home activity); the ingest worker image was not rebuilt (memory) |
 
 The final run follows an earlier one with 3 failures: two approvals tests (an unrelated project was running tests on the same host and the machine was swapping; both pass alone) and the gateway overhead test, which was a real regression and is fixed (below).
 
@@ -72,7 +72,7 @@ Noted, not fixed (low): `git clone` resolves the host itself and follows its fir
 2. **SMTP has no GUI.** The spec's AC11 text lists SMTP among the settings configured from the GUI; approval email is configured only through `FORGE_SMTP_*` (M2.4 choice). A settings screen for it is a small task.
 3. **Deployment flags stay in the environment** by design: `FORGE_TOOLS_ALLOW_PRIVATE_HOSTS`, `FORGE_AGENT_ALLOW_PRIVATE_HOSTS`, `FORGE_MCP_STDIO_ALLOWED`, `FORGE_SOURCE_ROOTS`, and the proxy settings.
 4. **AC11 as a browser test on a clean Compose stack** is not done: the host has 3 GB of free memory and the ingest image is 3.7 GB to rebuild. The script-level equivalent above covers the configuration path; run `make` on a clean host for the final proof.
-5. **Playwright E2E** was not run on the rebuilt stack. The dev stack needs api, web and worker-ingest rebuilt and migrations 0017 and 0018 applied.
+5. **Playwright E2E** passes (20/20) on the rebuilt stack, but has no spec for the M2.6 pages, and `worker-ingest` still runs the previous image, so scheduled sources were not exercised in the browser stack (they are covered by the integration suite).
 6. **Pillow CVEs** wait on Docling (see above).
 7. Choices awaiting PO review in the milestone designs: [m2.1](../architecture/m2.1-external-identity.md), [m2.2](../architecture/m2.2-tools.md), [m2.3a–d](../architecture/m2.3d-end-user.md), [m2.4](../architecture/m2.4-hitl.md), [m2.5](../architecture/m2.5-guardrails.md), [m2.6a](../architecture/m2.6a-analytics.md), [m2.6b](../architecture/m2.6b-sources.md).
 8. Phase 2 work from M2.3d on is uncommitted in the working tree (M2.6 and M2.7); CI has not seen it.
