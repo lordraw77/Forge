@@ -263,3 +263,4 @@ export * from './versionIn';
 export * from './versionInfo';
 export * from './versionOut';
 export * from './versionSummary';
+export * from './whoAmI';

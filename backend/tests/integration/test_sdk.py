@@ -1,0 +1,182 @@
+"""E3.3: the SDK and `forgectl` against the real API with a project API key.
+
+The SDK's HTTP client is the test client of the app, so every call goes through authentication,
+scopes, permissions and the bundle code exactly as it does from a laptop or a CI job.
+"""
+# ruff: noqa: F811  (module fixtures imported from test_rag are redefined as parameters)
+
+from __future__ import annotations
+
+import io
+import json
+from pathlib import Path
+from typing import Any
+
+import pytest
+from fastapi.testclient import TestClient
+from forge_sdk import ForgeClient, ForgeError, cli
+
+from tests.integration.test_bundles import _prompt
+from tests.integration.test_gateway import ok, uid
+from tests.integration.test_platform_core import csrf, new_client
+from tests.integration.test_rag import (  # noqa: F401 - module fixtures
+    admin,
+    client,
+    env,
+    mock,
+    settings,
+    worker,
+)
+
+
+def key_client(client: TestClient, env: dict[str, Any], scopes: list[str]) -> ForgeClient:
+    owner, base = env["owner"], env["base"]
+    token = ok(
+        owner.post(
+            f"{base}/api-keys", headers=csrf(owner), json={"name": f"sdk {uid()}", "scopes": scopes}
+        ),
+        201,
+    )["token"]
+    http = new_client(client)
+    return ForgeClient("http://testserver", token, http=http)
+
+
+def run_cli(forge: ForgeClient, *argv: str) -> tuple[int, str]:
+    out = io.StringIO()
+    original = cli._client
+    cli._client = lambda _args: forge  # type: ignore[assignment]
+    try:
+        return cli.main(list(argv), out), out.getvalue()
+    finally:
+        cli._client = original  # type: ignore[assignment]
+
+
+def test_whoami_shows_the_project_and_what_the_key_really_holds(
+    client: TestClient,
+    env: dict[str, Any],
+) -> None:
+    forge = key_client(client, env, ["asset.write", "llm.invoke"])
+    who = forge.whoami()
+    assert who["kind"] == "api_key"
+    assert who["project_id"] == env["project"]["id"]
+    assert set(who["permissions"]) == {"asset.write", "llm.invoke"}
+
+
+def test_git_flow_export_edit_diff_apply_is_idempotent(
+    client: TestClient,
+    env: dict[str, Any],
+    tmp_path: Path,
+) -> None:
+    owner, base = env["owner"], env["base"]
+    name = f"Style {uid()}"
+    _prompt(owner, base, name)
+    forge = key_client(client, env, ["asset.write"])
+
+    # Export: the prompt is a file, with no timestamps.
+    code, text = run_cli(forge, "export", str(tmp_path))
+    assert code == 0, text
+    files = list((tmp_path / "prompts").glob("*.json"))
+    mine = next(f for f in files if name.replace(" ", "-") in f.name)
+    item = json.loads(mine.read_text())
+    assert item["name"] == name
+    assert len(item["versions"]) == 1  # `latest`
+    assert "created_at" not in mine.read_text()
+
+    # Nothing changed yet.
+    code, text = run_cli(forge, "diff", str(tmp_path), "--exit-code")
+    assert code == 0
+    assert "0 to apply" in text
+
+    # A reviewed edit in Git, then diff, a dry run, and apply.
+    item["versions"][0]["system_template"] = "Answer in exactly two lines, cite [n]."
+    mine.write_text(json.dumps(item))
+    code, text = run_cli(forge, "diff", str(tmp_path), "--exit-code")
+    assert code == 1
+    assert f"prompt           {name}  [changed]" in text
+
+    before = ok(owner.get(f"{base}/prompts"))["items"]
+    prompt_id = next(p["id"] for p in before if p["name"] == name)
+    versions_before = len(ok(owner.get(f"{base}/prompts/{prompt_id}/versions")))
+    code, text = run_cli(forge, "apply", str(tmp_path), "--dry-run")
+    assert code == 0
+    assert "Dry run" in text
+    assert len(ok(owner.get(f"{base}/prompts/{prompt_id}/versions"))) == versions_before
+
+    code, text = run_cli(forge, "apply", str(tmp_path))
+    assert code == 0
+    assert "new_versions" in text
+    versions = ok(owner.get(f"{base}/prompts/{prompt_id}/versions"))
+    assert len(versions) == versions_before + 1
+
+    # Applying again changes nothing: the project matches the files now.
+    code, text = run_cli(forge, "diff", str(tmp_path), "--exit-code")
+    assert code == 0, text
+    code, text = run_cli(forge, "apply", str(tmp_path))
+    assert "Nothing to apply" in text
+    assert len(ok(owner.get(f"{base}/prompts/{prompt_id}/versions"))) == versions_before + 1
+
+    # A new item in the files is created; removing a file never deletes anything.
+    fresh = {**item, "name": f"Fresh {uid()}"}
+    (tmp_path / "prompts" / "fresh.json").write_text(json.dumps(fresh))
+    mine.unlink()
+    code, text = run_cli(forge, "diff", str(tmp_path))
+    assert "[new]" in text
+    assert "[removed]" in text
+    code, _ = run_cli(forge, "apply", str(tmp_path))
+    assert code == 0
+    names = {p["name"] for p in ok(owner.get(f"{base}/prompts"))["items"]}
+    assert {name, fresh["name"]} <= names
+
+
+def test_a_key_without_asset_write_cannot_export_or_import(
+    client: TestClient,
+    env: dict[str, Any],
+) -> None:
+    forge = key_client(client, env, ["llm.invoke"])
+    with pytest.raises(ForgeError) as err:
+        forge.export_bundle()
+    assert err.value.status == 403
+    with pytest.raises(ForgeError) as err:
+        forge.import_bundle({"format": "forge.bundle", "schema_version": 1, "items": []})
+    assert err.value.status == 403
+
+
+def test_config_needs_project_manage_and_a_bad_key_is_401(
+    client: TestClient,
+    env: dict[str, Any],
+) -> None:
+    forge = key_client(client, env, ["asset.write"])
+    with pytest.raises(ForgeError) as err:
+        forge.export_bundle(config=True)
+    assert err.value.status == 403
+    bad = ForgeClient(
+        "http://testserver", "fk_nope_nope", env["project"]["id"], http=new_client(client)
+    )
+    with pytest.raises(ForgeError) as err:
+        bad.whoami()
+    assert err.value.status == 401
+
+
+def test_import_dry_run_reports_without_writing(
+    client: TestClient,
+    env: dict[str, Any],
+) -> None:
+    owner, base = env["owner"], env["base"]
+    forge = key_client(client, env, ["asset.write"])
+    bundle = {
+        "format": "forge.bundle",
+        "schema_version": 1,
+        "items": [
+            {
+                "kind": "prompt",
+                "name": f"Dry {uid()}",
+                "description": "",
+                "versions": [{"model": "default-chat", "system_template": "Be brief."}],
+            }
+        ],
+    }
+    report = forge.import_bundle(bundle)  # dry run by default
+    assert report["items"][0]["action"] == "created"
+    assert bundle["items"][0]["name"] not in {
+        p["name"] for p in ok(owner.get(f"{base}/prompts"))["items"]
+    }

@@ -31,17 +31,17 @@ install: ## Install backend and frontend dependencies
 ## ---- Quality
 .PHONY: lint fmt typecheck licenses test test/unit test/integration test/e2e
 lint: ## Lint backend (ruff, import contracts) and frontend
-	cd backend && uv run ruff check . && uv run ruff format --check . && uv run lint-imports
+	cd backend && uv run ruff check . ../sdk && uv run ruff format --check . ../sdk && uv run lint-imports
 	$(NPM) run lint
 
 fmt: ## Format backend code
-	cd backend && uv run ruff check --fix . && uv run ruff format .
+	cd backend && uv run ruff check --fix . ../sdk && uv run ruff format . ../sdk
 
 licenses: ## Licence gate for backend runtime and frontend production dependencies
 	@python3 scripts/check-licenses.py
 
 typecheck: ## Static type check of the backend
-	cd backend && uv run mypy
+	cd backend && uv run mypy && uv run mypy ../sdk/src
 
 test: test/unit test/integration ## Run all tests
 

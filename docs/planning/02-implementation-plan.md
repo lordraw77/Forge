@@ -95,7 +95,7 @@ E1.18 builds the agent as a LangGraph graph over a gateway-backed chat model ada
 
 ### Phase 3 – Enterprise (6–8 weeks)
 
-E3.1 Helm chart (k3s, RKE2, OpenShift) + air-gapped bundle (image list, local registry) · E3.2 Prompt and RAG evaluations (datasets, evaluators, recall@k, faithfulness) · E3.3 Python SDK + CLI (GitOps import/export) · E3.4 Sandbox service (gVisor) + Python tools + `code` node · E3.5 Exposed MCP server + embeddable chat widget · E3.6 Long-term memory · E3.7 Load tests against NFR targets, PITR backups (RPO 15 min / RTO 1 h), DR runbook · E3.8 External vault (OpenBao) · E3.9 Async invocation with completion webhook, cron/queue triggers if not already done.
+E3.1 Helm chart (k3s, RKE2, OpenShift) + air-gapped bundle (image list, local registry) · E3.2 Prompt and RAG evaluations (datasets, evaluators, recall@k, faithfulness) · E3.3 Python SDK + CLI (GitOps import/export) ✅ 2026-10-21 ([design](../architecture/m3.3-sdk-cli.md)) · E3.4 Sandbox service (gVisor) + Python tools + `code` node · E3.5 Exposed MCP server + embeddable chat widget · E3.6 Long-term memory · E3.7 Load tests against NFR targets, PITR backups (RPO 15 min / RTO 1 h), DR runbook · E3.8 External vault (OpenBao) · E3.9 Async invocation with completion webhook, cron/queue triggers if not already done.
 
 ## 4. MVP acceptance criteria → epics
 

@@ -3900,6 +3900,22 @@
             "title": "Collections",
             "type": "array"
           },
+          "everything": {
+            "default": false,
+            "description": "Every prompt, RAG pipeline, agent, use case and collection of the project, with the versions chosen in `everything_versions` (for the CLI's Git export)",
+            "title": "Everything",
+            "type": "boolean"
+          },
+          "everything_versions": {
+            "default": "latest",
+            "enum": [
+              "all",
+              "published",
+              "latest"
+            ],
+            "title": "Everything Versions",
+            "type": "string"
+          },
           "gateway_config": {
             "default": false,
             "title": "Gateway Config",
@@ -13860,6 +13876,61 @@
           "created_by"
         ],
         "title": "VersionSummary",
+        "type": "object"
+      },
+      "WhoAmI": {
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "permissions": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Name"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "WhoAmI",
         "type": "object"
       }
     }
@@ -27362,6 +27433,28 @@
         "summary": "Version",
         "tags": [
           "system"
+        ]
+      }
+    },
+    "/api/v1/whoami": {
+      "get": {
+        "description": "For an API key: its project and the permissions the key really holds (scopes limited to\nits creator's). For a session: the user.",
+        "operationId": "whoami",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhoAmI"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Whoami",
+        "tags": [
+          "me"
         ]
       }
     },

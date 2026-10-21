@@ -35,6 +35,7 @@ from forge.api import (
     routes_tools,
     routes_usecases,
     routes_v1,
+    routes_whoami,
 )
 from forge.api.deps import Services
 from forge.bundles.service import Bundles
@@ -266,5 +267,6 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
     app.include_router(routes_analytics.me_router)
     app.include_router(routes_bundles.router)
     app.add_middleware(routes_data.BodyLimit)
+    app.include_router(routes_whoami.router)
     app.include_router(routes_v1.router)
     return app

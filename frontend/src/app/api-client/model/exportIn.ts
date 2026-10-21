@@ -12,6 +12,11 @@ import { AssetRef } from './assetRef';
 export interface ExportIn {
   agents?: Array<AssetRef>;
   collections?: Array<string>;
+  /**
+   * Every prompt, RAG pipeline, agent, use case and collection of the project, with the versions chosen in `everything_versions` (for the CLI\'s Git export)
+   */
+  everything?: boolean;
+  everything_versions?: ExportIn.EverythingVersionsEnum;
   gateway_config?: boolean;
   guardrail_policy?: boolean;
   /**
@@ -23,4 +28,13 @@ export interface ExportIn {
   rag_pipelines?: Array<AssetRef>;
   use_cases?: Array<AssetRef>;
   user_groups?: boolean;
+}
+export namespace ExportIn {
+  export const EverythingVersionsEnum = {
+    All: 'all',
+    Published: 'published',
+    Latest: 'latest',
+  } as const;
+  export type EverythingVersionsEnum =
+    (typeof EverythingVersionsEnum)[keyof typeof EverythingVersionsEnum];
 }

@@ -72,6 +72,12 @@ class ExportIn(In):
     gateway_config: bool = False
     user_groups: bool = False
     guardrail_policy: bool = False
+    everything: bool = Field(
+        default=False,
+        description="Every prompt, RAG pipeline, agent, use case and collection of the project, "
+        "with the versions chosen in `everything_versions` (for the CLI's Git export)",
+    )
+    everything_versions: Scope = "latest"
 
 
 class ImportIn(In):
@@ -135,6 +141,35 @@ class Bundles:
     usecases: UseCaseStudio
 
     # ------------------------------------------------------------ export
+    async def _everything(self, actor: Actor, project_id: uuid.UUID, body: ExportIn) -> ExportIn:
+        """The request with every asset of the project added to its lists."""
+        scope = body.everything_versions
+
+        async def pages(fetch: Any) -> list[uuid.UUID]:
+            ids: list[uuid.UUID] = []
+            cursor = None
+            while True:
+                page = await fetch(actor, project_id, cursor=cursor, limit=200)
+                ids += [item.id for item in page.items]
+                cursor = page.next_cursor
+                if not cursor:
+                    return ids
+
+        prompts = await pages(self.prompts.list_prompts)
+        pipelines = await pages(self.rag.studio.list_pipelines)
+        agents = await pages(self.agents.list_agents)
+        cases = [u.id for u in (await self.usecases.list_use_cases(actor, project_id)).items]
+        collections = [c.id for c in await self.rag.collections.list_collections(actor, project_id)]
+        return body.model_copy(
+            update={
+                "prompts": [AssetRef(id=i, versions=scope) for i in prompts],
+                "rag_pipelines": [AssetRef(id=i, versions=scope) for i in pipelines],
+                "agents": [AssetRef(id=i, versions=scope) for i in agents],
+                "use_cases": [AssetRef(id=i, versions=scope) for i in cases],
+                "collections": collections,
+            }
+        )
+
     async def export(
         self, actor: Actor, project_id: uuid.UUID, body: ExportIn, *, can_manage: bool
     ) -> dict[str, Any]:
@@ -142,6 +177,8 @@ class Bundles:
             body.model_aliases or body.gateway_config or body.user_groups or body.guardrail_policy
         ) and not can_manage:
             raise ProblemError(403, "forbidden", "Exporting configuration needs project.manage")
+        if body.everything:
+            body = await self._everything(actor, project_id, body)
         items: list[dict[str, Any]] = []
         prompt_scope: dict[uuid.UUID, str] = {p.id: p.versions for p in body.prompts}
         collection_ids: set[uuid.UUID] = set(body.collections)
