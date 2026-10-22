@@ -31,6 +31,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from forge import __version__
 from forge.agents.service import AgentStudio
+from forge.bundles import files as bundle_files
 from forge.core.context import Actor
 from forge.core.errors import ProblemError
 from forge.gateway.service import Gateway, ProjectGatewayConfigIn
@@ -44,6 +45,7 @@ SCHEMA_VERSION = 1
 Scope = Literal["all", "published", "latest"]
 Policy = Literal["new_version", "rename", "skip"]
 CONFIG_KINDS = frozenset({"model_alias", "gateway_config", "user_group", "guardrail_policy"})
+KINDS = frozenset(bundle_files.KIND_ORDER)
 
 # schema_version N -> function upgrading a bundle from N to N + 1. Add one with every change
 # of the bundle format; old bundles keep importing.
@@ -97,6 +99,35 @@ class ImportItem(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class ExportFilesIn(In):
+    versions: Scope = "all"
+    config: bool = Field(
+        default=False, description="Also aliases, limits, groups and guardrails (project.manage)"
+    )
+
+
+class BundlePlanIn(In):
+    bundle: dict[str, Any]
+
+
+class BundleSyncIn(In):
+    bundle: dict[str, Any]
+    policy: Policy = "new_version"
+    dry_run: bool = True
+
+
+class PlanItem(BaseModel):
+    kind: str
+    name: str
+    status: str  # new | changed | unchanged | differs | removed
+    versions_to_send: int = 0
+
+
+class BundlePlanOut(BaseModel):
+    items: list[PlanItem]
+    summary: dict[str, int]
+
+
 class ImportReport(BaseModel):
     dry_run: bool
     policy: Policy
@@ -105,6 +136,11 @@ class ImportReport(BaseModel):
     source: dict[str, Any]
     items: list[ImportItem]
     summary: dict[str, int]
+
+
+class BundleSyncOut(BaseModel):
+    plan: BundlePlanOut
+    report: ImportReport | None  # None when there was nothing to send
 
 
 def migrate(bundle: dict[str, Any]) -> tuple[dict[str, Any], int | None]:
@@ -524,3 +560,93 @@ class Bundles:
                 actor, project_id, name, [usable[str(m).lower()] for m in item["models"]]
             )
         return {"kind": "model_alias", "name": name, "action": "updated"}
+
+    # ---- bundles as files, and synchronisation with them (E3.3)
+    async def export_files(
+        self, actor: Actor, project_id: uuid.UUID, body: ExportFilesIn, *, can_manage: bool
+    ) -> bytes:
+        """The whole project as a zip of files in the Git layout."""
+        bundle = await self.export(
+            actor,
+            project_id,
+            ExportIn(
+                everything=True,
+                everything_versions=body.versions,
+                model_aliases=body.config,
+                gateway_config=body.config,
+                user_groups=body.config,
+                guardrail_policy=body.config,
+            ),
+            can_manage=can_manage,
+        )
+        return bundle_files.zip_files(bundle_files.to_files(bundle))
+
+    @staticmethod
+    def read_files(files: dict[str, bytes]) -> dict[str, Any]:
+        """A bundle from the files of a folder or zip."""
+        return bundle_files.from_files(bundle_files.strip_root(files))
+
+    async def _plan(
+        self, actor: Actor, project_id: uuid.UUID, bundle: dict[str, Any], *, can_manage: bool
+    ) -> tuple[dict[str, Any], list[bundle_files.Change]]:
+        local, _ = migrate(dict(bundle))
+        with_config = can_manage and any(
+            isinstance(i, dict) and i.get("kind") in bundle_files.CONFIG_KINDS
+            for i in local["items"]
+        )
+        remote = await self.export(
+            actor,
+            project_id,
+            ExportIn(
+                everything=True,
+                everything_versions="all",
+                model_aliases=with_config,
+                gateway_config=with_config,
+                user_groups=with_config,
+                guardrail_policy=with_config,
+            ),
+            can_manage=can_manage,
+        )
+        known = [i for i in local["items"] if isinstance(i, dict) and i.get("kind") in KINDS]
+        return {**local, "items": known}, bundle_files.compare({**local, "items": known}, remote)
+
+    @staticmethod
+    def _plan_out(changes: list[bundle_files.Change]) -> BundlePlanOut:
+        summary: dict[str, int] = {}
+        for c in changes:
+            summary[c.status] = summary.get(c.status, 0) + 1
+        return BundlePlanOut(
+            items=[
+                PlanItem(
+                    kind=c.kind,
+                    name=c.name,
+                    status=c.status,
+                    versions_to_send=len(c.send or []),
+                )
+                for c in changes
+            ],
+            summary=summary,
+        )
+
+    async def plan(
+        self, actor: Actor, project_id: uuid.UUID, body: BundlePlanIn, *, can_manage: bool
+    ) -> BundlePlanOut:
+        """What a sync with this bundle would send: new items, versions the project lacks."""
+        _, changes = await self._plan(actor, project_id, body.bundle, can_manage=can_manage)
+        return self._plan_out(changes)
+
+    async def sync(
+        self, actor: Actor, project_id: uuid.UUID, body: BundleSyncIn, *, can_manage: bool
+    ) -> BundleSyncOut:
+        """Plan, then import only the new items and the missing versions (idempotent)."""
+        local, changes = await self._plan(actor, project_id, body.bundle, can_manage=can_manage)
+        todo = bundle_files.only_changes(local, changes)
+        report = None
+        if todo["items"]:
+            report = await self.import_(
+                actor,
+                project_id,
+                ImportIn(bundle=todo, policy=body.policy, dry_run=body.dry_run),
+                can_manage=can_manage,
+            )
+        return BundleSyncOut(plan=self._plan_out(changes), report=report)

@@ -36,6 +36,7 @@ type Notice = { severity: 'success' | 'error' | 'info'; text: string } | null;
           <a routerLink="sources" routerLinkActive="active" data-testid="tab-sources" i18n
             >Sources</a
           >
+          <a routerLink="sync" routerLinkActive="active" data-testid="tab-sync" i18n>Sync</a>
           <a routerLink="transfer" routerLinkActive="active" data-testid="tab-transfer" i18n
             >Export / Import</a
           >

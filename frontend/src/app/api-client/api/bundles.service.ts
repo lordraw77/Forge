@@ -22,6 +22,16 @@ import { Observable } from 'rxjs';
 import { OpenApiHttpParams, QueryParamStyle } from '../query.params';
 
 // @ts-ignore
+import { BundlePlanIn } from '../model/bundlePlanIn';
+// @ts-ignore
+import { BundlePlanOut } from '../model/bundlePlanOut';
+// @ts-ignore
+import { BundleSyncIn } from '../model/bundleSyncIn';
+// @ts-ignore
+import { BundleSyncOut } from '../model/bundleSyncOut';
+// @ts-ignore
+import { ExportFilesIn } from '../model/exportFilesIn';
+// @ts-ignore
 import { ExportIn } from '../model/exportIn';
 // @ts-ignore
 import { HTTPValidationError } from '../model/hTTPValidationError';
@@ -40,9 +50,29 @@ export interface ExportBundleRequestParams {
   exportIn: ExportIn;
 }
 
+export interface ExportFilesRequestParams {
+  projectId: string;
+  exportFilesIn: ExportFilesIn;
+}
+
 export interface ImportBundleRequestParams {
   projectId: string;
   importIn: ImportIn;
+}
+
+export interface ReadFilesRequestParams {
+  projectId: string;
+  files: Array<Blob>;
+}
+
+export interface SyncApplyRequestParams {
+  projectId: string;
+  bundleSyncIn: BundleSyncIn;
+}
+
+export interface SyncPlanRequestParams {
+  projectId: string;
+  bundlePlanIn: BundlePlanIn;
 }
 
 @Injectable({
@@ -169,6 +199,113 @@ export class BundlesService extends BaseService {
   }
 
   /**
+   * Export Files
+   * Every asset of the project as a zip of files in the Git layout (one JSON per item).
+   * @endpoint post /api/v1/projects/{project_id}/export/files
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public exportFiles(
+    requestParameters: ExportFilesRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any>;
+  public exportFiles(
+    requestParameters: ExportFilesRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<any>>;
+  public exportFiles(
+    requestParameters: ExportFilesRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<any>>;
+  public exportFiles(
+    requestParameters: ExportFilesRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error(
+        'Required parameter projectId was null or undefined when calling exportFiles.',
+      );
+    }
+    const exportFilesIn = requestParameters?.exportFilesIn;
+    if (exportFilesIn === null || exportFilesIn === undefined) {
+      throw new Error(
+        'Required parameter exportFilesIn was null or undefined when calling exportFiles.',
+      );
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    // to determine the Content-Type header
+    const consumes: string[] = ['application/json'];
+    const httpContentTypeSelected: string | undefined =
+      this.configuration.selectHeaderContentType(consumes);
+    if (httpContentTypeSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Content-Type', httpContentTypeSelected);
+    }
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/export/files`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<any>('post', `${basePath}${localVarPath}`, {
+      context: localVarHttpContext,
+      body: exportFilesIn,
+      responseType: <any>responseType_,
+      ...(withCredentials ? { withCredentials } : {}),
+      headers: localVarHeaders,
+      observe: observe,
+      ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+      reportProgress: reportProgress,
+    });
+  }
+
+  /**
    * Import Bundle
    * Dry run by default: the report says what would be created, extended, renamed or skipped and why an item cannot be imported. Send again with &#x60;dry_run: false&#x60; to apply.
    * @endpoint post /api/v1/projects/{project_id}/import
@@ -266,6 +403,346 @@ export class BundlesService extends BaseService {
     return this.httpClient.request<ImportReport>('post', `${basePath}${localVarPath}`, {
       context: localVarHttpContext,
       body: importIn,
+      responseType: <any>responseType_,
+      ...(withCredentials ? { withCredentials } : {}),
+      headers: localVarHeaders,
+      observe: observe,
+      ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+      reportProgress: reportProgress,
+    });
+  }
+
+  /**
+   * Read Files
+   * The files of a picked folder (path in each file name), or one zip, as a bundle.
+   * @endpoint post /api/v1/projects/{project_id}/sync/read
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public readFiles(
+    requestParameters: ReadFilesRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<{ [key: string]: any | null }>;
+  public readFiles(
+    requestParameters: ReadFilesRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<{ [key: string]: any | null }>>;
+  public readFiles(
+    requestParameters: ReadFilesRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<{ [key: string]: any | null }>>;
+  public readFiles(
+    requestParameters: ReadFilesRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error('Required parameter projectId was null or undefined when calling readFiles.');
+    }
+    const files = requestParameters?.files;
+    if (files === null || files === undefined) {
+      throw new Error('Required parameter files was null or undefined when calling readFiles.');
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    // to determine the Content-Type header
+    const consumes: string[] = ['multipart/form-data'];
+
+    const canConsumeForm = this.canConsumeForm(consumes);
+
+    let localVarFormParams: { append(param: string, value: any): any };
+    let localVarUseForm = false;
+    let localVarConvertFormParamsToString = false;
+    // use FormData to transmit files using content-type "multipart/form-data"
+    // see https://stackoverflow.com/questions/4007969/application-x-www-form-urlencoded-or-multipart-form-data
+    localVarUseForm = canConsumeForm;
+    if (localVarUseForm) {
+      localVarFormParams = new FormData();
+    } else {
+      localVarFormParams = new HttpParams({ encoder: this.encoder });
+    }
+
+    if (files) {
+      if (localVarUseForm) {
+        files.forEach((element) => {
+          localVarFormParams =
+            (localVarFormParams.append('files', <any>element) as any) || localVarFormParams;
+        });
+      } else {
+        localVarFormParams =
+          (localVarFormParams.append('files', [...files].join(COLLECTION_FORMATS['csv'])) as any) ||
+          localVarFormParams;
+      }
+    }
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/sync/read`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<{ [key: string]: any | null }>(
+      'post',
+      `${basePath}${localVarPath}`,
+      {
+        context: localVarHttpContext,
+        body: localVarConvertFormParamsToString
+          ? localVarFormParams.toString()
+          : localVarFormParams,
+        responseType: <any>responseType_,
+        ...(withCredentials ? { withCredentials } : {}),
+        headers: localVarHeaders,
+        observe: observe,
+        ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+        reportProgress: reportProgress,
+      },
+    );
+  }
+
+  /**
+   * Sync Apply
+   * Dry run by default. Imports only new items and the versions the project lacks.
+   * @endpoint post /api/v1/projects/{project_id}/sync/apply
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public syncApply(
+    requestParameters: SyncApplyRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<BundleSyncOut>;
+  public syncApply(
+    requestParameters: SyncApplyRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<BundleSyncOut>>;
+  public syncApply(
+    requestParameters: SyncApplyRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<BundleSyncOut>>;
+  public syncApply(
+    requestParameters: SyncApplyRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error('Required parameter projectId was null or undefined when calling syncApply.');
+    }
+    const bundleSyncIn = requestParameters?.bundleSyncIn;
+    if (bundleSyncIn === null || bundleSyncIn === undefined) {
+      throw new Error(
+        'Required parameter bundleSyncIn was null or undefined when calling syncApply.',
+      );
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    // to determine the Content-Type header
+    const consumes: string[] = ['application/json'];
+    const httpContentTypeSelected: string | undefined =
+      this.configuration.selectHeaderContentType(consumes);
+    if (httpContentTypeSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Content-Type', httpContentTypeSelected);
+    }
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/sync/apply`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<BundleSyncOut>('post', `${basePath}${localVarPath}`, {
+      context: localVarHttpContext,
+      body: bundleSyncIn,
+      responseType: <any>responseType_,
+      ...(withCredentials ? { withCredentials } : {}),
+      headers: localVarHeaders,
+      observe: observe,
+      ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+      reportProgress: reportProgress,
+    });
+  }
+
+  /**
+   * Sync Plan
+   * @endpoint post /api/v1/projects/{project_id}/sync/plan
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public syncPlan(
+    requestParameters: SyncPlanRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<BundlePlanOut>;
+  public syncPlan(
+    requestParameters: SyncPlanRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<BundlePlanOut>>;
+  public syncPlan(
+    requestParameters: SyncPlanRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<BundlePlanOut>>;
+  public syncPlan(
+    requestParameters: SyncPlanRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error('Required parameter projectId was null or undefined when calling syncPlan.');
+    }
+    const bundlePlanIn = requestParameters?.bundlePlanIn;
+    if (bundlePlanIn === null || bundlePlanIn === undefined) {
+      throw new Error(
+        'Required parameter bundlePlanIn was null or undefined when calling syncPlan.',
+      );
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    // to determine the Content-Type header
+    const consumes: string[] = ['application/json'];
+    const httpContentTypeSelected: string | undefined =
+      this.configuration.selectHeaderContentType(consumes);
+    if (httpContentTypeSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Content-Type', httpContentTypeSelected);
+    }
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/sync/plan`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<BundlePlanOut>('post', `${basePath}${localVarPath}`, {
+      context: localVarHttpContext,
+      body: bundlePlanIn,
       responseType: <any>responseType_,
       ...(withCredentials ? { withCredentials } : {}),
       headers: localVarHeaders,

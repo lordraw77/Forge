@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { loginAsAdmin, uniqueName } from './support';
+import { loginAsAdmin, pickOption, uniqueName } from './support';
 
 /** M1.4 Data Collections and RAG Studio in a real browser (US-1.14.1, US-1.14.2, US-1.17.1,
  * US-1.17.2). No model provider is reachable from the stack in CI: built-in parsing succeeds,
@@ -101,12 +101,10 @@ test.describe('US-1.17.1 data collections and RAG studio (M1.4)', () => {
     const ragName = uniqueName('Ops answers ');
     await page.getByTestId('rag-name-input').fill(ragName);
     await page.getByTestId('rag-name-input').press('Enter');
-    await page.locator('nz-select', { has: page.locator('#re-source') }).click();
-    await page.locator('nz-option-item').filter({ hasText: collection }).first().click();
-    await page.locator('nz-select', { has: page.locator('#re-llm') }).click();
-    await page.locator('nz-option-item').filter({ hasText: chat }).first().click();
-    await page.locator('nz-select', { has: page.locator('#re-emb') }).click();
-    await page.locator('nz-option-item').filter({ hasText: embed }).first().click();
+    // The model lists are virtual-scrolled and long on a used stack: search for the option.
+    await pickOption(page, 're-source', new RegExp(collection));
+    await pickOption(page, 're-llm', new RegExp(chat));
+    await pickOption(page, 're-emb', new RegExp(embed));
     await page.getByTestId('rag-save-test').click();
     await page.getByTestId('rag-description').fill('Answers about operations');
     await page.getByTestId('rag-description-save').click();

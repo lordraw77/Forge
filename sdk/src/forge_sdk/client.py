@@ -50,7 +50,7 @@ class ForgeClient:
     def __exit__(self, *_exc: object) -> None:
         self.close()
 
-    def _request(self, method: str, path: str, **kwargs: Any) -> Any:
+    def _request(self, method: str, path: str, *, raw: bool = False, **kwargs: Any) -> Any:
         response = self._http.request(method, self.base_url + path, headers=self._headers, **kwargs)
         if response.status_code >= 400:
             try:
@@ -63,6 +63,8 @@ class ForgeClient:
                 str(problem.get("title", response.reason_phrase or "Request failed")),
                 problem.get("detail"),
             )
+        if raw:
+            return response.content
         return response.json() if response.content else None
 
     @property
@@ -113,6 +115,42 @@ class ForgeClient:
         return self._request(  # type: ignore[no-any-return]
             "POST",
             self._project("/import"),
+            json={"bundle": bundle, "policy": policy, "dry_run": dry_run},
+            timeout=300,
+        )
+
+    # ---- assets as files, and synchronisation (what the Sync page of the web interface does)
+    def export_files(self, *, versions: str = "all", config: bool = False) -> bytes:
+        """The project as a zip of files in the Git layout (see `forge_sdk.gitops`)."""
+        return self._request(  # type: ignore[no-any-return]
+            "POST",
+            self._project("/export/files"),
+            json={"versions": versions, "config": config},
+            raw=True,
+            timeout=300,
+        )
+
+    def read_files(self, zipped: bytes) -> dict[str, Any]:
+        """A bundle from the zip of an export directory (the server reads the layout)."""
+        return self._request(  # type: ignore[no-any-return]
+            "POST",
+            self._project("/sync/read"),
+            files=[("files", ("export.zip", zipped, "application/zip"))],
+        )
+
+    def plan(self, bundle: dict[str, Any]) -> dict[str, Any]:
+        """What a sync with `bundle` would do: new, changed (with the versions to send),
+        unchanged, differs, removed."""
+        return self._request("POST", self._project("/sync/plan"), json={"bundle": bundle})  # type: ignore[no-any-return]
+
+    def sync(
+        self, bundle: dict[str, Any], *, policy: str = "new_version", dry_run: bool = True
+    ) -> dict[str, Any]:
+        """Import only the new items and the versions the project lacks. Returns the plan and the
+        import report (None when there was nothing to send). Dry run by default."""
+        return self._request(  # type: ignore[no-any-return]
+            "POST",
+            self._project("/sync/apply"),
             json={"bundle": bundle, "policy": policy, "dry_run": dry_run},
             timeout=300,
         )

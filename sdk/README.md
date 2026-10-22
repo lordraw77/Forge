@@ -11,6 +11,8 @@ forgectl whoami
 
 ## Assets in Git
 
+Everything below is also in the web interface: **Projects Studio → Sync** (download as files, compare with a folder or zip, preview, apply, create a key). The two use the same server code.
+
 ```bash
 forgectl export forge/                  # prompts, RAG pipelines, agents, use cases, collections
 git add forge && git commit -m "snapshot"

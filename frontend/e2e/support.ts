@@ -82,7 +82,7 @@ export async function pickOption(
   page: Page,
   selectId: string,
   label: string | RegExp,
-  search = typeof label === 'string' ? label : '',
+  search = typeof label === 'string' ? label : label.source,
 ): Promise<void> {
   await page.locator('nz-select', { has: page.locator(`#${selectId}`) }).click();
   if (search) await page.locator(`#${selectId}`).pressSequentially(search);

@@ -2141,6 +2141,23 @@
         "title": "AvailableAgent",
         "type": "object"
       },
+      "Body_read_files": {
+        "properties": {
+          "files": {
+            "items": {
+              "contentMediaType": "application/octet-stream",
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          }
+        },
+        "required": [
+          "files"
+        ],
+        "title": "Body_read_files",
+        "type": "object"
+      },
       "Body_upload_documents": {
         "properties": {
           "files": {
@@ -2264,6 +2281,98 @@
           "name"
         ],
         "title": "BuiltinToolRef",
+        "type": "object"
+      },
+      "BundlePlanIn": {
+        "additionalProperties": false,
+        "properties": {
+          "bundle": {
+            "additionalProperties": true,
+            "title": "Bundle",
+            "type": "object"
+          }
+        },
+        "required": [
+          "bundle"
+        ],
+        "title": "BundlePlanIn",
+        "type": "object"
+      },
+      "BundlePlanOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PlanItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "summary": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Summary",
+            "type": "object"
+          }
+        },
+        "required": [
+          "items",
+          "summary"
+        ],
+        "title": "BundlePlanOut",
+        "type": "object"
+      },
+      "BundleSyncIn": {
+        "additionalProperties": false,
+        "properties": {
+          "bundle": {
+            "additionalProperties": true,
+            "title": "Bundle",
+            "type": "object"
+          },
+          "dry_run": {
+            "default": true,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "policy": {
+            "default": "new_version",
+            "enum": [
+              "new_version",
+              "rename",
+              "skip"
+            ],
+            "title": "Policy",
+            "type": "string"
+          }
+        },
+        "required": [
+          "bundle"
+        ],
+        "title": "BundleSyncIn",
+        "type": "object"
+      },
+      "BundleSyncOut": {
+        "properties": {
+          "plan": {
+            "$ref": "#/components/schemas/BundlePlanOut"
+          },
+          "report": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImportReport"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "plan",
+          "report"
+        ],
+        "title": "BundleSyncOut",
         "type": "object"
       },
       "CatalogAccessIn": {
@@ -3878,6 +3987,29 @@
           "output"
         ],
         "title": "Example",
+        "type": "object"
+      },
+      "ExportFilesIn": {
+        "additionalProperties": false,
+        "properties": {
+          "config": {
+            "default": false,
+            "description": "Also aliases, limits, groups and guardrails (project.manage)",
+            "title": "Config",
+            "type": "boolean"
+          },
+          "versions": {
+            "default": "all",
+            "enum": [
+              "all",
+              "published",
+              "latest"
+            ],
+            "title": "Versions",
+            "type": "string"
+          }
+        },
+        "title": "ExportFilesIn",
         "type": "object"
       },
       "ExportIn": {
@@ -7575,6 +7707,34 @@
           "message"
         ],
         "title": "PlanIn",
+        "type": "object"
+      },
+      "PlanItem": {
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "versions_to_send": {
+            "default": 0,
+            "title": "Versions To Send",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "name",
+          "status"
+        ],
+        "title": "PlanItem",
         "type": "object"
       },
       "PlanMessage": {
@@ -19641,6 +19801,58 @@
         ]
       }
     },
+    "/api/v1/projects/{project_id}/export/files": {
+      "post": {
+        "description": "Every asset of the project as a zip of files in the Git layout (one JSON per item).",
+        "operationId": "export_files",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportFilesIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Files",
+        "tags": [
+          "bundles"
+        ]
+      }
+    },
     "/api/v1/projects/{project_id}/gateway/config": {
       "get": {
         "operationId": "project_gateway_config",
@@ -24568,6 +24780,169 @@
         "summary": "Sync Source",
         "tags": [
           "sources"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/sync/apply": {
+      "post": {
+        "description": "Dry run by default. Imports only new items and the versions the project lacks.",
+        "operationId": "sync_apply",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BundleSyncIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BundleSyncOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sync Apply",
+        "tags": [
+          "bundles"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/sync/plan": {
+      "post": {
+        "operationId": "sync_plan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BundlePlanIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BundlePlanOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sync Plan",
+        "tags": [
+          "bundles"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/sync/read": {
+      "post": {
+        "description": "The files of a picked folder (path in each file name), or one zip, as a bundle.",
+        "operationId": "read_files",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_read_files"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Read Files",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Files",
+        "tags": [
+          "bundles"
         ]
       }
     },

@@ -181,3 +181,82 @@ def test_import_dry_run_reports_without_writing(
     assert bundle["items"][0]["name"] not in {
         p["name"] for p in ok(owner.get(f"{base}/prompts"))["items"]
     }
+
+
+def test_the_web_interface_endpoints_sync_a_picked_folder(
+    client: TestClient,
+    env: dict[str, Any],
+) -> None:
+    """What the Sync page does: a zip of files out, a picked folder or zip back in, a plan, and an
+    apply that sends only what the project lacks."""
+    import io
+    import zipfile
+
+    owner, base = env["owner"], env["base"]
+    name = f"Sync {uid()}"
+    _prompt(owner, base, name)
+    r = owner.post(f"{base}/export/files", headers=csrf(owner), json={"versions": "all"})
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "application/zip"
+    with zipfile.ZipFile(io.BytesIO(r.content)) as zf:
+        files = {n: zf.read(n) for n in zf.namelist()}
+    assert "forge.json" in files
+    path = next(p for p in files if p.startswith("prompts/") and name.replace(" ", "-") in p)
+
+    # A browser folder pick: each file keeps its path, below the folder's own name.
+    picked = [("files", (f"repo/{p}", data)) for p, data in files.items()]
+    bundle = ok(owner.post(f"{base}/sync/read", headers=csrf(owner), files=picked))
+    assert any(i["name"] == name for i in bundle["items"])
+    plan = ok(owner.post(f"{base}/sync/plan", headers=csrf(owner), json={"bundle": bundle}))
+    mine = next(i for i in plan["items"] if i["name"] == name)
+    assert mine["status"] == "unchanged"
+
+    # A new version appended in the file: the plan says +1, the dry run writes nothing.
+    item = json.loads(files[path])
+    item["versions"].append({**item["versions"][-1], "system_template": "Changed in Git."})
+    edited = {**bundle, "items": [item]}
+    plan = ok(owner.post(f"{base}/sync/plan", headers=csrf(owner), json={"bundle": edited}))
+    mine = next(i for i in plan["items"] if i["name"] == name)
+    assert (mine["status"], mine["versions_to_send"]) == ("changed", 1)
+    prompt_id = next(
+        p["id"] for p in ok(owner.get(f"{base}/prompts"))["items"] if p["name"] == name
+    )
+    before = len(ok(owner.get(f"{base}/prompts/{prompt_id}/versions")))
+    dry = ok(
+        owner.post(
+            f"{base}/sync/apply", headers=csrf(owner), json={"bundle": edited, "dry_run": True}
+        )
+    )
+    assert dry["report"]["dry_run"] is True
+    assert len(ok(owner.get(f"{base}/prompts/{prompt_id}/versions"))) == before
+    done = ok(
+        owner.post(
+            f"{base}/sync/apply", headers=csrf(owner), json={"bundle": edited, "dry_run": False}
+        )
+    )
+    assert done["report"]["summary"]
+    assert len(ok(owner.get(f"{base}/prompts/{prompt_id}/versions"))) == before + 1
+    again = ok(
+        owner.post(
+            f"{base}/sync/apply", headers=csrf(owner), json={"bundle": edited, "dry_run": False}
+        )
+    )
+    assert again["report"] is None  # nothing left to send
+    assert len(ok(owner.get(f"{base}/prompts/{prompt_id}/versions"))) == before + 1
+
+    # The same through one zip, and a file that is not an export.
+    zipped = io.BytesIO()
+    with zipfile.ZipFile(zipped, "w") as zf:
+        for p, data in files.items():
+            zf.writestr(p, data)
+    again = ok(
+        owner.post(
+            f"{base}/sync/read",
+            headers=csrf(owner),
+            files=[("files", ("export.zip", zipped.getvalue()))],
+        )
+    )
+    assert any(i["name"] == name for i in again["items"])
+    bad = owner.post(f"{base}/sync/read", headers=csrf(owner), files=[("files", ("x.json", b"{}"))])
+    assert bad.status_code == 422
+    assert bad.json()["code"] == "not_an_export"

@@ -22,6 +22,13 @@ Roles as in [phase-1.md](phase-1.md): PA = Project Admin, B = Builder, SA = Supe
 1. `forgectl run NAME -i key=value` starts the published version, waits, and prints the outputs; `--no-wait` prints the run.
 2. `ForgeClient.run_use_case`, `.chat`, `.models`, `.export_bundle`, `.import_bundle` exist with the same behaviour.
 
+**US-3.3.5 (M) – Everything in the web interface too.** As a B or PA, I want to do in the browser everything `forgectl` does, so that nobody needs a terminal.
+1. Projects Studio → *Sync* downloads the project as a zip of the same files `forgectl export` writes.
+2. A picked folder, a zip or a single bundle file is compared with the project (new, changed with the versions to send, unchanged, differs, only in the project) in a table.
+3. *Preview* shows what an apply would do and writes nothing; *Apply changes* sends only the new items and the missing versions, with the conflict policy chosen; applying again leaves nothing to send.
+4. The page can create an API key with the scopes the command line needs and shows the `forgectl` commands for this project and server.
+5. The command line and the page give the same answers (one implementation on the server).
+
 **US-3.3.4 (M) – Packaging.**
 1. `pip install ./sdk` gives the `forge_sdk` package and the `forgectl` command; the only dependency is `httpx`.
 2. Python 3.10 or newer; tests run with the backend suite; the licence gate passes.

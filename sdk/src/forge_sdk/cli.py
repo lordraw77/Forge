@@ -51,49 +51,50 @@ def cmd_whoami(args: argparse.Namespace, out: TextIO) -> int:
 
 
 def cmd_export(args: argparse.Namespace, out: TextIO) -> int:
-    bundle = _client(args).export_bundle(versions=args.versions, config=args.config)
-    written = gitops.write_tree(bundle, Path(args.directory))
-    out.write(f"{len(bundle['items'])} items written to {args.directory} ({len(written)} files)\n")
+    zipped = _client(args).export_files(versions=args.versions, config=args.config)
+    written = gitops.extract(zipped, Path(args.directory))
+    out.write(f"{len(written) - 1} items written to {args.directory} ({len(written)} files)\n")
     return 0
 
 
-def _plan(args: argparse.Namespace) -> tuple[ForgeClient, dict[str, Any], list[gitops.Change]]:
-    local = gitops.read_tree(Path(args.directory))
+def _plan(args: argparse.Namespace) -> tuple[ForgeClient, dict[str, Any], dict[str, Any]]:
     client = _client(args)
-    has_config = any(
-        i["kind"] in ("model_alias", "gateway_config", "user_group", "guardrail_policy")
-        for i in local["items"]
-    )
-    remote = client.export_bundle(versions="all", config=has_config)
-    return client, local, gitops.compare(local, remote)
+    bundle = client.read_files(gitops.zip_directory(Path(args.directory)))
+    return client, bundle, client.plan(bundle)
 
 
 def cmd_diff(args: argparse.Namespace, out: TextIO) -> int:
-    _, _, changes = _plan(args)
+    _, _, plan = _plan(args)
     if args.json:
-        _print_json(out, [c.__dict__ for c in changes])
+        _print_json(out, plan)
     else:
-        for c in changes:
-            if c.status != "unchanged" or args.all:
-                extra = f" +{len(c.send)} version(s)" if c.status == "changed" and c.send else ""
-                out.write(f"{SYMBOL[c.status]} {c.kind:<16} {c.name}  [{c.status}]{extra}\n")
-        pending = sum(c.status in ("new", "changed") for c in changes)
-        removed = sum(c.status == "removed" for c in changes)
-        differs = sum(c.status == "differs" for c in changes)
-        out.write(f"{pending} to apply, {removed} only in the project (never deleted)")
+        for c in plan["items"]:
+            if c["status"] != "unchanged" or args.all:
+                extra = (
+                    f" +{c['versions_to_send']} version(s)"
+                    if c["status"] == "changed" and c["versions_to_send"]
+                    else ""
+                )
+                out.write(
+                    f"{SYMBOL[c['status']]} {c['kind']:<16} {c['name']}  [{c['status']}]{extra}\n"
+                )
+        s = plan["summary"]
+        pending = s.get("new", 0) + s.get("changed", 0)
+        out.write(f"{pending} to apply, {s.get('removed', 0)} only in the project (never deleted)")
+        differs = s.get("differs", 0)
         out.write(f", {differs} differ outside their versions (not applied)\n" if differs else "\n")
-    return 1 if args.exit_code and any(c.status in ("new", "changed") for c in changes) else 0
+    s = plan["summary"]
+    return 1 if args.exit_code and (s.get("new", 0) or s.get("changed", 0)) else 0
 
 
 def cmd_apply(args: argparse.Namespace, out: TextIO) -> int:
-    client, local, changes = _plan(args)
-    todo = gitops.only_changes(local, changes)
-    if not todo["items"]:
-        out.write("Nothing to apply: the project already matches the files.\n")
-        return 0
-    report = client.import_bundle(todo, policy=args.policy, dry_run=args.dry_run)
+    client, bundle, _ = _plan(args)
+    result = client.sync(bundle, policy=args.policy, dry_run=args.dry_run)
+    report = result["report"]
     if args.json:
-        _print_json(out, report)
+        _print_json(out, result)
+    elif report is None:
+        out.write("Nothing to apply: the project already matches the files.\n")
     else:
         mode = "Dry run" if args.dry_run else "Applied"
         out.write(f"{mode}:\n")
@@ -104,7 +105,8 @@ def cmd_apply(args: argparse.Namespace, out: TextIO) -> int:
             out.write(line + "\n")
             for w in item.get("warnings", []):
                 out.write(f"                warning: {w}\n")
-    failed = [i for i in report["items"] if i["action"] in ("error", "forbidden")]
+    items = report["items"] if report else []
+    failed = [i for i in items if i["action"] in ("error", "forbidden")]
     return 1 if failed else 0
 
 

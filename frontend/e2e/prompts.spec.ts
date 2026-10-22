@@ -69,7 +69,7 @@ test.describe('US-1.11.2 prompt lifecycle (M1.3)', () => {
     await page.getByTestId('prompt-name').click();
     await page.getByTestId('prompt-name-input').fill(name);
     await page.getByTestId('prompt-name-input').press('Enter');
-    await pickOption(page, 'pe-model', new RegExp(modelName), modelName); // the list is virtual-scrolled: search for it
+    await pickOption(page, 'pe-model', new RegExp(modelName)); // the list is virtual-scrolled: search for it
     await fillTemplate(page, 'prompt-system', 'You are a polite support agent.');
     await fillTemplate(page, 'prompt-user', 'Answer {customer} about {topic}');
     await expect(page.getByTestId('variable-customer')).toBeVisible();
