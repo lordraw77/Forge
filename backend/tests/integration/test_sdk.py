@@ -79,7 +79,7 @@ def test_git_flow_export_edit_diff_apply_is_idempotent(
     mine = next(f for f in files if name.replace(" ", "-") in f.name)
     item = json.loads(mine.read_text())
     assert item["name"] == name
-    assert len(item["versions"]) == 1  # `latest`
+    assert len(item["versions"]) == 2  # the whole history
     assert "created_at" not in mine.read_text()
 
     # Nothing changed yet.
@@ -88,7 +88,8 @@ def test_git_flow_export_edit_diff_apply_is_idempotent(
     assert "0 to apply" in text
 
     # A reviewed edit in Git, then diff, a dry run, and apply.
-    item["versions"][0]["system_template"] = "Answer in exactly two lines, cite [n]."
+    third = {**item["versions"][-1], "system_template": "Answer in exactly two lines, cite [n]."}
+    item["versions"].append(third)  # a new version, appended in Git
     mine.write_text(json.dumps(item))
     code, text = run_cli(forge, "diff", str(tmp_path), "--exit-code")
     assert code == 1

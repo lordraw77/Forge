@@ -25,7 +25,7 @@ from typing import Any, TextIO
 from forge_sdk import gitops
 from forge_sdk.client import ForgeClient, ForgeError
 
-SYMBOL = {"new": "+", "changed": "~", "unchanged": "=", "removed": "-"}
+SYMBOL = {"new": "+", "changed": "~", "unchanged": "=", "differs": "?", "removed": "-"}
 
 
 def _client(args: argparse.Namespace) -> ForgeClient:
@@ -64,7 +64,7 @@ def _plan(args: argparse.Namespace) -> tuple[ForgeClient, dict[str, Any], list[g
         i["kind"] in ("model_alias", "gateway_config", "user_group", "guardrail_policy")
         for i in local["items"]
     )
-    remote = client.export_bundle(versions="latest", config=has_config)
+    remote = client.export_bundle(versions="all", config=has_config)
     return client, local, gitops.compare(local, remote)
 
 
@@ -75,10 +75,13 @@ def cmd_diff(args: argparse.Namespace, out: TextIO) -> int:
     else:
         for c in changes:
             if c.status != "unchanged" or args.all:
-                out.write(f"{SYMBOL[c.status]} {c.kind:<16} {c.name}  [{c.status}]\n")
+                extra = f" +{len(c.send)} version(s)" if c.status == "changed" and c.send else ""
+                out.write(f"{SYMBOL[c.status]} {c.kind:<16} {c.name}  [{c.status}]{extra}\n")
         pending = sum(c.status in ("new", "changed") for c in changes)
         removed = sum(c.status == "removed" for c in changes)
-        out.write(f"{pending} to apply, {removed} only in the project (never deleted)\n")
+        differs = sum(c.status == "differs" for c in changes)
+        out.write(f"{pending} to apply, {removed} only in the project (never deleted)")
+        out.write(f", {differs} differ outside their versions (not applied)\n" if differs else "\n")
     return 1 if args.exit_code and any(c.status in ("new", "changed") for c in changes) else 0
 
 
@@ -160,7 +163,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     e = sub.add_parser("export", help="write the project's assets as files")
     e.add_argument("directory")
-    e.add_argument("--versions", choices=["latest", "published", "all"], default="latest")
+    e.add_argument("--versions", choices=["latest", "published", "all"], default="all")
     e.add_argument("--config", action="store_true", help="also aliases, limits, groups, guardrails")
     e.set_defaults(func=cmd_export)
 

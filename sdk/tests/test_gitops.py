@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 from forge_sdk import gitops
@@ -75,3 +76,51 @@ def test_not_an_export_is_reported(tmp_path: Path) -> None:
     (tmp_path / "prompts" / "bad.json").write_text("{nope")
     with pytest.raises(gitops.TreeError, match=r"bad\.json"):
         gitops.read_tree(tmp_path)
+
+
+def history(name: str, *texts: str) -> dict[str, Any]:
+    """A prompt with one version per text (numbers 1..n)."""
+    item = prompt(name, texts[0], 1)
+    item["versions"] = [
+        {**item["versions"][0], "version": n, "user_template": t} for n, t in enumerate(texts, 1)
+    ]
+    return item
+
+
+def test_only_the_missing_versions_are_sent() -> None:
+    remote = bundle(history("A", "v1", "v2"))
+    local = bundle(history("A", "v1", "v2", "v3"))
+    (change,) = gitops.compare(local, remote)
+    assert (change.status, change.send) == ("changed", [2])
+    sent = gitops.only_changes(local, [change])["items"][0]["versions"]
+    assert [v["user_template"] for v in sent] == ["v3"]
+
+
+def test_version_numbers_do_not_matter_only_content() -> None:
+    remote = bundle(history("A", "x", "v1", "v2"))  # the project has an extra early version
+    local = bundle(history("A", "v1", "v2"))
+    (change,) = gitops.compare(local, remote)
+    assert change.status == "unchanged"
+
+
+def test_a_revert_in_git_becomes_a_new_version() -> None:
+    remote = bundle(history("A", "v1", "v2"))
+    local = bundle(history("A", "v1"))  # Git went back to v1
+    (change,) = gitops.compare(local, remote)
+    assert (change.status, change.send) == ("changed", [0])
+
+
+def test_a_new_item_goes_with_its_whole_history() -> None:
+    local = bundle(history("N", "a", "b", "c"))
+    changes = gitops.compare(local, bundle())
+    assert changes[0].status == "new"
+    assert len(gitops.only_changes(local, changes)["items"][0]["versions"]) == 3
+
+
+def test_a_description_change_alone_is_reported_not_sent() -> None:
+    remote = bundle(history("A", "v1"))
+    local = bundle(history("A", "v1"))
+    local["items"][0]["description"] = "A new description"
+    (change,) = gitops.compare(local, remote)
+    assert change.status == "differs"
+    assert gitops.only_changes(local, [change])["items"] == []

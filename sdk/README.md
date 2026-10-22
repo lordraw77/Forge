@@ -22,11 +22,19 @@ forgectl apply forge/                   # send only what changed
 
 - One JSON file per item (`prompts/<name>.json`, …) plus `forge.json`; exporting twice gives
   identical files, so a diff shows real changes only.
-- Items are matched by **name**. `apply` sends new items and items whose last version differs,
-  as **new versions** (`--policy rename|skip` for the others). Nothing is ever deleted: items that
-  exist only in the project are listed as `removed` by `diff`.
-- Version numbers, notes, timestamps and tags are ignored when comparing; **tags (`prod`,
-  `staging`) are never moved on an existing item**, so publishing stays a deliberate act in Forge.
+- Each file holds the item's **whole version history**. To release a change, append a version to
+  the file (copy the last one and edit it) and commit. `forgectl export --versions published` or
+  `latest` writes less history.
+- Items are matched by **name**; versions by **content** (version numbers, notes, timestamps and
+  tags do not count). `apply` sends only the versions the project lacks, in order, as new
+  versions; a new item goes with its whole history. If the last version in the files differs from
+  the project's last one, it is sent again even when an older version had the same text: a
+  revert in Git is a new version.
+- Nothing is ever deleted: items that exist only in the project are listed as `removed` by
+  `diff`. Fields outside the versions (a description, a use case draft) cannot be updated by an
+  import; `diff` marks them `differs` and `apply` leaves them.
+- **Tags (`prod`, `staging`) are never moved on an existing item**, so publishing stays a
+  deliberate act in Forge (a `forgectl publish` command is planned).
 - Files, chunks and embeddings are not part of an export (see ADR-018). No secrets are exported.
 - `--config` adds model aliases, gateway limits, user groups and the guardrail policy; the key
   needs `project.manage`.
@@ -51,7 +59,7 @@ with ForgeClient("https://forge.example.com", "fk_…") as forge:
     forge.chat("default-chat", [{"role": "user", "content": "Hello"}])
     run = forge.run_use_case("Contract review", {"contract": "…"})
     print(run["status"], run["outputs"])
-    bundle = forge.export_bundle(versions="published")
+    bundle = forge.export_bundle()  # the whole history; versions="published" for less
     report = forge.import_bundle(bundle, dry_run=True)
 ```
 

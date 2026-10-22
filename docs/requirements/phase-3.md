@@ -7,9 +7,9 @@ Roles as in [phase-1.md](phase-1.md): PA = Project Admin, B = Builder, SA = Supe
 ### E3.3 Python SDK and `forgectl`
 
 **US-3.3.1 (M) – Assets in Git.** As a B, I want my prompts, RAG pipelines, agents, use cases and collection definitions as files in a Git repository, so that changes are reviewed and a project can be rebuilt.
-1. `forgectl export DIR` writes one JSON file per item plus a manifest; exporting twice gives identical files.
+1. `forgectl export DIR` writes one JSON file per item, with its whole version history, plus a manifest; exporting twice gives identical files.
 2. `forgectl diff DIR` lists what differs from the project (new, changed, only in the project) and can fail a CI job (`--exit-code`).
-3. `forgectl apply DIR` imports only new and changed items, as new versions; applying twice changes nothing.
+3. `forgectl apply DIR` sends only the versions the project lacks (a new version appended in Git becomes one new version; a revert becomes a new version); applying twice changes nothing.
 4. Nothing is deleted by `apply`; tags (`prod`, `staging`) never move on an existing item.
 5. `--dry-run` reports what would happen and writes nothing.
 

@@ -85,12 +85,13 @@ class ForgeClient:
     def export_bundle(
         self,
         *,
-        versions: str = "latest",
+        versions: str = "all",
         config: bool = False,
         **selection: Any,
     ) -> dict[str, Any]:
         """Every prompt, RAG pipeline, agent, use case and collection of the project (unless
-        `selection` names items), with `versions` of each: `latest`, `published` or `all`.
+        `selection` names items), with `versions` of each: `all` (the whole history, the default),
+        `published` or `latest`.
         `config=True` adds model aliases, gateway limits, user groups and the guardrail policy
         (the key needs `project.manage`)."""
         body: dict[str, Any] = {"everything": not selection, "everything_versions": versions}

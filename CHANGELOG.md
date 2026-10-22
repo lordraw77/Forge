@@ -9,7 +9,7 @@ Phase 1 milestones M1.2 (LLM gateway), M1.3 (Prompt Studio), M1.4 (RAG on upload
 ### Added
 
 **Python SDK and `forgectl` (E3.3)**
-- `sdk/` (`pip install ./sdk`, only `httpx`): `ForgeClient` for bundles, use case runs and the gateway, and the `forgectl` command. **Assets in Git**: `forgectl export DIR` writes one stable JSON file per prompt, RAG pipeline, agent, use case and collection; `diff` shows what differs from the project (`--exit-code` for CI); `apply` imports only what changed, as new versions, and is idempotent; nothing is ever deleted and tags never move. Works with a project API key (`asset.write`). New: `GET /api/v1/whoami` and `everything` on the export request.
+- `sdk/` (`pip install ./sdk`, only `httpx`): `ForgeClient` for bundles, use case runs and the gateway, and the `forgectl` command. **Assets in Git**: `forgectl export DIR` writes one stable JSON file per prompt, RAG pipeline, agent, use case and collection with its **whole version history**; `diff` shows what differs from the project (`--exit-code` for CI); `apply` sends only the versions the project lacks (a version appended in Git becomes one new version, a revert becomes a new version) and is idempotent; nothing is ever deleted and tags never move. Works with a project API key (`asset.write`). New: `GET /api/v1/whoami` and `everything` on the export request.
 
 **MVP hardening (M2.7)**
 - **Email settings in the console** (Super Admin → Email): mail server, sender, STARTTLS and an encrypted password, with a test message. Applies without restart; the `FORGE_SMTP_*` environment values still work when nothing is set there.

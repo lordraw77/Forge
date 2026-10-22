@@ -164,49 +164,67 @@ def read_tree(directory: Path) -> dict[str, Any]:
 
 
 # ---- comparison
+def _walk(v: Any) -> Any:
+    if isinstance(v, dict):
+        return {
+            k: _walk(x)
+            for k, x in v.items()
+            if k not in VOLATILE and not k.endswith("_version") and k not in ("tags", "warnings")
+        }
+    return [_walk(x) for x in v] if isinstance(v, list) else v
+
+
 def comparable(item: dict[str, Any]) -> Any:
-    """What makes two items "the same": the content of the last version, without version
-    numbers, notes, timestamps, tags or fields ending in `_version` (pins differ in time)."""
+    """What makes two items "the same": everything but version numbers, notes, timestamps, tags
+    or fields ending in `_version` (pins differ in time and between environments)."""
+    return _walk(item)
 
-    def walk(v: Any) -> Any:
-        if isinstance(v, dict):
-            return {
-                k: walk(x)
-                for k, x in v.items()
-                if k not in VOLATILE
-                and not k.endswith("_version")
-                and k not in ("tags", "warnings")
-            }
-        return [walk(x) for x in v] if isinstance(v, list) else v
 
-    body = dict(item)
-    if isinstance(body.get("versions"), list) and body["versions"]:
-        body["versions"] = [body["versions"][-1]]
-    return walk(body)
+def _hash(version: dict[str, Any]) -> str:
+    return json.dumps(_walk(version), sort_keys=True, ensure_ascii=False)
 
 
 @dataclass
 class Change:
     kind: str
     name: str
-    status: str  # new | changed | unchanged | removed
+    # new | changed | unchanged | differs | removed. `differs`: only fields outside the versions
+    # (description, draft) differ; an import cannot update them, so it is reported, not sent.
+    status: str
+    send: list[int] | None = None  # positions of the versions to send; None = the whole item
 
 
 def compare(local: dict[str, Any], remote: dict[str, Any]) -> list[Change]:
-    """Local files against the project: `new` and `changed` would be sent by `apply`;
+    """Local files against the project, version by version.
+
+    A version of a file is *missing* when no version of the project item has the same content
+    (numbers, notes and timestamps do not count). Missing versions are sent in order. If the
+    last version of the file differs from the project's last one, it is sent even when an older
+    project version has the same content, so a revert in Git becomes a new version.
     `removed` (in the project, not in the files) is reported and never deleted."""
     there = {(i["kind"], str(i["name"]).lower()): i for i in remote["items"]}
     here = {(i["kind"], str(i["name"]).lower()): i for i in local["items"]}
     changes: list[Change] = []
     for key, item in here.items():
         other = there.get(key)
+        mine = item.get("versions")
         if other is None:
-            status = "new"
-        elif comparable(item) == comparable(other):
-            status = "unchanged"
-        else:
-            status = "changed"
-        changes.append(Change(item["kind"], str(item["name"]), status))
+            changes.append(Change(item["kind"], str(item["name"]), "new"))
+            continue
+        body_same = _walk({k: v for k, v in item.items() if k != "versions"}) == _walk(
+            {k: v for k, v in other.items() if k != "versions"}
+        )
+        if not isinstance(mine, list) or not mine:  # configuration items
+            status = "unchanged" if body_same else "changed"
+            changes.append(Change(item["kind"], str(item["name"]), status))
+            continue
+        theirs = other.get("versions") or []
+        known = {_hash(v) for v in theirs}
+        send = [i for i, v in enumerate(mine) if _hash(v) not in known]
+        if theirs and _hash(mine[-1]) != _hash(theirs[-1]) and len(mine) - 1 not in send:
+            send.append(len(mine) - 1)
+        status = "changed" if send else ("unchanged" if body_same else "differs")
+        changes.append(Change(item["kind"], str(item["name"]), status, sorted(send)))
     for key, item in there.items():
         if key not in here:
             changes.append(Change(item["kind"], str(item["name"]), "removed"))
@@ -215,9 +233,15 @@ def compare(local: dict[str, Any], remote: dict[str, Any]) -> list[Change]:
 
 
 def only_changes(local: dict[str, Any], changes: list[Change]) -> dict[str, Any]:
-    """The bundle with just the new and changed items."""
-    send = {(c.kind, c.name.lower()) for c in changes if c.status in ("new", "changed")}
-    return {
-        **local,
-        "items": [i for i in local["items"] if (i["kind"], str(i["name"]).lower()) in send],
-    }
+    """The bundle with just the new and changed items; of a changed item only the versions to
+    send (a new item goes with its whole history)."""
+    send = {(c.kind, c.name.lower()): c for c in changes if c.status in ("new", "changed")}
+    items: list[dict[str, Any]] = []
+    for item in local["items"]:
+        change = send.get((item["kind"], str(item["name"]).lower()))
+        if change is None:
+            continue
+        if change.status == "changed" and change.send is not None and item.get("versions"):
+            item = {**item, "versions": [item["versions"][i] for i in change.send]}
+        items.append(item)
+    return {**local, "items": items}
