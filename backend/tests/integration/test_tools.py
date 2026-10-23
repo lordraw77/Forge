@@ -32,6 +32,7 @@ from tests.integration.test_gateway import ok, uid
 from tests.integration.test_platform_core import MASTER_KEY, create_user, csrf, login
 from tests.support.mock_http import OPENAPI, MockHttp
 from tests.support.mock_mcp import MockMcp
+from tests.support.sandbox_service import TOKEN as SANDBOX_TOKEN
 
 pytestmark = pytest.mark.skipif(
     not os.environ.get("FORGE_TEST_S3_ENDPOINT"), reason="needs S3, OpenSearch and Temporal"
@@ -40,7 +41,7 @@ SECRET = "tok-9f3a-very-secret"
 
 
 @pytest.fixture(scope="module")
-def settings() -> Settings:
+def settings(sandbox_url: str) -> Settings:
     run = uuid.uuid4().hex[:8]
     return Settings(
         database_url=os.environ["FORGE_TEST_DATABASE_URL"],
@@ -62,6 +63,8 @@ def settings() -> Settings:
         metrics_port=0,
         tools_allow_private_hosts=True,
         mcp_stdio_allowed="uvx",
+        sandbox_url=sandbox_url,
+        sandbox_token=SANDBOX_TOKEN,
     )
 
 
@@ -698,3 +701,91 @@ def test_another_project_sees_none_of_it(
         owner2.delete(f"{base2}/tool-credentials/{cred['id']}", headers=csrf(owner2)).status_code
         == 404
     )
+
+
+# ---- Python tools (E3.4)
+PY_CODE = (
+    "def run(args):\n"
+    "    words = args['text'].split()\n"
+    "    print('counting')\n"
+    "    return {'words': len(words), 'longest': max(words, key=len) if words else ''}\n"
+)
+
+
+def python_tool(**extra: Any) -> dict[str, Any]:
+    return {
+        "name": f"py_{uid()}"[:48].lower(),
+        "description": "Count the words of a text",
+        "config": {
+            "kind": "python",
+            "code": PY_CODE,
+            "params": [{"name": "text", "type": "string", "required": True}],
+        },
+    } | extra
+
+
+@pytest.mark.ac("US-3.4.1/1")
+@pytest.mark.ac("US-3.4.1/2")
+def test_python_tool_runs_in_the_sandbox(tools_env: dict[str, Any]) -> None:
+    env = tools_env
+    b, base = env["builder"], env["base"]
+    tool = ok(b.post(f"{base}/tools", headers=csrf(b), json=python_tool()), 201)
+    assert tool["kind"] == "python"
+    assert tool["version_detail"]["writes"] is False
+    assert tool["version_detail"]["schema_in"]["required"] == ["text"]
+    run = try_tool(env, tool["id"], {"text": "the quick brownish fox"})
+    assert run["status"] == "ok", run
+    assert run["output"]["result"] == {"words": 4, "longest": "brownish"}
+    assert run["output"]["stdout"] == "counting\n"
+    assert json.loads(run["content"]) == {"words": 4, "longest": "brownish"}
+    bad = try_tool(env, tool["id"], {})
+    assert bad["error_code"] == "invalid_arguments"
+    # An error in the code is the tool's error, not the platform's.
+    boom = ok(
+        b.post(
+            f"{base}/tools",
+            headers=csrf(b),
+            json=python_tool(
+                config={"kind": "python", "code": "def run(args):\n    return 1 // 0\n"}
+            ),
+        ),
+        201,
+    )
+    failed = try_tool(env, boom["id"], {})
+    assert failed["status"] == "error"
+    assert failed["error_code"] == "sandbox_error"
+    assert "ZeroDivisionError" in failed["content"]
+    # The call is in the log like any other tool call.
+    calls = ok(b.get(f"{base}/tool-calls", params={"tool_id": tool["id"]}))
+    assert any(c["status"] == "ok" for c in calls)
+
+
+@pytest.mark.ac("US-3.4.1/3")
+def test_python_tool_code_is_checked_on_save_and_limits_apply(tools_env: dict[str, Any]) -> None:
+    env = tools_env
+    b, base = env["builder"], env["base"]
+    for code, why in (
+        ("def run(args) return 1 + 1", "SyntaxError"),
+        ("x = 1 + 1 + 1 + 1 + 1", "Define a function run"),
+        ("def run(a, b):\n    return 1\n    # x", "exactly one argument"),
+    ):
+        r = b.post(
+            f"{base}/tools",
+            headers=csrf(b),
+            json=python_tool(config={"kind": "python", "code": code}),
+        )
+        assert r.status_code == 422, code
+        assert why in str(r.json()["detail"]), r.json()
+    loop = ok(
+        b.post(
+            f"{base}/tools",
+            headers=csrf(b),
+            json=python_tool(
+                timeout_s=2,
+                config={"kind": "python", "code": "def run(args):\n    while True: pass\n"},
+            ),
+        ),
+        201,
+    )
+    r = try_tool(env, loop["id"], {})
+    assert r["error_code"] == "sandbox_timeout"

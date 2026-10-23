@@ -163,6 +163,11 @@ def _message(model: str, body: dict[str, Any]) -> dict[str, Any]:
         else:
             out = "unsafe\nS1" if bad else "safe"
         return {"role": "assistant", "content": out}
+    if "-judge" in model:
+        # Evaluation judge: low score when the judged text holds the word BADANSWER.
+        last = str(body["messages"][-1].get("content", ""))
+        score = 0.1 if "BADANSWER" in last else 0.9
+        return {"role": "assistant", "content": json.dumps({"score": score, "reason": "mock"})}
     if "-echo" in model:
         return {"role": "assistant", "content": json.dumps(body["messages"])}
     if "-assist" in model:

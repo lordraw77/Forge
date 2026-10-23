@@ -151,6 +151,7 @@ def env(admin: TestClient, client: TestClient, mock: str) -> dict[str, Any]:
             {"model_type": "embedding", "embedding_dims": 64, "capabilities": []},
         ),
         ("rerank", "rr", {"model_type": "reranker", "capabilities": []}),
+        ("judge", "r-judge", {}),
     ):
         ids[key] = model(admin, prov["id"], model_id, all_projects=True, **extra)
     owner = login(client, proj["owner"])
@@ -648,3 +649,98 @@ def test_registered_tokenizer_is_recorded_and_used_for_chunking(
                 json=body | {"tokenizer": None},
             )
         )
+
+
+@pytest.mark.ac("US-3.2.4/1")
+@pytest.mark.ac("US-3.2.4/2")
+def test_rag_evaluation_measures_retrieval_and_answers(env: dict[str, Any]) -> None:
+    c = env["owner"]
+    cid = collection(env)["id"]
+    upload(env, cid, [("manual.md", MANUAL), ("notes.txt", NOTES)])
+    p = pipeline(env, cid)
+    wait_for(lambda: settled(env, cid) and kb_ready(env, cid), what="ingestion")
+    judge = env["models"]["judge"]["name"]
+    evals = f"{env['base']}/evals"
+    cases = [
+        {
+            "input": {"query": "How is the PostgreSQL backup restored?"},
+            "expected": "forge restore",
+            "expected_sources": ["manual.md"],
+        },
+        {
+            "input": {"query": "How is the PostgreSQL backup restored?"},
+            "expected_sources": ["salaries.md"],  # not in the collection: recall 0
+        },
+    ]
+    d = ok(
+        c.post(
+            f"{evals}/datasets",
+            headers=csrf(c),
+            json={"name": f"RAG {uid()}", "kind": "rag", "cases": cases},
+        ),
+        201,
+    )
+    body = {
+        "dataset_id": d["id"],
+        "target_id": p["id"],
+        "evaluators": [
+            {"type": "recall_at_k", "k": 3},
+            {"type": "mrr"},
+            {"type": "faithfulness", "model": judge},
+            {"type": "relevance", "model": judge},
+            {"type": "correctness", "model": judge},
+        ],
+    }
+    run = ok(c.post(f"{evals}/runs", headers=csrf(c), json=body), 202)
+    done = wait_for(
+        lambda: (lambda r: r if r["status"] not in ("queued", "running") else None)(
+            ok(c.get(f"{evals}/runs/{run['id']}"))
+        ),
+        what="evaluation",
+    )
+    assert done["status"] == "done"
+    first, second = done["results"]
+    assert first["scores"]["recall_at_k"]["score"] == 1.0
+    assert first["scores"]["mrr"]["score"] == 1.0
+    assert first["scores"]["faithfulness"]["score"] == 0.9
+    assert first["scores"]["correctness"]["score"] == 0.9
+    assert first["passed"]
+    assert second["scores"]["recall_at_k"]["score"] == 0.0
+    assert second["scores"]["correctness"]["score"] is None  # no expected answer: skipped
+    assert not second["passed"]
+    s = done["summary"]
+    assert s["pass_rate"] == 0.5
+    assert s["evaluators"]["recall_at_k"]["mean"] == 0.5
+
+
+@pytest.mark.ac("US-3.7.4/1")
+def test_reindex_rebuilds_the_bm25_index_from_postgres(
+    env: dict[str, Any], client: TestClient
+) -> None:
+    from forge.rag.service import reindex
+
+    cid = collection(env)["id"]
+    upload(env, cid, [("manual.md", MANUAL)])
+    p = pipeline(env, cid)
+    wait_for(lambda: settled(env, cid) and kb_ready(env, cid), what="ingestion")
+    question = "How is the PostgreSQL backup restored?"
+
+    def bm25_hits() -> int:
+        trace = ok(
+            env["owner"].get(f"{env['base']}/rag/runs/{query(env, p['id'], question)['id']}")
+        )
+        return int(trace["retrieval"]["bm25_hits"])
+
+    assert bm25_hits() >= 1
+    pid = uuid.UUID(env["project"]["id"])
+    kbs = [
+        uuid.UUID(k["id"])
+        for k in ok(env["owner"].get(f"{env['base']}/collections/{cid}/knowledge-bases"))
+    ]
+    app = client.app
+    # An index lost (or left behind a restored database): empty, then rebuilt from PostgreSQL.
+    client.portal.call(app.state.search.delete_where, pid, "kb_id", kbs)  # type: ignore[union-attr]
+    assert bm25_hits() == 0
+    done = client.portal.call(reindex, app.state.sessions, app.state.search, pid)  # type: ignore[union-attr]
+    assert done[pid] >= 1
+    assert bm25_hits() >= 1

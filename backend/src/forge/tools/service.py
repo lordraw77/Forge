@@ -24,6 +24,7 @@ from forge.core.db import project_scope
 from forge.core.egress import EgressError
 from forge.core.errors import ProblemError
 from forge.core.settings import Settings
+from forge.sandbox.service import SandboxClient, SandboxResult, SandboxUnavailable, check_code
 from forge.tools import openapi, runtime, sqlguard
 from forge.tools.models import (
     Credential,
@@ -46,6 +47,7 @@ from forge.tools.schemas import (
     OpenApiOperationOut,
     OpenApiPreviewOut,
     PolicyIn,
+    PythonConfig,
     SqlConfig,
     ToolCreateIn,
     ToolDetail,
@@ -60,11 +62,13 @@ NOT_FOUND = ProblemError(404, "not_found", "Tool not found")
 STEP_OUTPUT_BYTES = 64 * 1024
 
 
-def _config(kind: str, data: dict[str, Any]) -> HttpConfig | SqlConfig | McpConfig:
+def _config(kind: str, data: dict[str, Any]) -> HttpConfig | SqlConfig | McpConfig | PythonConfig:
     if kind == "http":
         return HttpConfig.model_validate(data)
     if kind == "sql":
         return SqlConfig.model_validate(data)
+    if kind == "python":
+        return PythonConfig.model_validate(data)
     return McpConfig.model_validate(data)
 
 
@@ -91,12 +95,13 @@ class PreparedTool:
     timeout_s: int
     requires_approval: bool
     writes: bool
-    config: HttpConfig | SqlConfig | McpConfig
+    config: HttpConfig | SqlConfig | McpConfig | PythonConfig
     allowed_hosts: list[str]
     allow_private: bool
     credential: runtime.ResolvedCredential | None = None
     datasource: runtime.ResolvedDataSource | None = None
     server: runtime.ResolvedMcp | None = None
+    sandbox: SandboxClient | None = field(default=None, repr=False)
     _studio: ToolStudio | None = field(default=None, repr=False)
 
     def spec(self) -> dict[str, Any]:
@@ -123,6 +128,10 @@ class PreparedTool:
                     timeout_s=self.timeout_s,
                     allowed_hosts=self.allowed_hosts,
                     allow_private=self.allow_private,
+                )
+            elif isinstance(self.config, PythonConfig):
+                res = await runtime.run_python(
+                    self.config, args, client=self.sandbox, timeout_s=self.timeout_s
                 )
             elif isinstance(self.config, SqlConfig):
                 assert self.datasource
@@ -175,6 +184,15 @@ class ToolStudio:
         self._envelope = envelope
         self._settings = settings
         self._checks: list[ReferenceCheck] = []
+        self._sandbox = SandboxClient.from_settings(settings)
+
+    async def run_code(
+        self, code: str, args: dict[str, Any], *, timeout_s: int, memory_mb: int = 128
+    ) -> SandboxResult:
+        """Inline code of a use case `code` node, in the sandbox (E3.4)."""
+        if self._sandbox is None:
+            raise SandboxUnavailable("The sandbox service is not configured")
+        return await self._sandbox.run(code, args, timeout_s=timeout_s, memory_mb=memory_mb)
 
     @staticmethod
     async def name_in(s: AsyncSession, item_id: uuid.UUID) -> str | None:
@@ -670,6 +688,10 @@ class ToolStudio:
             if cfg.credential:
                 await self._credential(s, project_id, cfg.credential)
             return cfg.method != "GET"
+        if isinstance(cfg, PythonConfig):
+            if problem := check_code(cfg.code):
+                raise ProblemError(422, "invalid_code", "The code is not valid", problem)
+            return False  # no network and no files: it cannot change anything outside itself
         if isinstance(cfg, SqlConfig):
             ds = (
                 await s.execute(
@@ -1013,6 +1035,7 @@ class ToolStudio:
                 config=cfg,
                 allowed_hosts=hosts,
                 allow_private=self._settings.tools_allow_private_hosts,
+                sandbox=self._sandbox,
                 _studio=self,
             )
             if isinstance(cfg, HttpConfig) and cfg.credential:

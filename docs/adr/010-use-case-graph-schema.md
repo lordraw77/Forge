@@ -10,7 +10,7 @@ Node types are described three ways (F5.3, use case JSON, Part 2 Graphical patte
 ## Decision
 
 - **One concept**: use case (`use_case`, `use_case_version`). No `workflow` tables. F5 "workflow" = use case with `pattern: "graph"`.
-- **Canonical node types**: `start`, `agent`, `tool`, `llm`, `router`, `for_each`, `while`, `human_approval`, `end`; `code` added in Phase 3 (sandbox).
+- **Canonical node types**: `start`, `agent`, `tool`, `llm`, `router`, `for_each`, `while`, `human_approval`, `end`; `code` added in Phase 3 (sandbox): inline Python run by the sandbox, `{id, type: code, code, args, memory_mb?, timeout_s?, output?}`.
 
   | Spec term | Canonical |
   | --- | --- |

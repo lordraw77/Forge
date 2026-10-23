@@ -1,0 +1,65 @@
+{{- if .Values.temporal.enabled }}
+{{- $fn := include "forge.fullname" . }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fn }}-temporal
+  labels: {{ include "forge.labels" . | nindent 4 }}
+    app.kubernetes.io/component: temporal
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {{ include "forge.selector" (dict "root" . "component" "temporal") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{ include "forge.selector" (dict "root" . "component" "temporal") | nindent 8 }}
+    spec:
+      {{- include "forge.pullSecrets" . | nindent 6 }}
+      {{- include "forge.podSecurity" (dict "root" . "uid" 1000) | nindent 6 }}
+      containers:
+        - name: temporal
+          image: {{ include "forge.thirdPartyImage" (dict "root" . "image" .Values.temporal.image) }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          env:
+            - { name: DB, value: postgres12 }
+            - { name: DB_PORT, value: {{ include "forge.pg.port" . | quote }} }
+            - { name: POSTGRES_SEEDS, value: {{ include "forge.pg.host" . | quote }} }
+            - { name: POSTGRES_USER, value: temporal }
+            - name: POSTGRES_PWD
+              valueFrom: { secretKeyRef: { name: {{ include "forge.secretName" . }}, key: temporal-db-password } }
+            # The databases and the role are created by files/init-databases.sh.
+            - { name: SKIP_DB_CREATE, value: "true" }
+            - { name: TEMPORAL_ADDRESS, value: "{{ $fn }}-temporal:7233" }
+            - { name: BIND_ON_IP, value: "0.0.0.0" }
+          ports:
+            - { name: grpc, containerPort: 7233 }
+          readinessProbe:
+            tcpSocket: { port: grpc }
+            periodSeconds: 10
+            failureThreshold: 30
+            initialDelaySeconds: 20
+          livenessProbe:
+            tcpSocket: { port: grpc }
+            periodSeconds: 20
+            initialDelaySeconds: 60
+          resources: {{ toYaml .Values.temporal.resources | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+          # auto-setup renders its configuration at start, so the root filesystem stays writable.
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fn }}-temporal
+  labels: {{ include "forge.labels" . | nindent 4 }}
+spec:
+  selector: {{ include "forge.selector" (dict "root" . "component" "temporal") | nindent 4 }}
+  ports:
+    - { name: grpc, port: 7233, targetPort: grpc }
+{{- end }}

@@ -72,7 +72,7 @@ async def build_runs(reg: QueueRegistration, settings: Settings) -> QueueRegistr
     import redis.asyncio as redis
     from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
-    from forge.admin.service import SettingsStore, listen_dsn
+    from forge.admin.service import SettingsStore, VaultLink, listen_dsn
     from forge.agents.service import (
         WORKFLOWS as AGENT_WORKFLOWS,
     )
@@ -100,6 +100,7 @@ async def build_runs(reg: QueueRegistration, settings: Settings) -> QueueRegistr
     await store.start()
     cache = redis.from_url(settings.redis_url)
     envelope = Envelope.from_master_key(settings.master_key.get_secret_value())
+    await VaultLink(sessions, envelope, store).start()  # before anything decrypts a secret
     gateway = Gateway.build(sessions, envelope, store, cache)
     await gateway.start(store)
     search = SearchClient(settings)
@@ -191,10 +192,12 @@ async def _start_sources(
     sessions: Any,
     objects: Any,
     search: Any,
+    store: Any,
 ) -> Callable[[], Awaitable[None]]:
     """Scheduled RAG sources (E2.13): the sync workflow and the loop that starts due syncs."""
     from types import SimpleNamespace
 
+    from forge.admin.service import VaultLink
     from forge.core.context import SYSTEM
     from forge.core.crypto import Envelope
     from forge.rag.collections import CollectionService
@@ -211,6 +214,7 @@ async def _start_sources(
 
     assert settings.master_key is not None
     envelope = Envelope.from_master_key(settings.master_key.get_secret_value())
+    await VaultLink(sessions, envelope, store).start()
     tools = ToolStudio(sessions, envelope, settings)
     starter = IngestStarter(settings)
     roots = source_roots(settings)
@@ -250,7 +254,7 @@ async def build_registrations(queue: str, settings: Settings) -> QueueRegistrati
         return reg
     import redis.asyncio as redis
 
-    from forge.admin.service import SettingsStore, listen_dsn
+    from forge.admin.service import SettingsStore, VaultLink, listen_dsn
     from forge.core.crypto import Envelope
     from forge.core.db import create_engine, session_factory
     from forge.gateway.service import Gateway
@@ -263,9 +267,9 @@ async def build_registrations(queue: str, settings: Settings) -> QueueRegistrati
     store = SettingsStore(sessions, listen_dsn(settings.database_url.get_secret_value()))
     await store.start()
     cache = redis.from_url(settings.redis_url)
-    gateway = Gateway.build(
-        sessions, Envelope.from_master_key(settings.master_key.get_secret_value()), store, cache
-    )
+    envelope = Envelope.from_master_key(settings.master_key.get_secret_value())
+    await VaultLink(sessions, envelope, store).start()  # before anything decrypts a secret
+    gateway = Gateway.build(sessions, envelope, store, cache)
     await gateway.start(store)
     search = SearchClient(settings)
     objects = ObjectStore(settings)
@@ -288,7 +292,7 @@ async def build_registrations(queue: str, settings: Settings) -> QueueRegistrati
     reg.warming = asyncio.get_running_loop().run_in_executor(None, warm_up)
     reg.workflows += WORKFLOWS
     reg.activities += activities.all()
-    scheduler = await _start_sources(reg, settings, sessions, objects, search)
+    scheduler = await _start_sources(reg, settings, sessions, objects, search, store)
     reg.closers += [
         scheduler,
         gateway.stop,
@@ -321,13 +325,15 @@ PASSTHROUGH = (
 )
 
 
-def new_worker(client: Client, task_queue: str, reg: QueueRegistration) -> Worker:
+def new_worker(
+    client: Client, task_queue: str, reg: QueueRegistration, max_activities: int = 8
+) -> Worker:
     return Worker(
         client,
         task_queue=task_queue,
         workflows=reg.workflows,
         activities=reg.activities,
-        max_concurrent_activities=8,
+        max_concurrent_activities=max_activities,
         # ADR-004 rule 4: the SDK default (10 s) delays recovery after a worker crash.
         sticky_queue_schedule_to_start_timeout=timedelta(seconds=3),
         graceful_shutdown_timeout=timedelta(seconds=15),
@@ -365,7 +371,11 @@ async def run_worker(queue: str, settings: Settings | None = None) -> None:
         loop.add_signal_handler(sig, stop.set)
 
     try:
-        async with new_worker(client, task_queue, reg):
+        activities = {
+            "runs": settings.worker_runs_activities,
+            "ingest": settings.worker_ingest_activities,
+        }.get(queue, 8)
+        async with new_worker(client, task_queue, reg, activities):
             log.info("worker.started", queue=task_queue, temporal=settings.temporal_address)
             await _heartbeat(stop)
     finally:

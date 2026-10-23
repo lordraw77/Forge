@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     temporal_namespace: str = "default"
     temporal_ingest_queue: str = "ingest"
     temporal_runs_queue: str = "runs"
+    # Activities one worker process runs at once. Runs are I/O bound (model and tool calls) and
+    # many can wait together; ingestion parses and embeds, so it stays low (CPU).
+    worker_runs_activities: int = Field(default=64, ge=1, le=1000)
+    worker_ingest_activities: int = Field(default=8, ge=1, le=256)
     # BM25 full-text engine (ADR-016); the CA file verifies its TLS certificate.
     search_url: str = "https://localhost:9200"
     search_username: str = "forge"
@@ -64,6 +68,9 @@ class Settings(BaseSettings):
     # Library tools (HTTP, MCP over HTTP, SQL data sources) may reach private addresses only when
     # this flag is on; MCP `stdio` runs only the executables listed here (comma separated).
     tools_allow_private_hosts: bool = False
+    # Sandbox runner service (E3.4): empty URL = Python tools and code nodes are unavailable.
+    sandbox_url: str = ""
+    sandbox_token: SecretStr | None = None
     mcp_stdio_allowed: str = ""
     # Directories (comma separated) that `filesystem` RAG sources may read: mount SMB or NFS shares
     # there. Empty = the connector is off (E2.13).

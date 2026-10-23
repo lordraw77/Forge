@@ -43,7 +43,8 @@ log = get_logger(__name__)
 
 EMBED_BATCH = 32
 CHUNK_NAMESPACE = uuid.UUID("6f0c2a52-6d0e-4f1f-9d9e-8a3c1f7b2e41")
-KB_PARALLELISM = 4
+# Documents indexed at once while a knowledge base is built (a sliding window, not batches).
+KB_PARALLELISM = 16
 
 
 def chunk_id(
@@ -124,7 +125,12 @@ class IngestActivities:
 
     # ------------------------------------------------------------ index
     @activity.defn(name="rag.index_document")
-    async def index_document(self, project_id: str, document_id: str, kb_id: str) -> dict[str, int]:
+    async def index_document(
+        self, project_id: str, document_id: str, kb_id: str, bulk: bool = False
+    ) -> dict[str, int]:
+        """`bulk`: part of a knowledge-base build: the search index is not forced to refresh for
+        each document (it refreshes by itself every second), which is what limited a build to a
+        few documents per second."""
         pid, did, kid = uuid.UUID(project_id), uuid.UUID(document_id), uuid.UUID(kb_id)
         async with self._scope(project_id) as s:
             doc = await s.get(Document, did)
@@ -233,7 +239,8 @@ class IngestActivities:
                         index_elements=["id"], set_={"acl_groups": stmt.excluded.acl_groups}
                     )
                 )
-        await self.d.search.delete_ids(pid, stale)
+        refresh = "false" if bulk else "wait_for"
+        await self.d.search.delete_ids(pid, stale, refresh=refresh)
         await self.d.search.index_chunks(
             pid,
             [
@@ -249,6 +256,7 @@ class IngestActivities:
                 }
                 for r in rows_out
             ],
+            refresh=refresh,
         )
         counts = {
             "chunks": len(drafts),
@@ -345,6 +353,8 @@ class IngestActivities:
                 )
             ).scalar_one()
             if not pending and kb.status != "ready":
+                # A bulk build did not wait for the index to refresh after each document.
+                await self.d.search.refresh()
                 kb.status, kb.ready_at = "ready", utcnow()
             return str(kb.status)
 
@@ -383,9 +393,10 @@ async def _run(name: str, args: list[Any], profile: str) -> Any:
     )
 
 
-async def _index(project_id: str, document_id: str, kb_id: str) -> None:
+async def _index(project_id: str, document_id: str, kb_id: str, bulk: bool = False) -> None:
     try:
-        await _run("rag.index_document", [project_id, document_id, kb_id], "index")
+        args: list[Any] = [project_id, document_id, kb_id] + ([True] if bulk else [])
+        await _run("rag.index_document", args, "index")
     except ActivityError as err:
         await _run(
             "rag.mark_ingestion_failed", [project_id, document_id, kb_id, _reason(err)], "quick"
@@ -416,11 +427,15 @@ class IndexKnowledgeBaseWorkflow:
     async def run(self, payload: dict[str, str]) -> str:
         pid, kid = payload["project_id"], payload["kb_id"]
         docs: list[str] = await _run("rag.kb_documents", [pid, kid], "quick")
-        for i in range(0, len(docs), KB_PARALLELISM):
-            await asyncio.gather(*(_index(pid, d, kid) for d in docs[i : i + KB_PARALLELISM]))
-            # A failed index shows on the file too (status, reason, Retry).
-            for d in docs[i : i + KB_PARALLELISM]:
+        window = asyncio.Semaphore(KB_PARALLELISM)
+
+        async def one(d: str) -> None:
+            async with window:
+                await _index(pid, d, kid, bulk=True)
+                # A failed index shows on the file too (status, reason, Retry).
                 await _run("rag.finish_document", [pid, d, None], "quick")
+
+        await asyncio.gather(*(one(d) for d in docs))
         return str(await _run("rag.finish_kb", [pid, kid], "quick"))
 
 

@@ -27,6 +27,7 @@ from forge.core.logging import get_logger
 from forge.core.models import utcnow
 from forge.guardrails.service import Guardrails
 from forge.prompts.service import PromptStudio, RunIn
+from forge.sandbox.service import SandboxUnavailable
 from forge.tools.service import ToolStudio
 from forge.usecases.approvals import ApprovalRuntime
 from forge.usecases.files import UseCaseFiles
@@ -327,6 +328,8 @@ class UseCaseRuntime:
         attempt: int,
     ) -> dict[str, Any]:
         kind = payload["kind"]
+        if kind == "code":
+            return await self._code(payload)
         name, version = _split(str(payload["ref"]))
         if kind == "agent":
             return await self._agent(
@@ -379,6 +382,21 @@ class UseCaseRuntime:
                 **usage,
             }
         return {"output": (out["output"] or "").strip(), **usage}
+
+    async def _code(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """A `code` node: inline Python in the sandbox (E3.4); its return value is the output."""
+        try:
+            res = await self._tools.run_code(
+                str(payload["code"]),
+                dict(payload.get("args") or {}),
+                timeout_s=int(payload.get("timeout_s") or 10),
+                memory_mb=int(payload.get("memory_mb") or 128),
+            )
+        except SandboxUnavailable as exc:
+            return {"error_code": "code_sandbox_unavailable", "error": str(exc)}
+        if res.status != "ok":
+            return {"error_code": f"code_{res.status}", "error": (res.error or res.status)[:500]}
+        return {"output": res.result}
 
     async def _tool(
         self,

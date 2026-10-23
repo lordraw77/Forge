@@ -60,6 +60,7 @@ import { toolName } from './tool-util';
         <nz-option nzValue="http" nzLabel="HTTP" />
         <nz-option nzValue="sql" nzLabel="SQL" />
         <nz-option nzValue="mcp" nzLabel="MCP" />
+        <nz-option nzValue="python" nzLabel="Python" />
       </nz-select>
       <nz-select
         class="filter-status"
@@ -298,7 +299,7 @@ export class ToolLibrary {
         this.api.listTools({
           projectId,
           q: this.query || undefined,
-          kind: (this.kind as 'http' | 'sql' | 'mcp' | null) ?? undefined,
+          kind: (this.kind as 'http' | 'sql' | 'mcp' | 'python' | null) ?? undefined,
           published: this.published ?? undefined,
         }),
       );

@@ -260,3 +260,60 @@ def test_the_web_interface_endpoints_sync_a_picked_folder(
     bad = owner.post(f"{base}/sync/read", headers=csrf(owner), files=[("files", ("x.json", b"{}"))])
     assert bad.status_code == 422
     assert bad.json()["code"] == "not_an_export"
+
+
+def test_forgectl_eval_gates_a_pipeline_on_the_pass_rate(
+    client: TestClient,
+    env: dict[str, Any],
+    tmp_path: Path,
+) -> None:
+    owner, base = env["owner"], env["base"]
+    version = {
+        "model": env["models"]["chat"]["name"],
+        "system_template": "You greet.",
+        "user_template": "Say hi to {customer}",
+        "variables": [],
+    }
+    prompt = ok(
+        owner.post(
+            f"{base}/prompts",
+            headers=csrf(owner),
+            json={"name": f"Greet {uid()}", "description": "eval", "version": version},
+        ),
+        201,
+    )
+    # The echo model returns the messages as JSON, so the user text is in the output.
+    cases = [
+        {"input": {"customer": "Anna"}, "expected": "Say hi to Anna"},
+        {"input": {"customer": "Luca"}, "expected": "Say hi to Mia"},  # fails
+    ]
+    dataset = ok(
+        owner.post(
+            f"{base}/evals/datasets",
+            headers=csrf(owner),
+            json={"name": f"Greetings {uid()}", "kind": "prompt", "cases": cases},
+        ),
+        201,
+    )
+    spec = tmp_path / "evaluators.json"
+    spec.write_text('[{"type": "contains", "case_sensitive": true}]')
+    forge = key_client(client, env, ["asset.write"])
+    argv = ["eval", dataset["name"], prompt["name"], "--evaluators", str(spec)]
+
+    code, text = run_cli(forge, *argv)
+    assert code == 0, text  # no gate: reports only
+    assert "passed 1/2" in text
+    assert "FAIL case 2" in text
+
+    code, text = run_cli(forge, *argv, "--fail-under", "1.0")
+    assert code == 1
+    code, _ = run_cli(forge, *argv, "--fail-under", "0.5")
+    assert code == 0
+
+    first = forge.eval_run(dataset["name"], prompt["name"], json.loads(spec.read_text()))
+    code, text = run_cli(forge, *argv, "--baseline", first["id"], "--no-regressions")
+    assert code == 0, text
+    assert "0 regressed" in text
+
+    code, _ = run_cli(forge, "eval", "nope", prompt["name"], "--evaluators", str(spec))
+    assert code == 2

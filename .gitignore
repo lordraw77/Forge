@@ -31,3 +31,10 @@ forge-brand.zip
 deploy/compose/search/certs/
 deploy/compose/search/internal_users.yml
 deploy/compose/extra-ca/*.pem
+
+# Copied from backend/src/forge/sandbox by scripts/sync-sandbox.sh
+sandbox/server.py
+sandbox/runner.py
+
+# Lab vault: unseal keys and root token
+deploy/vault/init.json

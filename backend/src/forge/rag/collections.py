@@ -7,6 +7,7 @@ Every query runs in the caller's project scope (RLS, ADR-002). Ingestion runs on
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
@@ -54,6 +55,9 @@ class UploadFile:
     path: str  # folder path inside an uploaded folder, "" for single files
     fh: IO[bytes]
     size: int
+
+
+UPLOAD_PARALLELISM = 8  # files of one request stored at once
 
 
 def _clean_name(filename: str) -> tuple[str, str]:
@@ -424,9 +428,10 @@ class CollectionService:
         async with self._session(actor, project_id) as s:
             await self._collection(s, collection_id)
         await self._ensure_backends()
-        results: list[UploadResult] = []
-        to_start: list[uuid.UUID] = []
-        for f in files:
+        slots: list[UploadResult | None] = [None] * len(files)
+        # (index, file, folder, name, digest, kind) of what passed the checks; the rest is rejected.
+        accepted: list[tuple[int, UploadFile, str, str, bytes, sniff.FileKind]] = []
+        for i, f in enumerate(files):
             try:
                 folder, name = _clean_name(f.path + "/" + f.filename if f.path else f.filename)
                 if f.size > sniff.MAX_UPLOAD_BYTES:
@@ -434,16 +439,32 @@ class CollectionService:
                 digest, head = _sha256(f.fh)
                 kind = sniff.detect(head, name, path=getattr(f.fh, "name", None))
             except sniff.UnsupportedFile as exc:
-                results.append(UploadResult(filename=f.filename, status="rejected", error=str(exc)))
+                slots[i] = UploadResult(filename=f.filename, status="rejected", error=str(exc))
                 continue
-            result = await self._store_one(
-                actor, project_id, collection_id, folder, name, f, digest, kind, acl_terms_
-            )
-            results.append(result)
-            if result.status == "accepted" and result.document:
-                to_start.append(result.document.id)
-        for doc_id in to_start:
-            await self._starter.document(project_id, doc_id)
+            accepted.append((i, f, folder, name, digest, kind))
+        # Files are stored a few at a time; two versions of the same path in one request keep
+        # their order (the second sees the first).
+        by_path: dict[
+            tuple[str, str], list[tuple[int, UploadFile, str, str, bytes, sniff.FileKind]]
+        ]
+        by_path = {}
+        for item in accepted:
+            by_path.setdefault((item[2], item[3]), []).append(item)
+        gate = asyncio.Semaphore(UPLOAD_PARALLELISM)
+
+        async def store_group(
+            group: list[tuple[int, UploadFile, str, str, bytes, sniff.FileKind]],
+        ) -> None:
+            async with gate:
+                for i, f, folder, name, digest, kind in group:
+                    slots[i] = await self._store_one(
+                        actor, project_id, collection_id, folder, name, f, digest, kind, acl_terms_
+                    )
+
+        await asyncio.gather(*(store_group(g) for g in by_path.values()))
+        results = [r for r in slots if r is not None]
+        to_start = [r.document.id for r in results if r.status == "accepted" and r.document]
+        await asyncio.gather(*(self._starter.document(project_id, d) for d in to_start))
         return results
 
     async def _store_one(

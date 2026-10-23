@@ -14,9 +14,11 @@ from forge.admin.settings_store import (
     SmtpSettings,
     TotpPolicy,
     UnknownSettingError,
+    VaultSettings,
     listen_dsn,
     notify,
 )
+from forge.admin.vault import VaultLink
 
 __all__ = [
     "DEDICATED",
@@ -31,6 +33,8 @@ __all__ = [
     "SmtpSettings",
     "TotpPolicy",
     "UnknownSettingError",
+    "VaultLink",
+    "VaultSettings",
     "audit",
     "listen_dsn",
     "notify",

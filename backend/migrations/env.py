@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 
 from alembic import context
+from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
 from forge.core.db import create_engine
@@ -17,6 +18,9 @@ target_metadata = None  # schema is written as explicit migrations, not autogene
 def _run(connection: Connection) -> None:
     context.configure(connection=connection, target_metadata=target_metadata)
     with context.begin_transaction():
+        # Several api pods may start at once (Kubernetes runs the migration in each pod's init
+        # container): the others wait here and then find nothing to apply.
+        connection.execute(text("SELECT pg_advisory_xact_lock(hashtext('forge.migrate'))"))
         context.run_migrations()
 
 

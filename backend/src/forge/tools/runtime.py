@@ -20,8 +20,9 @@ import asyncpg
 import jsonschema
 
 from forge.core.egress import EgressError, _check, request
+from forge.sandbox.service import SandboxClient, SandboxUnavailable
 from forge.tools import sqlguard
-from forge.tools.schemas import HttpConfig, McpConfig, SqlConfig
+from forge.tools.schemas import HttpConfig, McpConfig, PythonConfig, SqlConfig
 
 LOG_BODY_CHARS = 20_000
 MASK = "***"
@@ -49,7 +50,7 @@ def error(code: str, message: str, **extra: Any) -> ExecResult:
     return ExecResult("error", message, output={"error": code, **extra}, error_code=code)
 
 
-def schema_for(config: HttpConfig | SqlConfig | McpConfig) -> dict[str, Any]:
+def schema_for(config: HttpConfig | SqlConfig | McpConfig | PythonConfig) -> dict[str, Any]:
     if isinstance(config, McpConfig):
         schema = dict(config.schema_in or {"type": "object", "properties": {}})
         schema.setdefault("type", "object")
@@ -65,6 +66,8 @@ def schema_for(config: HttpConfig | SqlConfig | McpConfig) -> dict[str, Any]:
                 spec["enum"] = p.enum  # type: ignore[union-attr]
             if p.type == "array":
                 spec["items"] = {"type": "string"}
+        elif isinstance(config, PythonConfig) and p.type == "array":
+            spec["items"] = {}
         props[p.name] = spec
         if p.required:
             required.append(p.name)
@@ -336,6 +339,44 @@ async def run_sql(
         output={"columns": columns, "rows": data, "truncated": truncated},
         request=req_view,
         latency_ms=int((time.monotonic() - started) * 1000),
+    )
+
+
+# ---- Python (sandbox)
+async def run_python(
+    config: PythonConfig,
+    args: dict[str, Any],
+    *,
+    client: SandboxClient | None,
+    timeout_s: int,
+) -> ExecResult:
+    if client is None:
+        return error("sandbox_unavailable", "The sandbox service is not configured")
+    started = time.monotonic()
+    try:
+        res = await client.run(config.code, args, timeout_s=timeout_s, memory_mb=config.memory_mb)
+    except SandboxUnavailable as exc:
+        return error("sandbox_unavailable", str(exc))
+    view = {"args": args}
+    ms = res.duration_ms or int((time.monotonic() - started) * 1000)
+    logs = {"stdout": clip(res.stdout, 4000), "stderr": clip(res.stderr, 4000)}
+    if res.status != "ok":
+        out = ExecResult(
+            "error",
+            f"The code failed ({res.status}): {res.error}",
+            output={"error": f"sandbox_{res.status}", "message": res.error, **logs},
+            error_code=f"sandbox_{res.status}",
+            request=view,
+            latency_ms=ms,
+        )
+        return out
+    text = json.dumps(res.result, ensure_ascii=False, default=str)
+    return ExecResult(
+        "ok",
+        clip(text, config.response_max_chars),
+        output={"result": res.result, **logs},
+        request=view,
+        latency_ms=ms,
     )
 
 

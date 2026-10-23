@@ -4,6 +4,7 @@
     forgectl diff DIR             what applying DIR would change
     forgectl apply DIR            import what changed
     forgectl run USE_CASE         run a published use case
+    forgectl eval DATASET TARGET  evaluate a prompt or RAG pipeline on a dataset (CI gate)
     forgectl chat MODEL "text"    one call through the OpenAI-compatible gateway
     forgectl whoami               the key's project and permissions
 
@@ -153,6 +154,61 @@ def cmd_chat(args: argparse.Namespace, out: TextIO) -> int:
     return 0
 
 
+def cmd_eval(args: argparse.Namespace, out: TextIO) -> int:
+    evaluators = json.loads(Path(args.evaluators).read_text(encoding="utf-8"))
+    client = _client(args)
+    run = client.eval_run(
+        args.dataset,
+        args.target,
+        evaluators,
+        version=args.version,
+        model=args.model,
+        name=args.name,
+        timeout=args.timeout,
+    )
+    summary = run.get("summary") or {}
+    rate = summary.get("pass_rate")
+    comparison = client.compare_eval_runs(args.baseline, run["id"]) if args.baseline else None
+    if args.json:
+        _print_json(
+            out,
+            {
+                "run": {k: v for k, v in run.items() if k != "results"},
+                "failed": [r for r in run.get("results", []) if not r["passed"]],
+                "comparison": comparison,
+            },
+        )
+    else:
+        out.write(
+            f"{run['status']} · run {run['id']} · {run['target_name']} v{run['target_version']}"
+            f" on {run['dataset_name']}\n"
+            f"passed {summary.get('passed')}/{summary.get('cases')} (pass rate {rate})"
+            f" · errors {summary.get('errors')} · cost {summary.get('cost')}\n"
+        )
+        for name, e in (summary.get("evaluators") or {}).items():
+            out.write(f"  {name}: mean {e['mean']} ({e['passed']}/{e['scored']} passed)\n")
+        for r in run.get("results", []):
+            if not r["passed"]:
+                why = r.get("error") or ", ".join(
+                    f"{k}: {v['detail'] or v['score']}"
+                    for k, v in r["scores"].items()
+                    if not v["passed"]
+                )
+                out.write(f"  FAIL case {r['position']}: {why}\n")
+        if comparison:
+            out.write(
+                f"vs {args.baseline}: pass rate {comparison['pass_rate_delta']:+}, "
+                f"{comparison['regressions']} regressed, {comparison['improvements']} improved\n"
+            )
+    if run["status"] != "done":
+        return 1
+    if args.fail_under is not None and (rate is None or rate < args.fail_under):
+        return 1
+    if comparison and args.no_regressions and comparison["regressions"]:
+        return 1
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="forgectl", description="Command line for Forge")
     p.add_argument("--url", default=os.environ.get("FORGE_URL"), help="Forge base URL")
@@ -188,6 +244,19 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--no-wait", action="store_true")
     r.add_argument("--timeout", type=float, default=300.0)
     r.set_defaults(func=cmd_run)
+
+    ev = sub.add_parser("eval", help="evaluate a prompt or RAG pipeline on a dataset")
+    ev.add_argument("dataset", help="dataset name or id")
+    ev.add_argument("target", help="prompt or RAG pipeline name or id (the dataset's kind decides)")
+    ev.add_argument("--evaluators", required=True, metavar="FILE", help="JSON list of evaluators")
+    ev.add_argument("--version", type=int, help="target version (default: the latest)")
+    ev.add_argument("--model", help="prompt only: override the version's model")
+    ev.add_argument("--name", default="", help="label for the run")
+    ev.add_argument("--fail-under", type=float, metavar="RATE", help="exit 1 below this pass rate")
+    ev.add_argument("--baseline", metavar="RUN_ID", help="compare with an earlier run")
+    ev.add_argument("--no-regressions", action="store_true", help="with --baseline: exit 1 on any")
+    ev.add_argument("--timeout", type=float, default=1800.0)
+    ev.set_defaults(func=cmd_eval)
 
     c = sub.add_parser("chat", help="one chat call through the gateway")
     c.add_argument("model")

@@ -58,7 +58,7 @@ interface SqlCfg {
 interface Draft {
   name: string;
   description: string;
-  kind: 'http' | 'sql' | 'mcp';
+  kind: 'http' | 'sql' | 'mcp' | 'python';
   timeout_s: number;
   requires_approval: boolean;
   note: string;
@@ -74,6 +74,10 @@ interface Draft {
   query: string;
   row_limit: number;
   sqlParams: SqlParamRow[];
+  // python (sandbox)
+  code: string;
+  memory_mb: number;
+  pyParams: SqlParamRow[];
   // mcp (kept as imported)
   mcp: Record<string, unknown> | null;
 }
@@ -96,6 +100,9 @@ function blank(): Draft {
     query: 'select 1 as one',
     row_limit: 100,
     sqlParams: [],
+    code: 'def run(args):\n    return {}\n',
+    memory_mb: 128,
+    pyParams: [],
     mcp: null,
   };
 }
@@ -144,6 +151,7 @@ function blank(): Draft {
           <nz-select nzId="t-kind" name="kind" [(ngModel)]="draft.kind">
             <nz-option nzValue="http" nzLabel="HTTP" />
             <nz-option nzValue="sql" nzLabel="SQL (read-only)" />
+            <nz-option nzValue="python" nzLabel="Python (sandbox)" />
           </nz-select>
         }
         <label for="t-desc" i18n>Description the model reads</label>
@@ -361,6 +369,85 @@ function blank(): Draft {
               <nz-icon nzType="plus" /><span i18n>Add parameter</span>
             </button>
           }
+          @case ('python') {
+            <h3 i18n>Python function</h3>
+            <label for="t-code" i18n
+              >Define run(args) and return a JSON value. No network, no files, standard library
+              only.</label
+            >
+            <textarea
+              nz-input
+              id="t-code"
+              name="code"
+              rows="12"
+              class="mono"
+              spellcheck="false"
+              [(ngModel)]="draft.code"
+              data-testid="tool-code"
+            ></textarea>
+            <label for="t-mem" i18n>Memory (MB)</label>
+            <nz-input-number
+              nzId="t-mem"
+              name="memory"
+              [nzMin]="32"
+              [nzMax]="512"
+              [(ngModel)]="draft.memory_mb"
+            />
+            <h3 i18n>Arguments</h3>
+            @for (p of draft.pyParams; track $index) {
+              <div class="row param">
+                <input
+                  nz-input
+                  [name]="'pn' + $index"
+                  aria-label="Name"
+                  i18n-aria-label
+                  placeholder="name"
+                  [(ngModel)]="p.name"
+                />
+                <nz-select
+                  [nzId]="'pt' + $index"
+                  [name]="'pt' + $index"
+                  [(ngModel)]="p.type"
+                  aria-label="Type"
+                  i18n-aria-label
+                >
+                  @for (t of pyTypes; track t) {
+                    <nz-option [nzValue]="t" [nzLabel]="t" />
+                  }
+                </nz-select>
+                <input
+                  nz-input
+                  [name]="'pd' + $index"
+                  aria-label="Description"
+                  i18n-aria-label
+                  placeholder="description"
+                  [(ngModel)]="p.description"
+                />
+                <label
+                  nz-checkbox
+                  [nzId]="'pr' + $index"
+                  [name]="'pr' + $index"
+                  [(ngModel)]="p.required"
+                >
+                  <span i18n>required</span>
+                </label>
+                <button
+                  nz-button
+                  type="button"
+                  nzType="text"
+                  nzDanger
+                  aria-label="Remove"
+                  i18n-aria-label
+                  (click)="removePyParam($index)"
+                >
+                  <nz-icon nzType="delete" />
+                </button>
+              </div>
+            }
+            <button nz-button type="button" (click)="addPyParam()">
+              <nz-icon nzType="plus" /><span i18n>Add argument</span>
+            </button>
+          }
           @case ('mcp') {
             <nz-alert
               nzType="info"
@@ -491,6 +578,7 @@ export class ToolEditor {
   protected readonly locations = ['path', 'query', 'header', 'body'];
   protected readonly types = ['string', 'integer', 'number', 'boolean', 'array', 'object'];
   protected readonly sqlTypes = ['string', 'integer', 'number', 'boolean'];
+  protected readonly pyTypes = ['string', 'integer', 'number', 'boolean', 'array', 'object'];
 
   constructor() {
     effect(() => {
@@ -551,6 +639,20 @@ export class ToolEditor {
         description: p.description ?? '',
         required: !!p.required,
       }));
+    } else if (d.kind === 'python') {
+      const cfg = v.config as unknown as {
+        code: string;
+        memory_mb?: number;
+        params?: SqlParamRow[];
+      };
+      draft.code = cfg.code;
+      draft.memory_mb = cfg.memory_mb ?? 128;
+      draft.pyParams = (cfg.params ?? []).map((p) => ({
+        name: p.name,
+        type: p.type,
+        description: p.description ?? '',
+        required: !!p.required,
+      }));
     } else {
       draft.mcp = v.config;
     }
@@ -578,6 +680,17 @@ export class ToolEditor {
 
   protected removeSqlParam(i: number): void {
     this.draft.sqlParams = this.draft.sqlParams.filter((_, n) => n !== i);
+  }
+
+  protected addPyParam(): void {
+    this.draft.pyParams = [
+      ...this.draft.pyParams,
+      { name: '', type: 'string', description: '', required: false },
+    ];
+  }
+
+  protected removePyParam(i: number): void {
+    this.draft.pyParams = this.draft.pyParams.filter((_, n) => n !== i);
   }
 
   private config(): Record<string, unknown> {
@@ -618,6 +731,9 @@ export class ToolEditor {
         row_limit: d.row_limit,
         params: d.sqlParams,
       };
+    }
+    if (d.kind === 'python') {
+      return { kind: 'python', code: d.code, memory_mb: d.memory_mb, params: d.pyParams };
     }
     return d.mcp ?? {};
   }

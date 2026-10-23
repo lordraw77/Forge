@@ -1,0 +1,180 @@
+{{- if .Values.opensearch.enabled }}
+{{- $fn := include "forge.fullname" . }}
+{{- $secret := include "forge.secretName" . }}
+{{- $tls := printf "%s-search-tls" $fn }}
+{{- $old := (lookup "v1" "Secret" .Release.Namespace $tls).data | default dict }}
+{{- /* One CA and one node certificate, created at first install and kept on upgrade. */}}
+{{- $ca := "" }}{{- $crt := "" }}{{- $key := "" }}
+{{- if hasKey $old "ca.pem" }}
+{{- $ca = index $old "ca.pem" | b64dec }}{{- $crt = index $old "node.pem" | b64dec }}{{- $key = index $old "node-key.pem" | b64dec }}
+{{- else }}
+{{- $c := genCA "Forge Search CA" 3650 }}
+{{- $n := genSignedCert "search" (list "127.0.0.1") (list $fn "localhost" (printf "%s-opensearch" $fn) (printf "%s-opensearch.%s.svc" $fn $.Release.Namespace) (printf "%s-opensearch.%s.svc.cluster.local" $fn $.Release.Namespace)) 3650 $c }}
+{{- $ca = $c.Cert }}{{- $crt = $n.Cert }}{{- $key = $n.Key }}
+{{- end }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $tls }}
+  labels: {{ include "forge.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/resource-policy: keep
+type: Opaque
+stringData:
+  ca.pem: |
+{{ $ca | indent 4 }}
+  node.pem: |
+{{ $crt | indent 4 }}
+  node-key.pem: |
+{{ $key | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fn }}-opensearch
+  labels: {{ include "forge.labels" . | nindent 4 }}
+data:
+  opensearch.yml: |
+    cluster.name: forge
+    node.name: search
+    network.host: 0.0.0.0
+    discovery.type: single-node
+    # Works with the node's default vm.max_map_count (no sysctl change needed).
+    node.store.allow_mmap: false
+    plugins.security.ssl.transport.pemcert_filepath: certs/node.pem
+    plugins.security.ssl.transport.pemkey_filepath: certs/node-key.pem
+    plugins.security.ssl.transport.pemtrustedcas_filepath: certs/ca.pem
+    plugins.security.ssl.transport.enforce_hostname_verification: false
+    plugins.security.ssl.http.enabled: true
+    plugins.security.ssl.http.pemcert_filepath: certs/node.pem
+    plugins.security.ssl.http.pemkey_filepath: certs/node-key.pem
+    plugins.security.ssl.http.pemtrustedcas_filepath: certs/ca.pem
+    plugins.security.allow_default_init_securityindex: true
+    plugins.security.audit.type: noop
+    plugins.security.restapi.roles_enabled: ["all_access"]
+    plugins.security.system_indices.enabled: true
+    # Forge creates its indices explicitly (versioned index + alias).
+    action.auto_create_index: "-forge-*,+*"
+  roles.yml: |
+{{ .Files.Get "files/opensearch-roles.yml" | indent 4 }}
+  roles_mapping.yml: |
+{{ .Files.Get "files/opensearch-roles-mapping.yml" | indent 4 }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $fn }}-opensearch
+  labels: {{ include "forge.labels" . | nindent 4 }}
+    app.kubernetes.io/component: opensearch
+spec:
+  serviceName: {{ $fn }}-opensearch
+  replicas: 1
+  selector:
+    matchLabels: {{ include "forge.selector" (dict "root" . "component" "opensearch") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{ include "forge.selector" (dict "root" . "component" "opensearch") | nindent 8 }}
+    spec:
+      {{- include "forge.pullSecrets" . | nindent 6 }}
+      {{- include "forge.podSecurity" (dict "root" . "uid" 1000) | nindent 6 }}
+      initContainers:
+        # Hashes the two passwords into the internal users file at every start, so the file never
+        # lives in a Secret and a password given through existingSecret works the same way.
+        - name: users
+          image: {{ include "forge.thirdPartyImage" (dict "root" . "image" .Values.opensearch.image) }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              hash=/usr/share/opensearch/plugins/opensearch-security/tools/hash.sh
+              admin="$($hash -env ADMIN_PW | tail -1)"
+              forge="$($hash -env FORGE_PW | tail -1)"
+              umask 077
+              cat > /sec/internal_users.yml <<EOF
+              _meta:
+                type: "internalusers"
+                config_version: 2
+              admin:
+                hash: "$admin"
+                reserved: true
+                description: "Operator account"
+              forge:
+                hash: "$forge"
+                reserved: true
+                description: "Forge application (role forge_app)"
+              EOF
+          env:
+            - name: ADMIN_PW
+              valueFrom: { secretKeyRef: { name: {{ $secret }}, key: search-admin-password } }
+            - name: FORGE_PW
+              valueFrom: { secretKeyRef: { name: {{ $secret }}, key: search-password } }
+            - { name: OPENSEARCH_JAVA_OPTS, value: "-Xms64m -Xmx64m" }
+          volumeMounts:
+            - { name: sec, mountPath: /sec }
+          {{- include "forge.containerSecurity" . | nindent 10 }}
+      containers:
+        - name: opensearch
+          image: {{ include "forge.thirdPartyImage" (dict "root" . "image" .Values.opensearch.image) }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          env:
+            - { name: DISABLE_INSTALL_DEMO_CONFIG, value: "true" }
+            - { name: OPENSEARCH_JAVA_OPTS, value: "-Xms{{ .Values.opensearch.heap }} -Xmx{{ .Values.opensearch.heap }}" }
+            - name: FORGE_SEARCH_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ $secret }}, key: search-password } }
+          ports:
+            - { name: https, containerPort: 9200 }
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - curl -fsS --cacert config/certs/ca.pem -u "forge:$FORGE_SEARCH_PASSWORD" 'https://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s' >/dev/null
+            periodSeconds: 10
+            timeoutSeconds: 8
+            failureThreshold: 30
+            initialDelaySeconds: 30
+          livenessProbe:
+            tcpSocket: { port: https }
+            periodSeconds: 20
+            initialDelaySeconds: 90
+          resources: {{ toYaml .Values.opensearch.resources | nindent 12 }}
+          volumeMounts:
+            - { name: data, mountPath: /usr/share/opensearch/data }
+            - { name: config, mountPath: /usr/share/opensearch/config/opensearch.yml, subPath: opensearch.yml }
+            - { name: config, mountPath: /usr/share/opensearch/config/opensearch-security/roles.yml, subPath: roles.yml }
+            - { name: config, mountPath: /usr/share/opensearch/config/opensearch-security/roles_mapping.yml, subPath: roles_mapping.yml }
+            - { name: sec, mountPath: /usr/share/opensearch/config/opensearch-security/internal_users.yml, subPath: internal_users.yml }
+            - { name: certs, mountPath: /usr/share/opensearch/config/certs, readOnly: true }
+            - { name: tmp, mountPath: /tmp }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+      volumes:
+        - name: config
+          configMap: { name: {{ $fn }}-opensearch }
+        - name: certs
+          secret: { secretName: {{ $tls }}, defaultMode: 0440 }
+        - name: sec
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- with .Values.global.storageClass }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources: { requests: { storage: {{ .Values.opensearch.persistence.size }} } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fn }}-opensearch
+  labels: {{ include "forge.labels" . | nindent 4 }}
+spec:
+  selector: {{ include "forge.selector" (dict "root" . "component" "opensearch") | nindent 4 }}
+  ports:
+    - { name: https, port: 9200, targetPort: https }
+{{- end }}

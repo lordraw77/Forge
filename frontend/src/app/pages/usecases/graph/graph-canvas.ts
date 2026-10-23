@@ -67,6 +67,7 @@ const PALETTE: { type: NodeType; label: string }[] = [
   { type: 'agent', label: $localize`Agent` },
   { type: 'tool', label: $localize`Tool` },
   { type: 'llm', label: $localize`Prompt` },
+  { type: 'code', label: $localize`Code` },
   { type: 'router', label: $localize`Router` },
   { type: 'for_each', label: $localize`For loop` },
   { type: 'while', label: $localize`While loop` },
@@ -296,6 +297,34 @@ function jsonText(value: unknown): string {
                   nz-input
                   id="n-args"
                   rows="5"
+                  class="mono"
+                  [ngModel]="json(node.args)"
+                  (ngModelChange)="patchJson('args', $event)"
+                ></textarea>
+                <label for="n-output" i18n>Output variable</label>
+                <input
+                  nz-input
+                  id="n-output"
+                  [ngModel]="node.output"
+                  (ngModelChange)="patch('output', $event)"
+                />
+              }
+              @case ('code') {
+                <label for="n-code" i18n>Python (sandbox: no network, standard library only)</label>
+                <textarea
+                  nz-input
+                  id="n-code"
+                  rows="10"
+                  class="mono"
+                  spellcheck="false"
+                  [ngModel]="node.code"
+                  (ngModelChange)="patch('code', $event)"
+                ></textarea>
+                <label for="n-args" i18n>Arguments (JSON, passed to run)</label>
+                <textarea
+                  nz-input
+                  id="n-args"
+                  rows="4"
                   class="mono"
                   [ngModel]="json(node.args)"
                   (ngModelChange)="patchJson('args', $event)"

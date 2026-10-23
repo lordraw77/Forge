@@ -35,7 +35,7 @@ EOF
 fi
 
 # Keys added after a file was generated are appended, never rewritten.
-for key in GRAFANA_ADMIN_PASSWORD OPENSEARCH_ADMIN_PASSWORD FORGE_SEARCH_PASSWORD; do
+for key in GRAFANA_ADMIN_PASSWORD OPENSEARCH_ADMIN_PASSWORD FORGE_SEARCH_PASSWORD SANDBOX_TOKEN; do
   if ! grep -q "^${key}=" "$infra_file"; then
     echo "${key}=$(rand 16)" >> "$infra_file"
     echo "update  ${infra_file#"$root"/} (${key})"
@@ -49,6 +49,11 @@ for key in LANGFUSE_DB_PASSWORD LANGFUSE_CLICKHOUSE_PASSWORD LANGFUSE_NEXTAUTH_S
     echo "update  ${infra_file#"$root"/} (${key})"
   fi
 done
+# Point-in-time recovery (deploy/compose/pitr.yml): backups are encrypted with this key.
+if ! grep -q "^PITR_ENCRYPTION_KEY=" "$infra_file"; then
+  echo "PITR_ENCRYPTION_KEY=$(rand 32)" >> "$infra_file"  # 64 hex characters
+  echo "update  ${infra_file#"$root"/} (PITR_ENCRYPTION_KEY: keep a copy, backups need it)"
+fi
 if ! grep -q "^LANGFUSE_ENCRYPTION_KEY=" "$infra_file"; then
   echo "LANGFUSE_ENCRYPTION_KEY=$(rand 32)" >> "$infra_file"  # 64 hex characters, as Langfuse asks
   echo "update  ${infra_file#"$root"/} (LANGFUSE_ENCRYPTION_KEY)"

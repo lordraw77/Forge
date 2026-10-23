@@ -1,0 +1,9 @@
+openshift: true
+route: { enabled: true, host: forge.apps.example.com }
+postgresql: { enabled: false }
+opensearch: { enabled: false }
+external:
+  postgresql: { host: pg.example.com, password: x, temporalPassword: y }
+  opensearch: { url: "https://os.example.com:9200", password: osp }
+workerIngest: { modelsVolume: { enabled: true } }
+metrics: { serviceMonitor: { enabled: true } }

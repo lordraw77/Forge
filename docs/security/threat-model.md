@@ -88,7 +88,7 @@ Status: **P1** = control delivered in Phase 1, **P2** / **P3** later phases.
 | D | Runaway agent loop or cost | Per-run limits (model calls, tokens, cost, time) with platform ceilings; the run ends `failed` with the reason; gateway quotas still apply to every call | P1 ✅ M1.5 |
 | I | Reading another user's run, answer or stream | RLS on every run table; `run.read.own` filtered in the query; the SSE endpoint checks the run first; stream keys hold the run id only | P1 ✅ M1.5 |
 | E | Malicious MCP server | MCP servers registered by B/PA only; stdio servers run in sandbox; tool descriptions treated as untrusted | P2/P3 |
-| E | Sandbox escape (Python tools) | gVisor, no network except allowlist, CPU/mem/time limits, read-only FS | P3 |
+| E | Sandbox escape (Python tools, `code` nodes) | one throw-away container per run: no network, read-only FS, no capabilities, non-root, memory/CPU/pids/time limits, only the runner holds the engine socket and calls need a token; gVisor via `SANDBOX_RUNTIME=runsc` (untested here); **no egress allowlist** ([M3.4](../architecture/m3.4-sandbox.md)) | P3 ✅ M3.4 (runc), gVisor pending |
 | S | LDAP injection / OIDC token forgery | Escaped LDAP filters, LDAPS/StartTLS required; OIDC: Authlib, issuer + audience + nonce + PKCE, JWKS rotation | P2 |
 | R | Approval link replay | Signed one-time tokens, short expiry, bound to approver identity | P2 |
 

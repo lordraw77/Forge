@@ -15,6 +15,7 @@ from forge.prompts.service import PromptStudio
 from forge.rag.collections import CollectionService, PrincipalsLookup, UploadFile
 from forge.rag.ingest import WORKFLOWS, IngestActivities, IngestDeps
 from forge.rag.parsing import docling_models_present, download_docling_models
+from forge.rag.reindex import reindex
 from forge.rag.retrieval import Retriever
 from forge.rag.schemas import (
     CollectionIn,
@@ -162,4 +163,5 @@ __all__ = [
     "UploadResult",
     "docling_models_present",
     "download_docling_models",
+    "reindex",
 ]

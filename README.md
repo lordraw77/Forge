@@ -26,7 +26,7 @@ Self-hosted, LLM-agnostic platform to build and run agents, RAG pipelines and go
 ```text
 backend/    Python 3.12, FastAPI, SQLAlchemy async, Alembic, Temporal workers (one image, several roles)
 frontend/   Angular 22 + NG-ZORRO 22 (MIT), served by nginx
-deploy/     compose/ (single node / lab); helm/ arrives in Phase 3
+deploy/     compose/ (single node / lab), helm/forge (Kubernetes chart), db/ (PostgreSQL + WAL-G), vault/ (lab OpenBao)
 scripts/    small helpers called by the Makefile
 docs/       specification, planning, ADRs, requirements, security
 ```
@@ -157,6 +157,16 @@ make test/unit                               # backend + frontend unit tests
 make test/integration                        # starts db, migrates, runs tenant-isolation tests
 make test/e2e                                # Playwright (in a container) against the running stack
 make licenses                                # licence gate (scripts/license-policy.json), also in CI
+```
+
+## Optional components (Phase 3)
+
+```sh
+make sandbox/up      # sandbox runner for Python tools and `code` nodes (docs/architecture/m3.4-sandbox.md)
+make pitr/up         # WAL archiving + encrypted base backups; make pitr/drill, make pitr/restore (docs/operations/dr-runbook.md)
+make vault/up        # lab OpenBao, then scripts/vault-setup.sh; configure it in Super Admin → Secrets vault
+make helm/lint       # lint and render deploy/helm/forge (docs/architecture/m3.1-helm.md)
+scripts/loadtest-env.sh   # load tests against the performance targets (docs/architecture/m3.7-load-and-dr.md)
 ```
 
 Running the API on the host against the Compose database:

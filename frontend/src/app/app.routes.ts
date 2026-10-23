@@ -133,6 +133,10 @@ export const routes: Routes = [
             loadComponent: () => import('./pages/admin/admin-audit').then((m) => m.AdminAudit),
           },
           {
+            path: 'vault',
+            loadComponent: () => import('./pages/admin/admin-vault').then((m) => m.AdminVault),
+          },
+          {
             path: 'email',
             loadComponent: () => import('./pages/admin/admin-email').then((m) => m.AdminEmail),
           },
@@ -274,9 +278,22 @@ export const routes: Routes = [
       },
       {
         path: 'governance',
-        title: 'Guardrails · Forge',
+        title: 'Governance and Evaluation Studio · Forge',
         loadComponent: () =>
-          import('./pages/governance/guardrails-page').then((m) => m.GuardrailsPage),
+          import('./pages/governance/governance-shell').then((m) => m.GovernanceShell),
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'guardrails' },
+          {
+            path: 'guardrails',
+            loadComponent: () =>
+              import('./pages/governance/guardrails-page').then((m) => m.GuardrailsPage),
+          },
+          {
+            path: 'evaluations',
+            loadComponent: () =>
+              import('./pages/governance/evaluations-page').then((m) => m.EvaluationsPage),
+          },
+        ],
       },
       {
         path: 'analytics',

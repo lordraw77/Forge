@@ -51,7 +51,7 @@ async def list_tools(
     ctx: Reader,
     request: Request,
     q: str | None = None,
-    kind: Literal["http", "sql", "mcp"] | None = None,
+    kind: Literal["http", "sql", "mcp", "python"] | None = None,
     published: bool | None = None,
 ) -> ToolPage:
     return await services(request).tools.list_tools(

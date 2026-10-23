@@ -105,7 +105,41 @@ class McpConfig(In):
     response_max_chars: int = Field(default=8000, ge=500, le=64000)
 
 
-ToolConfigIn = Annotated[HttpConfig | SqlConfig | McpConfig, Field(discriminator="kind")]
+class ToolPyParam(In):
+    name: str
+    type: Literal["string", "integer", "number", "boolean", "array", "object"] = "string"
+    description: str = Field(default="", max_length=500)
+    required: bool = False
+
+    @field_validator("name")
+    @classmethod
+    def _name(cls, v: str) -> str:
+        if not PARAM_NAME.match(v):
+            raise ValueError("parameter names are letters, digits and underscores (max 48)")
+        return v
+
+
+class PythonConfig(In):
+    """A Python function run in the sandbox: `def run(args): ...` returns a JSON value. No
+    network, no files, standard library only; limits from the tool version."""
+
+    kind: Literal["python"] = "python"
+    code: str = Field(min_length=10, max_length=40_000)
+    params: list[ToolPyParam] = Field(default_factory=list, max_length=40)
+    memory_mb: int = Field(default=128, ge=32, le=512)
+    response_max_chars: int = Field(default=8000, ge=500, le=64000)
+
+    @model_validator(mode="after")
+    def _check(self) -> PythonConfig:
+        names = [p.name for p in self.params]
+        if len(names) != len(set(names)):
+            raise ValueError("parameter names must be unique")
+        return self
+
+
+ToolConfigIn = Annotated[
+    HttpConfig | SqlConfig | McpConfig | PythonConfig, Field(discriminator="kind")
+]
 
 
 class ToolVersionIn(In):

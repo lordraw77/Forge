@@ -9,6 +9,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
+from forge.core.crypto import KekUnavailable
+
 PROBLEM_JSON = "application/problem+json"
 OPENAI_PREFIX = "/v1/"
 
@@ -64,6 +66,12 @@ def install_problem_handlers(app: FastAPI) -> None:
     @app.exception_handler(ProblemError)
     async def _forge_error(request: Request, exc: ProblemError) -> JSONResponse:
         return _problem(request, exc.status, exc.code, exc.title, exc.detail, exc.headers)
+
+    @app.exception_handler(KekUnavailable)
+    async def _vault_error(request: Request, exc: KekUnavailable) -> JSONResponse:
+        return _problem(
+            request, 503, "vault_unavailable", "The secret vault cannot be reached", str(exc)
+        )
 
     @app.exception_handler(HTTPException)
     async def _http_error(request: Request, exc: HTTPException) -> JSONResponse:

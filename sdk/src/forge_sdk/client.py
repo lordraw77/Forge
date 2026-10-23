@@ -198,6 +198,66 @@ class ForgeClient:
             run = self.get_run(run["id"])
         return run
 
+    # ---- evaluations (E3.2)
+    def _asset_id(self, collection: str, name_or_id: str) -> str:
+        page = self._request("GET", self._project(f"/{collection}"), params={"q": name_or_id})
+        for item in page["items"]:
+            if name_or_id in (item["id"], item["name"]):
+                return str(item["id"])
+        raise ForgeError(404, "not_found", f"No {collection} item '{name_or_id}'")
+
+    def eval_datasets(self) -> list[dict[str, Any]]:
+        return self._request("GET", self._project("/evals/datasets"))  # type: ignore[no-any-return]
+
+    def eval_run(
+        self,
+        dataset: str,
+        target: str,
+        evaluators: list[dict[str, Any]],
+        *,
+        kind: str | None = None,
+        version: int | None = None,
+        model: str | None = None,
+        name: str = "",
+        wait: bool = True,
+        timeout: float = 1800.0,
+        poll: float = 2.0,
+    ) -> dict[str, Any]:
+        """Evaluate a prompt or RAG pipeline (by name or id) on a dataset; with `wait`, poll
+        until the run ends. `kind` defaults to the dataset's."""
+        found = next((d for d in self.eval_datasets() if dataset in (d["id"], d["name"])), None)
+        if found is None:
+            raise ForgeError(404, "not_found", f"No dataset '{dataset}'")
+        collection = "prompts" if (kind or found["kind"]) == "prompt" else "rag"
+        body: dict[str, Any] = {
+            "dataset_id": found["id"],
+            "target_id": self._asset_id(collection, target),
+            "evaluators": evaluators,
+            "name": name,
+        }
+        if version:
+            body["target_version"] = version
+        if model:
+            body["model"] = model
+        run = self._request("POST", self._project("/evals/runs"), json=body)
+        if not wait:
+            return run  # type: ignore[no-any-return]
+        deadline = time.monotonic() + timeout
+        while run["status"] in ("queued", "running"):
+            if time.monotonic() > deadline:
+                raise ForgeError(408, "timeout", f"Evaluation {run['id']} still {run['status']}")
+            time.sleep(poll)
+            run = self.get_eval_run(run["id"])
+        return run  # type: ignore[no-any-return]
+
+    def get_eval_run(self, run_id: str) -> dict[str, Any]:
+        return self._request("GET", self._project(f"/evals/runs/{run_id}"))  # type: ignore[no-any-return]
+
+    def compare_eval_runs(self, baseline: str, candidate: str) -> dict[str, Any]:
+        return self._request(  # type: ignore[no-any-return]
+            "GET", self._project(f"/evals/runs/{baseline}/compare/{candidate}")
+        )
+
     # ---- gateway (OpenAI-compatible)
     def models(self) -> list[dict[str, Any]]:
         return self._request("GET", "/v1/models")["data"]  # type: ignore[no-any-return]

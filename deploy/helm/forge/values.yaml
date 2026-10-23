@@ -1,0 +1,232 @@
+# Forge Helm chart. Every value has a default that gives a working single-replica installation
+# with all dependencies inside the release (lab and small production). See README.md.
+
+global:
+  # Registry host (and optional path) in front of every image repository below. Air-gapped installs:
+  # your local registry, where scripts/airgap-load.sh pushed the images (e.g. registry.local:5000).
+  imageRegistry: docker.io
+  imagePullSecrets: []
+  # Storage class of every PersistentVolumeClaim; empty = the cluster default.
+  storageClass: ""
+
+nameOverride: ""
+fullnameOverride: ""
+
+# OpenShift: no fixed user ids (restricted SCC assigns them) and a Route can replace the Ingress.
+# The in-chart PostgreSQL and OpenSearch images expect fixed ids: on OpenShift use the external
+# services, or grant the `anyuid` SCC to the release's service account.
+openshift: false
+
+images:
+  backend:
+    repository: lordraw/forge-backend
+    tag: ""            # default: chart appVersion
+  ingest:
+    repository: lordraw/forge-backend-ingest
+    tag: ""
+  web:
+    repository: lordraw/forge-frontend
+    tag: ""
+  pullPolicy: IfNotPresent
+
+# Name of an existing Secret instead of the one the chart generates. Keys it must hold:
+#   master-key, admin-password, database-url (postgresql+asyncpg://…), redis-url, s3-access-key,
+#   s3-secret-key, search-password; with in-chart services also db-password, postgres-password,
+#   temporal-db-password, valkey-password, search-admin-password; smtp-password if smtp.passwordKey is set.
+existingSecret: ""
+
+config:
+  # Where users reach Forge; empty = taken from the ingress or route host.
+  publicUrl: ""
+  adminUsername: admin
+  adminEmail: admin@example.com
+  # Initial administrator password and master key. Empty = generated at first install and kept on upgrade.
+  # Lose the master key and every stored secret becomes unreadable: back it up.
+  adminPassword: ""
+  masterKey: ""
+  logLevel: INFO
+  otlpEndpoint: ""
+  # Lets agents and tools reach private addresses (labs only).
+  allowPrivateHosts: false
+  mcpStdioAllowed: ""
+  sourceRoots: ""
+  extraEnv: []
+
+smtp:
+  host: ""
+  port: 587
+  username: ""
+  from: forge@localhost
+  starttls: true
+  # Key in the Secret that holds the SMTP password (add it with existingSecret, or set smtp.password).
+  password: ""
+  passwordKey: ""
+
+# Sandbox runner service for Python tools and `code` nodes (E3.4). The chart does not deploy one: the
+# runner needs a container engine socket or a Kubernetes backend (not built yet), so point this at a
+# runner on a host you control (see docs/architecture/m3.4-sandbox.md). Empty = feature unavailable.
+sandbox:
+  url: ""
+  token: ""            # or the key `sandbox-token` of existingSecret
+
+# Corporate egress proxy for outbound calls (providers, tools, sources). Forge's own services never use it.
+proxy:
+  http: ""
+  https: ""
+  noProxy: ""
+# Extra trusted root CA (TLS-inspecting proxy, private provider endpoints): a Secret holding the PEM.
+extraCA:
+  secretName: ""
+  key: ca.pem
+
+api:
+  replicas: 1
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { memory: 1Gi }
+  nodeSelector: {}
+  tolerations: []
+
+workerRuns:
+  replicas: 1
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { memory: 1Gi }
+  nodeSelector: {}
+  tolerations: []
+
+workerIngest:
+  replicas: 1
+  resources:
+    requests: { cpu: 500m, memory: 2Gi }
+    limits: { memory: 4Gi }
+  nodeSelector: {}
+  tolerations: []
+  # The `-slim` images download the Docling models at start: keep them on a volume.
+  modelsVolume:
+    enabled: false
+    size: 10Gi
+
+web:
+  replicas: 1
+  # Reverse proxies or load balancers in front of the web service (comma-separated CIDRs).
+  trustedProxies: ""
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { memory: 256Mi }
+  nodeSelector: {}
+  tolerations: []
+
+ingress:
+  enabled: false
+  className: ""
+  host: forge.example.com
+  annotations:
+    # Streaming responses and 100 MB uploads.
+    nginx.ingress.kubernetes.io/proxy-body-size: 100m
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+  # [{ secretName: forge-tls, hosts: [forge.example.com] }]
+  tls: []
+
+# OpenShift Route (instead of the Ingress).
+route:
+  enabled: false
+  host: ""
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+
+# ---- dependencies inside the release (switch off and fill `external` to use your own) ----
+postgresql:
+  enabled: true
+  image: { repository: pgvector/pgvector, tag: 0.8.7-pg17-trixie }
+  # Point-in-time recovery (E3.7): continuous WAL archiving plus scheduled base backups, encrypted,
+  # to an S3 bucket (default: the release's own object store; use another S3 for real protection).
+  # Needs the forge-db image (pgvector + WAL-G); it replaces `image` when enabled.
+  pitr:
+    enabled: false
+    image: { repository: lordraw/forge-db, tag: "" }   # empty tag = chart appVersion
+    intervalHours: 24
+    retainFull: 7
+    s3:
+      endpoint: ""        # empty = the in-chart SeaweedFS
+      bucket: forge-backups
+      accessKey: ""       # empty = the Secret's s3-access-key
+      secretKey: ""
+  persistence: { size: 20Gi }
+  shmSize: 2Gi
+  # Each Forge process keeps up to ~30 connections and Temporal ~30: PostgreSQL's 100 is too low.
+  maxConnections: 300
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { memory: 2Gi }
+
+valkey:
+  enabled: true
+  image: { repository: valkey/valkey, tag: 9.0.6-alpine3.24 }
+  persistence: { size: 2Gi }
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { memory: 512Mi }
+
+opensearch:
+  enabled: true
+  image: { repository: opensearchproject/opensearch, tag: 3.9.0 }
+  heap: 1g
+  persistence: { size: 20Gi }
+  resources:
+    requests: { cpu: 500m, memory: 2Gi }
+    limits: { memory: 2Gi }
+
+seaweedfs:
+  enabled: true
+  image: { repository: chrislusf/seaweedfs, tag: "4.47" }
+  persistence: { size: 50Gi }
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 2Gi }
+
+temporal:
+  enabled: true
+  image: { repository: temporalio/auto-setup, tag: 1.29.7 }
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { memory: 1Gi }
+
+external:
+  # PostgreSQL 17 with pgvector. Create the roles and databases with files/init-databases.sh
+  # (see README) and put the owner's password in `password`.
+  postgresql:
+    host: ""
+    port: 5432
+    database: forge
+    username: forge
+    password: ""
+    sslmode: ""          # e.g. require
+    # Only for the in-chart Temporal on an external PostgreSQL (role `temporal`).
+    temporalPassword: ""
+  valkey:
+    host: ""
+    port: 6379
+    password: ""
+    tls: false
+  s3:
+    endpoint: ""
+    bucket: forge
+    accessKey: ""
+    secretKey: ""
+  opensearch:
+    url: ""
+    username: forge
+    password: ""
+    caSecret: { name: "", key: ca.pem }
+  temporal:
+    address: ""
+    namespace: default
+
+metrics:
+  # ServiceMonitor for the Prometheus operator: api and both workers, port 9100.
+  serviceMonitor:
+    enabled: false
+    interval: 30s

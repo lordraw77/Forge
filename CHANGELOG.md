@@ -8,6 +8,29 @@ Phase 1 milestones M1.2 (LLM gateway), M1.3 (Prompt Studio), M1.4 (RAG on upload
 
 ### Added
 
+**External vault (E3.8)**
+- **Super Admin → Secrets vault**: keep the key that protects stored secrets in **OpenBao / Vault Transit** instead of deriving it from `FORGE_MASTER_KEY`. Each secret still has its own data key; the vault wraps and unwraps those (the key never leaves it). Token or AppRole sign-in, a connection test before saving, *re-wrap now* to move every secret to or from the vault, cached keys for short outages (`503 vault_unavailable` otherwise), all processes follow a change without restart. Lab vault: `make vault/up` + `scripts/vault-setup.sh`; policy in `deploy/vault/forge-policy.hcl`.
+
+**Backup, disaster recovery and load tests (E3.7)**
+- **Point-in-time recovery** for the database: continuous WAL archiving (every 60 s at most) and daily base backups, encrypted, to S3, with WAL-G (`forge-db` image, `make pitr/up`, Helm `postgresql.pitr`). `make pitr/restore TIME=… CONFIRM=yes` restores the Compose database to a moment; **`make pitr/drill`** rehearses the whole story on a throw-away database (measured: archive lag 55 s, recovery 5 s for 100 MB). Runbook: `docs/operations/dr-runbook.md`.
+- **`forge search reindex`** rebuilds the BM25 index from PostgreSQL after a restore. `forge storage ensure-bucket`.
+- **Load tests** against the spec's targets: `scripts/loadtest.py` / `scripts/loadtest-env.sh` (gateway overhead, retrieval, 200 concurrent agent runs, ingestion). New settings `FORGE_WORKER_RUNS_ACTIVITIES` (default 64) and `FORGE_WORKER_INGEST_ACTIVITIES` (8): the runs worker no longer caps itself at 8 concurrent activities.
+- Faster ingestion found by the load tests: knowledge-base builds index 16 documents at a time without forcing a search refresh for each (one refresh at the end): a 400-document build 104 s → 42 s, 10-page documents reach about 100 pages/s per ingest worker; uploads store eight files of a request at a time.
+- PostgreSQL in Compose and the chart now starts with `max_connections=300` (the default of 100 ran out with three Forge processes and Temporal under load).
+
+### Fixed
+- Deleting a document or a collection could fail with 403 on OpenSearch: the `forge_app` role lacked the scroll permission delete-by-query needs. `deploy/compose/search/roles.yml` and the chart's role now grant it. **Existing deployments** must reload the role (the file is read at first start only): `securityadmin.sh … -f roles.yml -t roles` inside the OpenSearch container.
+
+**Sandbox, Python tools and the `code` node (E3.4)**
+- **Sandbox runner** (`forge-sandbox`, Compose profile `sandbox`, `make sandbox/up`): each run is a throw-away container with no network, read-only filesystem, no capabilities, non-root, memory/CPU/process limits and a timeout; the runner is the only service with the container engine socket. `SANDBOX_RUNTIME=runsc` runs the same containers under gVisor.
+- **Python tools** in Tools Studio (type *Python*): `def run(args)` returning JSON, typed arguments, tested in the console, versioned and usable by agents and use cases. **`code` node** in use case graphs (palette, drawer, validation, step errors `code_error` / `code_timeout` / `code_oom`). Not available without a configured sandbox service. Not built: network allowlist, Kubernetes backend.
+
+**Evaluations (E3.2)**
+- **Governance → Evaluations**: datasets of cases (JSON, JSON Lines or CSV), runs of a prompt or RAG pipeline version over a dataset, a result per case, and a comparison of two runs that lists regressions. Evaluators: exact, contains, regex, JSON schema and LLM-as-judge for prompts; recall@k, MRR, faithfulness, answer relevance and correctness for RAG. Same through the API and `forgectl eval DATASET TARGET --evaluators FILE [--fail-under RATE] [--baseline RUN --no-regressions]` as a CI gate. RAG runs now keep the retrieved chunks in rank order.
+
+**Kubernetes (E3.1)**
+- **Helm chart** `deploy/helm/forge` (k3s, RKE2, OpenShift): api, workers, web and, inside the release, PostgreSQL with pgvector, Valkey, OpenSearch (TLS and users generated), SeaweedFS and Temporal; each can be switched off for an external service. Generated secrets are kept on upgrade or an `existingSecret` is named; Ingress or OpenShift Route; non-root, read-only filesystems, no fixed user id on OpenShift; proxy and extra CA; `helm test`; optional PodMonitor. The database migration runs in the api pods' init container and takes a database lock, so several pods can start together. The web image takes `FORGE_API_UPSTREAM` and `FORGE_DNS_RESOLVER` (`auto` reads the cluster DNS). **Air-gapped**: `scripts/airgap-bundle.sh` (images + chart + checksums) and `scripts/airgap-load.sh REGISTRY`.
+
 **Python SDK and `forgectl` (E3.3)**
 - `sdk/` (`pip install ./sdk`, only `httpx`): `ForgeClient` for bundles, use case runs and the gateway, and the `forgectl` command. **Assets in Git**: `forgectl export DIR` writes one stable JSON file per prompt, RAG pipeline, agent, use case and collection with its **whole version history**; `diff` shows what differs from the project (`--exit-code` for CI); `apply` sends only the versions the project lacks (a version appended in Git becomes one new version, a revert becomes a new version) and is idempotent; nothing is ever deleted and tags never move. Works with a project API key (`asset.write`). New: `GET /api/v1/whoami` and `everything` on the export request. **Everything `forgectl` does is in the web interface too**: Projects Studio → **Sync** downloads the project as the same zip of files, compares a picked folder, zip or bundle with the project version by version, previews and applies only the missing versions, and creates an API key for the command line. The layout, comparison and import run on the server, so the page and the command give the same answers.
 

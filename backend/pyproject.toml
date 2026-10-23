@@ -162,6 +162,8 @@ modules = [
     "forge.agents",
     "forge.usecases",
     "forge.guardrails",
+    "forge.evals",
+    "forge.sandbox",
     "forge.observability",
 ]
 ignore_imports = [
@@ -187,6 +189,8 @@ forbidden_modules = [
     "forge.agents",
     "forge.usecases",
     "forge.guardrails",
+    "forge.evals",
+    "forge.sandbox",
     "forge.observability",
 ]
 
@@ -208,6 +212,8 @@ source_modules = [
     "forge.agents",
     "forge.usecases",
     "forge.guardrails",
+    "forge.evals",
+    "forge.sandbox",
     "forge.observability",
 ]
 forbidden_modules = ["litellm"]

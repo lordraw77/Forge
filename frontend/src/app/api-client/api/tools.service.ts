@@ -174,7 +174,7 @@ export interface ListToolCallsRequestParams {
 export interface ListToolsRequestParams {
   projectId: string;
   q?: string | null;
-  kind?: 'http' | 'sql' | 'mcp' | null;
+  kind?: 'http' | 'sql' | 'mcp' | 'python' | null;
   published?: boolean | null;
 }
 

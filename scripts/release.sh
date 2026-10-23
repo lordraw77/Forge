@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Build and push versioned images, one repository per component:
 #   <namespace>/forge-backend:<version>   <namespace>/forge-frontend:<version>
+#   <namespace>/forge-db (PostgreSQL + WAL-G), forge-sandbox, forge-sandbox-runtime (E3.4, E3.7)
 #   <namespace>/forge-backend-ingest:<version> (ingestion worker: Docling, CPU PyTorch, models)
 #   and a `-slim` tag of both backend images that downloads model files at start
 # Usage: scripts/release.sh <version> <namespace>   e.g. 0.1.0 docker.io/lordraw
@@ -24,6 +25,9 @@ builds=(
   "forge-backend-ingest|$version|$root/backend|--build-arg EXTRAS=ingest --build-arg MODELS=embedded"
   "forge-backend-ingest|$version-slim|$root/backend|--build-arg EXTRAS=ingest --build-arg MODELS=download"
   "forge-frontend|$version|$root/frontend|"
+  "forge-db|$version|$root/deploy/db|"
+  "forge-sandbox|$version|$root/sandbox|"
+  "forge-sandbox-runtime|$version|$root/sandbox|-f $root/sandbox/Dockerfile.runtime"
 )
 
 for spec in "${builds[@]}"; do

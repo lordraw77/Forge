@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 from fastapi import Request
 
-from forge.admin.service import SettingsStore
+from forge.admin.service import SettingsStore, VaultLink
 from forge.agents.service import AgentStudio, RunEvents
 from forge.analytics.service import Analytics
 from forge.bundles.service import Bundles
@@ -16,6 +16,7 @@ from forge.core.context import Actor, RequestContext
 from forge.core.crypto import Envelope
 from forge.core.errors import ProblemError
 from forge.core.settings import Settings
+from forge.evals.service import Evaluations
 from forge.gateway.service import Gateway
 from forge.guardrails.service import Guardrails
 from forge.iam.service import (
@@ -68,6 +69,8 @@ class Services:
     planner: Planner
     run_events: RunEvents
     bundles: Bundles
+    evals: Evaluations
+    vault: VaultLink
 
 
 @dataclass

@@ -259,6 +259,13 @@ class Engine:
                     "ref": node["tool_ref"],
                     "args": g.render(node.get("args") or {}, self.vars),
                 }
+            elif kind == "code":
+                payload = {
+                    "ref": f"code:{nid}",
+                    "code": node["code"],
+                    "memory_mb": node.get("memory_mb", 128),
+                    "args": g.render(node.get("args") or {}, self.vars),
+                }
             else:
                 payload = {
                     "ref": node["prompt_ref"],

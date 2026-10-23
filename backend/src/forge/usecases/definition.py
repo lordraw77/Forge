@@ -9,7 +9,18 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 NODE_TYPES = frozenset(
-    {"start", "agent", "tool", "llm", "router", "for_each", "while", "human_approval", "end"}
+    {
+        "start",
+        "agent",
+        "tool",
+        "llm",
+        "code",
+        "router",
+        "for_each",
+        "while",
+        "human_approval",
+        "end",
+    }
 )
 NODE_ID = re.compile(r"^[a-z][a-z0-9_]{0,47}$")
 REF = re.compile(r"^([^@\s][^@\n]{0,79})@([1-9][0-9]{0,5})$")  # names may hold "(imported)"
@@ -122,7 +133,7 @@ def completeness(pattern: str, definition: dict[str, Any]) -> list[Issue]:
     issues: list[Issue] = []
     if not any(n.get("type") == "start" for n in nodes):
         issues.append(Issue("no_start", "The graph needs a start node"))
-    if not any(n.get("type") in {"agent", "tool", "llm"} for n in nodes):
+    if not any(n.get("type") in {"agent", "tool", "llm", "code"} for n in nodes):
         issues.append(Issue("empty_workflow", "Add at least one agent, tool or llm node"))
     return issues
 

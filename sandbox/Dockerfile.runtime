@@ -1,0 +1,9 @@
+# syntax=docker/dockerfile:1.7
+# What the sandbox executes user code in: Python and the standard library, nothing else.
+FROM python:3.12-slim-trixie
+LABEL org.opencontainers.image.title="forge-sandbox-runtime"
+COPY runner.py /opt/forge/runner.py
+USER 65534:65534
+WORKDIR /tmp
+ENTRYPOINT []
+CMD ["python", "-I", "/opt/forge/runner.py"]

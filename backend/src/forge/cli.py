@@ -59,6 +59,46 @@ def _worker_health(_args: argparse.Namespace) -> int:
     return 0 if worker_is_alive() else 1
 
 
+def _ensure_bucket(args: argparse.Namespace) -> int:
+    """Create a bucket on the configured S3 endpoint if it is missing (e.g. the backup bucket)."""
+    import asyncio
+
+    from forge.rag.service import ObjectStore
+
+    settings = get_settings().model_copy(update={"s3_bucket": args.name})
+    asyncio.run(ObjectStore(settings).ensure_bucket())
+    print(f"bucket {args.name} ready")
+    return 0
+
+
+def _reindex(args: argparse.Namespace) -> int:
+    """Rebuild the BM25 index from PostgreSQL (after a point-in-time restore)."""
+    import asyncio
+    import uuid
+
+    from forge.core.db import create_engine, session_factory
+    from forge.rag.service import SearchClient, reindex
+
+    async def run() -> int:
+        settings = get_settings()
+        engine = create_engine(settings)
+        search = SearchClient(settings)
+        try:
+            done = await reindex(
+                session_factory(engine),
+                search,
+                uuid.UUID(args.project) if args.project else None,
+                lambda pid, n: print(f"project {pid}: {n} chunks"),
+            )
+        finally:
+            await search.aclose()
+            await engine.dispose()
+        print(f"{sum(done.values())} chunks in {len(done)} project(s) reindexed")
+        return 0
+
+    return asyncio.run(run())
+
+
 def _fetch_models(args: argparse.Namespace) -> int:
     """Build time (embedded image) or worker start (`-slim` image); honours the egress proxy."""
     from forge.gateway.service import tokenizers
@@ -265,6 +305,20 @@ def build_parser() -> argparse.ArgumentParser:
 
     health = sub.add_parser("worker-health", help="exit 0 if the local worker is alive")
     health.set_defaults(func=_worker_health)
+
+    storage_cmd = sub.add_parser("storage", help="object storage maintenance")
+    storage_sub = storage_cmd.add_subparsers(dest="storage_command", required=True)
+    bucket = storage_sub.add_parser("ensure-bucket", help="create a bucket if it is missing")
+    bucket.add_argument("name")
+    bucket.set_defaults(func=_ensure_bucket)
+
+    search_cmd = sub.add_parser("search", help="search index maintenance")
+    search_sub = search_cmd.add_subparsers(dest="search_command", required=True)
+    rebuild = search_sub.add_parser(
+        "reindex", help="rebuild the BM25 index from PostgreSQL (after a point-in-time restore)"
+    )
+    rebuild.add_argument("--project", help="only this project id")
+    rebuild.set_defaults(func=_reindex)
 
     secrets_cmd = sub.add_parser("secrets", help="secret store maintenance")
     secrets_sub = secrets_cmd.add_subparsers(dest="secrets_command", required=True)

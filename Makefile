@@ -141,6 +141,49 @@ spike/e05e: ## Spike E0.5e: BM25 on OpenSearch + pgvector hybrid (ROWS=1000000 D
 spike/e05d: ## Spike E0.5d: LiteLLM provider matrix, air-gapped (needs root for unshare)
 	@scripts/spike-e05d.sh
 
+## ---- Secrets vault (E3.8)
+.PHONY: vault/up vault/unseal
+vault/up: ## Lab OpenBao (profile vault); then scripts/vault-setup.sh
+	$(COMPOSE) -f deploy/compose/vault.yml --profile vault up -d openbao
+
+vault/unseal: ## Unseal the lab OpenBao after a restart
+	@scripts/vault-setup.sh unseal
+
+## ---- Backup and recovery (E3.7)
+.PHONY: pitr/up pitr/drill pitr/restore
+pitr/up: ## Database with WAL archiving and scheduled encrypted base backups (recreates the db container)
+	$(COMPOSE) -f deploy/compose/pitr.yml up -d --build db backup
+
+pitr/drill: ## Disaster-recovery drill on a throw-away database (needs the stack's s3 and `docker build -t forge-db:dev deploy/db`)
+	@scripts/dr-drill.sh
+
+pitr/restore: ## Restore the stack's database. TIME='2026-10-22 09:30:00+00' (UTC) or empty for the latest; needs CONFIRM=yes
+	@scripts/pitr-restore-compose.sh "$(TIME)" "$(CONFIRM)"
+
+## ---- Sandbox (E3.4)
+.PHONY: sandbox/build sandbox/up sandbox/down
+sandbox/build: ## Build the sandbox runner and the runtime image
+	@scripts/sync-sandbox.sh
+	$(COMPOSE) --profile sandbox build sandbox sandbox-runtime
+
+sandbox/up: sandbox/build ## Start the sandbox runner (api and workers then need FORGE_SANDBOX_URL=http://sandbox:8090)
+	@SANDBOX_DOCKER_GID=$$(stat -c %g /var/run/docker.sock) \
+	  FORGE_SANDBOX_URL=http://sandbox:8090 \
+	  $(COMPOSE) --profile sandbox up -d sandbox api worker-runs
+
+sandbox/down: ## Stop the sandbox runner
+	$(COMPOSE) --profile sandbox stop sandbox
+
+## ---- Kubernetes
+.PHONY: helm/lint helm/airgap
+helm/lint: ## Lint and render the Helm chart for the default values and every deploy/helm/forge/ci/*.yaml
+	helm lint deploy/helm/forge
+	helm template forge deploy/helm/forge >/dev/null
+	@for f in deploy/helm/forge/ci/*.yaml; do echo "== $$f"; helm lint deploy/helm/forge -f $$f && helm template forge deploy/helm/forge -f $$f >/dev/null; done
+
+helm/airgap: ## Image archive + packaged chart for air-gapped installs (OUT=airgap)
+	@scripts/airgap-bundle.sh "$(or $(OUT),airgap)"
+
 ## ---- Release
 .PHONY: release
 release: ## Build and push $(NAMESPACE)/forge-{backend,frontend}:$(VERSION)

@@ -137,7 +137,9 @@ class SearchClient:
         elif alias.status_code >= 400:
             alias.raise_for_status()
 
-    async def index_chunks(self, project_id: uuid.UUID, docs: list[dict[str, Any]]) -> None:
+    async def index_chunks(
+        self, project_id: uuid.UUID, docs: list[dict[str, Any]], refresh: str = "wait_for"
+    ) -> None:
         """Bulk index chunks with `_id` = chunk id, so retries are idempotent."""
         if not docs:
             return
@@ -151,7 +153,7 @@ class SearchClient:
             f"/{self.alias}/_bulk",
             content="\n".join(lines) + "\n",
             headers={"Content-Type": "application/x-ndjson"},
-            params={"refresh": "wait_for"},
+            params={"refresh": refresh},
             timeout=120,
         )
         resp.raise_for_status()
@@ -160,7 +162,13 @@ class SearchClient:
             first = next(i for i in body["items"] if i["index"].get("error"))
             raise RuntimeError(f"bulk index error: {first['index']['error']}")
 
-    async def delete_ids(self, project_id: uuid.UUID, ids: Sequence[uuid.UUID]) -> None:
+    async def refresh(self) -> None:
+        """Make everything indexed so far searchable now (the end of a bulk build)."""
+        (await self._http.post(f"/{self.alias}/_refresh")).raise_for_status()
+
+    async def delete_ids(
+        self, project_id: uuid.UUID, ids: Sequence[uuid.UUID], refresh: str = "wait_for"
+    ) -> None:
         if not ids:
             return
         lines = [json.dumps({"delete": {"_id": str(i), "routing": str(project_id)}}) for i in ids]
@@ -168,7 +176,7 @@ class SearchClient:
             f"/{self.alias}/_bulk",
             content="\n".join(lines) + "\n",
             headers={"Content-Type": "application/x-ndjson"},
-            params={"refresh": "wait_for"},
+            params={"refresh": refresh},
             timeout=120,
         )
         resp.raise_for_status()

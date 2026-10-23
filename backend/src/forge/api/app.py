@@ -12,7 +12,7 @@ import redis.asyncio as redis
 from fastapi import FastAPI, Request, Response
 
 from forge import __version__
-from forge.admin.service import SettingsStore, listen_dsn
+from forge.admin.service import SettingsStore, VaultLink, listen_dsn
 from forge.agents.service import AgentStudio, RunEvents, RunStarter
 from forge.analytics.service import Analytics
 from forge.api import (
@@ -24,6 +24,7 @@ from forge.api import (
     routes_auth,
     routes_bundles,
     routes_data,
+    routes_evals,
     routes_guardrails,
     routes_idp,
     routes_models,
@@ -35,6 +36,7 @@ from forge.api import (
     routes_tools,
     routes_usecases,
     routes_v1,
+    routes_vault,
     routes_whoami,
 )
 from forge.api.deps import Services
@@ -45,6 +47,7 @@ from forge.core.db import create_engine, session_factory
 from forge.core.errors import install_problem_handlers
 from forge.core.logging import configure_logging, get_logger
 from forge.core.settings import Settings, get_settings
+from forge.evals.service import Evaluations
 from forge.gateway.service import Gateway
 from forge.iam.service import AuthService, ExternalAuth, IdentityProviders, TokenCodec
 from forge.observability.service import (
@@ -84,8 +87,10 @@ async def _initialise(app: FastAPI, svc: Services) -> None:
     while True:
         try:
             await svc.store.start()
+            await svc.vault.start()  # before anything decrypts a secret
             await svc.gateway.start(svc.store)
             await svc.auth.ensure_bootstrap_admin(svc.settings)
+            await svc.evals.sweep()
             try:
                 await svc.rag.start(app.state.search)
             except Exception as exc:  # S3 or OpenSearch not up yet: retried on first use
@@ -209,6 +214,8 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
             planner=Planner(gateway, usecases, usecase_files),
             run_events=run_events,
             bundles=Bundles(prompts, rag, gateway, tenancy, agents, usecases),
+            evals=Evaluations(app.state.sessions, gateway, prompts, rag.studio),
+            vault=VaultLink(app.state.sessions, envelope, store),
         )
         app.state.services = svc
         init = asyncio.create_task(_initialise(app, svc))
@@ -266,6 +273,8 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
     app.include_router(routes_analytics.admin_router)
     app.include_router(routes_analytics.me_router)
     app.include_router(routes_bundles.router)
+    app.include_router(routes_evals.router)
+    app.include_router(routes_vault.router)
     app.add_middleware(routes_data.BodyLimit)
     app.include_router(routes_whoami.router)
     app.include_router(routes_v1.router)

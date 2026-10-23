@@ -14,6 +14,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
       <a routerLink="settings" routerLinkActive="active" i18n>Settings</a>
       <a routerLink="audit" routerLinkActive="active" i18n>Audit log</a>
       <a routerLink="email" routerLinkActive="active" i18n>Email</a>
+      <a routerLink="vault" routerLinkActive="active" i18n>Secrets vault</a>
       <a routerLink="insights" routerLinkActive="active" i18n>Model Insights</a>
     </nav>
     <router-outlet />

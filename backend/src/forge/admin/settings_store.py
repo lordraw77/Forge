@@ -89,6 +89,23 @@ class SmtpSettings(BaseModel):
     password_secret_id: str | None = None
 
 
+class VaultSettings(BaseModel):
+    """External vault for the key-encryption key (ADR-006, E3.8). The credential (token or
+    AppRole secret id) is in the secret store, under the built-in KEK, never here."""
+
+    enabled: bool = False
+    # New and re-wrapped secrets use the vault; false keeps it readable but writes built-in.
+    active: bool = False
+    url: str = ""
+    mount: str = "transit"
+    key_name: str = "forge"
+    namespace: str = ""
+    auth_method: str = "token"  # token | approle
+    role_id: str = ""
+    ca_pem: str = ""
+    credential_secret_id: str | None = None
+
+
 REGISTRY: dict[str, type[BaseModel]] = {
     "auth.password_policy": PasswordPolicy,
     "auth.lockout": LockoutPolicy,
@@ -99,9 +116,10 @@ REGISTRY: dict[str, type[BaseModel]] = {
     "gateway.limits": GatewayLimits,
     "activity.retention": ActivityRetention,
     "notifications.smtp": SmtpSettings,
+    "secrets.vault": VaultSettings,
 }
 # Settings with their own endpoints: absent from the generic list and not writable through it.
-DEDICATED = frozenset({"notifications.smtp"})
+DEDICATED = frozenset({"notifications.smtp", "secrets.vault"})
 
 M = TypeVar("M", bound=BaseModel)
 

@@ -4,7 +4,16 @@
  */
 
 export type NodeType =
-  'start' | 'agent' | 'tool' | 'llm' | 'router' | 'for_each' | 'while' | 'human_approval' | 'end';
+  | 'start'
+  | 'agent'
+  | 'tool'
+  | 'llm'
+  | 'code'
+  | 'router'
+  | 'for_each'
+  | 'while'
+  | 'human_approval'
+  | 'end';
 
 export interface RouterSection {
   name: string;
@@ -27,6 +36,10 @@ export interface GraphNode {
   agent_ref?: string;
   tool_ref?: string;
   prompt_ref?: string;
+  /** `code` node: Python run in the sandbox, `def run(args): ...`. */
+  code?: string;
+  memory_mb?: number;
+  timeout_s?: number;
   task?: string;
   input?: string;
   output?: string;
@@ -137,6 +150,7 @@ export function addNode(
   let i = graph.nodes.length + 1;
   while (graph.nodes.some((n) => n.id === `${type}_${i}`)) i++;
   const node: GraphNode = { id: `${type}_${i}`, type };
+  if (type === 'code') node.code = 'def run(args):\n    return {}\n';
   if (type === 'router') node.sections = [{ name: 'yes', conditions: [] }];
   if (type === 'for_each' || type === 'while') node.max_iterations = 50;
   return {

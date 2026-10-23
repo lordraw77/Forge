@@ -1,0 +1,8 @@
+apiVersion: v2
+name: forge
+description: Forge – self-hosted AI platform (gateway, prompt studio, RAG, agents, use cases)
+type: application
+version: 0.1.0
+appVersion: "0.1.0-dev"
+kubeVersion: ">=1.27.0-0"
+keywords: [ai, llm, rag, gateway]

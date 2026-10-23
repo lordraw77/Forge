@@ -1,0 +1,59 @@
+{{- if .Values.valkey.enabled }}
+{{- $fn := include "forge.fullname" . }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $fn }}-valkey
+  labels: {{ include "forge.labels" . | nindent 4 }}
+    app.kubernetes.io/component: valkey
+spec:
+  serviceName: {{ $fn }}-valkey
+  replicas: 1
+  selector:
+    matchLabels: {{ include "forge.selector" (dict "root" . "component" "valkey") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{ include "forge.selector" (dict "root" . "component" "valkey") | nindent 8 }}
+    spec:
+      {{- include "forge.pullSecrets" . | nindent 6 }}
+      {{- include "forge.podSecurity" (dict "root" . "uid" 999) | nindent 6 }}
+      containers:
+        - name: valkey
+          image: {{ include "forge.thirdPartyImage" (dict "root" . "image" .Values.valkey.image) }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          command: ["sh", "-c", "exec valkey-server --requirepass \"$VALKEY_PASSWORD\" --save 60 1000 --dir /data"]
+          env:
+            - name: VALKEY_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ include "forge.secretName" . }}, key: valkey-password } }
+          ports:
+            - { name: valkey, containerPort: 6379 }
+          readinessProbe:
+            exec: { command: ["sh", "-c", "valkey-cli -a \"$VALKEY_PASSWORD\" --no-auth-warning ping | grep -q PONG"] }
+            periodSeconds: 5
+          livenessProbe:
+            exec: { command: ["sh", "-c", "valkey-cli -a \"$VALKEY_PASSWORD\" --no-auth-warning ping | grep -q PONG"] }
+            periodSeconds: 20
+            initialDelaySeconds: 10
+          resources: {{ toYaml .Values.valkey.resources | nindent 12 }}
+          volumeMounts:
+            - { name: data, mountPath: /data }
+          {{- include "forge.containerSecurity" . | nindent 10 }}
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- with .Values.global.storageClass }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources: { requests: { storage: {{ .Values.valkey.persistence.size }} } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fn }}-valkey
+  labels: {{ include "forge.labels" . | nindent 4 }}
+spec:
+  selector: {{ include "forge.selector" (dict "root" . "component" "valkey") | nindent 4 }}
+  ports:
+    - { name: valkey, port: 6379, targetPort: valkey }
+{{- end }}

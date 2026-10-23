@@ -7,13 +7,14 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
+import { ToolPyParam } from './toolPyParam';
 import { McpConfig } from './mcpConfig';
 import { HttpConfig } from './httpConfig';
+import { PythonConfig } from './pythonConfig';
 import { SqlConfig } from './sqlConfig';
-import { ToolSqlParam } from './toolSqlParam';
 
 /**
  * @type Config
  * @export
  */
-export type Config = HttpConfig | McpConfig | SqlConfig;
+export type Config = HttpConfig | McpConfig | PythonConfig | SqlConfig;

@@ -51,7 +51,7 @@ Measured with `FORGE_PERF=1 scripts/test-integration.sh tests/integration/test_p
 | Activity log search | none set | 27 ms | 43 ms |
 
 - The gateway overhead test (`test_gateway_overhead_p95`) failed at 53–61 ms p95 before this review. Cause: every call opened four database transactions (key lookup, `last_used_at` update, project access, `llm_call` write). The `last_used_at` update now runs at most once a minute per key and process: p95 overhead 26–33 ms in three runs. The remaining three transactions are the next candidates (a short-lived cache of key and access would trade revocation delay for latency, so it was not done without a decision).
-- The Phase 1 figures (4 ms overhead, retrieval 159 ms p95 at 1M chunks) came from spikes; retrieval at 1M chunks in the shipped schema and load tests against the NFR targets stay in E3.7.
+- The Phase 1 figures (4 ms overhead, retrieval 159 ms p95 at 1M chunks) came from spikes; retrieval at 1M chunks in the shipped schema and load tests against the NFR targets are in E3.7 ([results](../architecture/m3.7-load-and-dr.md#2-load-test-results-2026-10-22); retrieval at 1M chunks was not re-measured).
 - The host was shared and swapping during part of the work; numbers are for comparing builds, not for sizing.
 
 ## Security review

@@ -1,0 +1,16 @@
+# External vault for the key-encryption key (E3.8), lab profile: `make vault/up`, then
+# `scripts/vault-setup.sh`. In production use your own OpenBao / Vault (HA, auto-unseal, TLS).
+services:
+  openbao:
+    image: openbao/openbao:2.4.0
+    profiles: [vault]
+    restart: unless-stopped
+    command: ["server", "-config=/openbao/config/config.hcl"]
+    cap_add: [IPC_LOCK]
+    volumes:
+      - ./deploy/vault/config.hcl:/openbao/config/config.hcl:ro
+      - openbao-data:/openbao/file
+    ports: ["127.0.0.1:${FORGE_VAULT_PORT:-8200}:8200"]
+
+volumes:
+  openbao-data:

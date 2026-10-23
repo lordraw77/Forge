@@ -11,7 +11,7 @@ Provider keys, LDAP bind passwords, OIDC client secrets, SMTP and connector cred
 
 - Table `secret(id, project_id NULL, kind, kek_id, wrapped_dek, nonce, ciphertext, aad, created_at, rotated_at)`.
 - Per-secret random 256-bit DEK encrypts the value (AES-256-GCM, 96-bit nonce, AAD = `secret.id || kind || project_id`). The DEK is wrapped with the KEK.
-- KEK sources: `builtin` (derived from `FORGE_MASTER_KEY` with HKDF-SHA256, `kek_id = "builtin:v1"`) or `openbao` (Transit engine, configured from the GUI, Phase 3).
+- KEK sources (the `openbao` source is built, see [M3.8](../architecture/m3.8-vault.md)): `builtin` (derived from `FORGE_MASTER_KEY` with HKDF-SHA256, `kek_id = "builtin:v1"`) or `openbao` (Transit engine, configured from the GUI, Phase 3).
 - Rotation: `forge secrets rotate-kek` re-wraps all DEKs under a new KEK; old KEK accepted for decryption until rotation completes.
 - APIs never return secret values: write-only fields, responses show `"configured": true` and last 4 characters at most.
 - Decrypted values live only in memory for the duration of a call; never logged (log redaction filter on known secret fields and regex).

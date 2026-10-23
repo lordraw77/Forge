@@ -970,6 +970,16 @@ class RagStudio:
             "cited_from_answer": bool(synth.cited),
             "synthesis_calls": synth.calls,
             "response_mode": cfg.response_mode,
+            # What retrieval returned, in rank order (evaluations measure recall@k on it).
+            "retrieved": [
+                {
+                    "chunk_id": str(c.id),
+                    "document_id": str(c.document_id),
+                    "document_name": c.document_name,
+                    "score": round(c.score, 4),
+                }
+                for c in chunks
+            ],
         }
         run.messages = synth.messages
         run.model_name = synth.model_name

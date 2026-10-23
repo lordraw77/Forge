@@ -9,13 +9,14 @@ import re
 from collections import defaultdict, deque
 from typing import Any
 
+from forge.sandbox.service import check_code
 from forge.usecases.definition import Issue
 
 SCHEMA_VERSION = 1
 LOOP_CAP = 200
 DEFAULT_ITERATIONS = 50
 DEFAULT_LIMITS = {"max_steps": 200, "max_cost_usd": 5.0, "timeout_s": 1800}
-EXECUTABLE = frozenset({"agent", "tool", "llm"})
+EXECUTABLE = frozenset({"agent", "tool", "llm", "code"})
 LOOPS = frozenset({"for_each", "while"})
 OPS = frozenset({"=", "!=", ">", "<", "contains"})
 VAR = re.compile(r"\{([a-zA-Z_][a-zA-Z0-9_]*)((?:\.[a-zA-Z0-9_]+|\[\d+\])*)\}")
@@ -303,6 +304,13 @@ def analyze(graph: dict[str, Any], input_names: list[str]) -> list[Issue]:
             bad("missing_ref", "A tool node needs tool_ref", nid)
         if t == "llm" and not n.get("prompt_ref"):
             bad("missing_ref", "An llm node needs prompt_ref", nid)
+        if t == "code":
+            problem = check_code(str(n.get("code") or ""))
+            if problem:
+                bad("bad_code", problem, nid)
+            mem = n.get("memory_mb", 128)
+            if not isinstance(mem, int) or isinstance(mem, bool) or not 32 <= mem <= 512:
+                bad("bad_code", "memory_mb is a whole number from 32 to 512", nid)
         if t == "human_approval" and not n.get("input"):
             bad("missing_input", "An approval node needs the input to review", nid)
         if t in {"human_approval", "agent", "tool", "llm"}:
@@ -476,7 +484,7 @@ def _node_templates(node: dict[str, Any]) -> list[str]:
     t = node.get("type")
     if t == "agent":
         return templates_of([node.get("task"), node.get("input")])
-    if t == "tool":
+    if t in ("tool", "code"):
         return templates_of(node.get("args"))
     if t == "llm":
         return templates_of(node.get("variables"))

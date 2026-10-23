@@ -1,0 +1,18 @@
+Forge {{ .Chart.AppVersion }} is being installed as "{{ .Release.Name }}".
+
+Address: {{ include "forge.publicUrl" . }}
+{{- if and (not .Values.ingress.enabled) (not .Values.route.enabled) }}
+No ingress is configured. Reach the web service from your machine with:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "forge.fullname" . }}-web 8080:8080
+{{- end }}
+
+First start takes a few minutes (database migration, search index, models). Watch with:
+  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+
+Administrator: {{ .Values.config.adminUsername }}, password:
+  kubectl -n {{ .Release.Namespace }} get secret {{ include "forge.secretName" . }} -o jsonpath='{.data.admin-password}' | base64 -d; echo
+
+Back up the master key: without it the stored secrets cannot be read.
+  kubectl -n {{ .Release.Namespace }} get secret {{ include "forge.secretName" . }} -o jsonpath='{.data.master-key}' | base64 -d; echo
+
+Smoke check:  helm -n {{ .Release.Namespace }} test {{ .Release.Name }}

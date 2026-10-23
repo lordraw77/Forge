@@ -3968,6 +3968,940 @@
         "title": "EulaOut",
         "type": "object"
       },
+      "EvalCaseDiff": {
+        "properties": {
+          "a_output": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "A Output"
+          },
+          "a_passed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "A Passed"
+          },
+          "b_output": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "B Output"
+          },
+          "b_passed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "B Passed"
+          },
+          "change": {
+            "enum": [
+              "regressed",
+              "improved",
+              "same",
+              "only_a",
+              "only_b"
+            ],
+            "title": "Change",
+            "type": "string"
+          },
+          "input": {
+            "additionalProperties": true,
+            "title": "Input",
+            "type": "object"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "position",
+          "input",
+          "a_passed",
+          "b_passed",
+          "change",
+          "a_output",
+          "b_output"
+        ],
+        "title": "EvalCaseDiff",
+        "type": "object"
+      },
+      "EvalCaseIn": {
+        "additionalProperties": false,
+        "description": "Prompt datasets: `input` holds the prompt's variables. RAG datasets: `{\"query\": \"\u2026\"}`.",
+        "properties": {
+          "expected": {
+            "anyOf": [
+              {
+                "maxLength": 20000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected"
+          },
+          "expected_sources": {
+            "items": {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Expected Sources",
+            "type": "array"
+          },
+          "input": {
+            "additionalProperties": true,
+            "maxProperties": 50,
+            "title": "Input",
+            "type": "object"
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "title": "EvalCaseIn",
+        "type": "object"
+      },
+      "EvalCaseOut": {
+        "properties": {
+          "expected": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected"
+          },
+          "expected_sources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Expected Sources",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "input": {
+            "additionalProperties": true,
+            "title": "Input",
+            "type": "object"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "position",
+          "input",
+          "expected",
+          "expected_sources"
+        ],
+        "title": "EvalCaseOut",
+        "type": "object"
+      },
+      "EvalComparison": {
+        "properties": {
+          "a": {
+            "$ref": "#/components/schemas/EvalRunOut"
+          },
+          "b": {
+            "$ref": "#/components/schemas/EvalRunOut"
+          },
+          "cases": {
+            "items": {
+              "$ref": "#/components/schemas/EvalCaseDiff"
+            },
+            "title": "Cases",
+            "type": "array"
+          },
+          "evaluator_deltas": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Evaluator Deltas",
+            "type": "object"
+          },
+          "improvements": {
+            "title": "Improvements",
+            "type": "integer"
+          },
+          "pass_rate_delta": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Rate Delta"
+          },
+          "regressions": {
+            "title": "Regressions",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "a",
+          "b",
+          "pass_rate_delta",
+          "evaluator_deltas",
+          "regressions",
+          "improvements",
+          "cases"
+        ],
+        "title": "EvalComparison",
+        "type": "object"
+      },
+      "EvalDatasetDetail": {
+        "properties": {
+          "cases": {
+            "title": "Cases",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EvalCaseOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "kind": {
+            "enum": [
+              "prompt",
+              "rag"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "description",
+          "cases",
+          "created_at",
+          "updated_at",
+          "items"
+        ],
+        "title": "EvalDatasetDetail",
+        "type": "object"
+      },
+      "EvalDatasetIn": {
+        "additionalProperties": false,
+        "properties": {
+          "cases": {
+            "items": {
+              "$ref": "#/components/schemas/EvalCaseIn"
+            },
+            "maxItems": 1000,
+            "title": "Cases",
+            "type": "array"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Description",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "prompt",
+              "rag"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "kind"
+        ],
+        "title": "EvalDatasetIn",
+        "type": "object"
+      },
+      "EvalDatasetOut": {
+        "properties": {
+          "cases": {
+            "title": "Cases",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "prompt",
+              "rag"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "description",
+          "cases",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "EvalDatasetOut",
+        "type": "object"
+      },
+      "EvalDatasetUpdateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "cases": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/EvalCaseIn"
+                },
+                "maxItems": 1000,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cases"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "EvalDatasetUpdateIn",
+        "type": "object"
+      },
+      "EvalImportIn": {
+        "additionalProperties": false,
+        "properties": {
+          "format": {
+            "enum": [
+              "jsonl",
+              "csv"
+            ],
+            "title": "Format",
+            "type": "string"
+          },
+          "replace": {
+            "default": false,
+            "title": "Replace",
+            "type": "boolean"
+          },
+          "text": {
+            "maxLength": 5000000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "format",
+          "text"
+        ],
+        "title": "EvalImportIn",
+        "type": "object"
+      },
+      "EvalResultOut": {
+        "properties": {
+          "case_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Id"
+          },
+          "cost": {
+            "title": "Cost",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "expected": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "input": {
+            "additionalProperties": true,
+            "title": "Input",
+            "type": "object"
+          },
+          "latency_ms": {
+            "title": "Latency Ms",
+            "type": "integer"
+          },
+          "output": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "boolean"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "scores": {
+            "additionalProperties": true,
+            "title": "Scores",
+            "type": "object"
+          },
+          "source_run": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Run"
+          },
+          "tokens": {
+            "title": "Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "case_id",
+          "position",
+          "input",
+          "expected",
+          "output",
+          "scores",
+          "passed",
+          "error",
+          "tokens",
+          "cost",
+          "latency_ms",
+          "source_run"
+        ],
+        "title": "EvalResultOut",
+        "type": "object"
+      },
+      "EvalRunDetail": {
+        "properties": {
+          "completed": {
+            "title": "Completed",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "dataset_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Id"
+          },
+          "dataset_name": {
+            "title": "Dataset Name",
+            "type": "string"
+          },
+          "evaluators": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Evaluators",
+            "type": "array"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "prompt",
+              "rag"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/EvalResultOut"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "cancelled",
+              "interrupted"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "additionalProperties": true,
+            "title": "Summary",
+            "type": "object"
+          },
+          "target_id": {
+            "format": "uuid",
+            "title": "Target Id",
+            "type": "string"
+          },
+          "target_name": {
+            "title": "Target Name",
+            "type": "string"
+          },
+          "target_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Version"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "dataset_id",
+          "dataset_name",
+          "kind",
+          "name",
+          "target_id",
+          "target_name",
+          "target_version",
+          "model",
+          "evaluators",
+          "status",
+          "total",
+          "completed",
+          "summary",
+          "created_at",
+          "created_by",
+          "finished_at",
+          "results"
+        ],
+        "title": "EvalRunDetail",
+        "type": "object"
+      },
+      "EvalRunIn": {
+        "additionalProperties": false,
+        "properties": {
+          "concurrency": {
+            "default": 2,
+            "maximum": 8.0,
+            "minimum": 1.0,
+            "title": "Concurrency",
+            "type": "integer"
+          },
+          "dataset_id": {
+            "format": "uuid",
+            "title": "Dataset Id",
+            "type": "string"
+          },
+          "evaluators": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "title": "Evaluators",
+            "type": "array"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Prompt only: override",
+            "title": "Model"
+          },
+          "name": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Name",
+            "type": "string"
+          },
+          "target_id": {
+            "description": "The prompt or RAG pipeline to evaluate",
+            "format": "uuid",
+            "title": "Target Id",
+            "type": "string"
+          },
+          "target_version": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Default: the latest",
+            "title": "Target Version"
+          }
+        },
+        "required": [
+          "dataset_id",
+          "target_id",
+          "evaluators"
+        ],
+        "title": "EvalRunIn",
+        "type": "object"
+      },
+      "EvalRunOut": {
+        "properties": {
+          "completed": {
+            "title": "Completed",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "dataset_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Id"
+          },
+          "dataset_name": {
+            "title": "Dataset Name",
+            "type": "string"
+          },
+          "evaluators": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Evaluators",
+            "type": "array"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "prompt",
+              "rag"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "cancelled",
+              "interrupted"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "additionalProperties": true,
+            "title": "Summary",
+            "type": "object"
+          },
+          "target_id": {
+            "format": "uuid",
+            "title": "Target Id",
+            "type": "string"
+          },
+          "target_name": {
+            "title": "Target Name",
+            "type": "string"
+          },
+          "target_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Version"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "dataset_id",
+          "dataset_name",
+          "kind",
+          "name",
+          "target_id",
+          "target_name",
+          "target_version",
+          "model",
+          "evaluators",
+          "status",
+          "total",
+          "completed",
+          "summary",
+          "created_at",
+          "created_by",
+          "finished_at"
+        ],
+        "title": "EvalRunOut",
+        "type": "object"
+      },
       "Example": {
         "additionalProperties": false,
         "properties": {
@@ -8904,6 +9838,51 @@
         "title": "PublishIn",
         "type": "object"
       },
+      "PythonConfig": {
+        "additionalProperties": false,
+        "description": "A Python function run in the sandbox: `def run(args): ...` returns a JSON value. No\nnetwork, no files, standard library only; limits from the tool version.",
+        "properties": {
+          "code": {
+            "maxLength": 40000,
+            "minLength": 10,
+            "title": "Code",
+            "type": "string"
+          },
+          "kind": {
+            "const": "python",
+            "default": "python",
+            "title": "Kind",
+            "type": "string"
+          },
+          "memory_mb": {
+            "default": 128,
+            "maximum": 512.0,
+            "minimum": 32.0,
+            "title": "Memory Mb",
+            "type": "integer"
+          },
+          "params": {
+            "items": {
+              "$ref": "#/components/schemas/ToolPyParam"
+            },
+            "maxItems": 40,
+            "title": "Params",
+            "type": "array"
+          },
+          "response_max_chars": {
+            "default": 8000,
+            "maximum": 64000.0,
+            "minimum": 500.0,
+            "title": "Response Max Chars",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "PythonConfig",
+        "type": "object"
+      },
       "QueryIn": {
         "additionalProperties": false,
         "properties": {
@@ -9359,6 +10338,27 @@
           "recovery_codes"
         ],
         "title": "RecoveryCodesOut",
+        "type": "object"
+      },
+      "RewrapOut": {
+        "properties": {
+          "rewrapped": {
+            "title": "Rewrapped",
+            "type": "integer"
+          },
+          "secrets_by_kek": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Secrets By Kek",
+            "type": "object"
+          }
+        },
+        "required": [
+          "rewrapped",
+          "secrets_by_kek"
+        ],
+        "title": "RewrapOut",
         "type": "object"
       },
       "RoleCreateIn": {
@@ -11360,6 +12360,7 @@
               "mapping": {
                 "http": "#/components/schemas/HttpConfig",
                 "mcp": "#/components/schemas/McpConfig",
+                "python": "#/components/schemas/PythonConfig",
                 "sql": "#/components/schemas/SqlConfig"
               },
               "propertyName": "kind"
@@ -11373,6 +12374,9 @@
               },
               {
                 "$ref": "#/components/schemas/McpConfig"
+              },
+              {
+                "$ref": "#/components/schemas/PythonConfig"
               }
             ],
             "title": "Config"
@@ -11688,6 +12692,44 @@
         "title": "ToolPublishIn",
         "type": "object"
       },
+      "ToolPyParam": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "required": {
+            "default": false,
+            "title": "Required",
+            "type": "boolean"
+          },
+          "type": {
+            "default": "string",
+            "enum": [
+              "string",
+              "integer",
+              "number",
+              "boolean",
+              "array",
+              "object"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "ToolPyParam",
+        "type": "object"
+      },
       "ToolSqlParam": {
         "additionalProperties": false,
         "properties": {
@@ -11807,6 +12849,7 @@
               "mapping": {
                 "http": "#/components/schemas/HttpConfig",
                 "mcp": "#/components/schemas/McpConfig",
+                "python": "#/components/schemas/PythonConfig",
                 "sql": "#/components/schemas/SqlConfig"
               },
               "propertyName": "kind"
@@ -11820,6 +12863,9 @@
               },
               {
                 "$ref": "#/components/schemas/McpConfig"
+              },
+              {
+                "$ref": "#/components/schemas/PythonConfig"
               }
             ],
             "title": "Config"
@@ -13826,6 +14872,148 @@
           "name"
         ],
         "title": "Variable",
+        "type": "object"
+      },
+      "VaultCheck": {
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "VaultCheck",
+        "type": "object"
+      },
+      "VaultIn": {
+        "properties": {
+          "active": {
+            "default": false,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "auth_method": {
+            "default": "token",
+            "enum": [
+              "token",
+              "approle"
+            ],
+            "title": "Auth Method",
+            "type": "string"
+          },
+          "ca_pem": {
+            "default": "",
+            "maxLength": 20000,
+            "title": "Ca Pem",
+            "type": "string"
+          },
+          "credential": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credential"
+          },
+          "enabled": {
+            "default": false,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "key_name": {
+            "default": "forge",
+            "maxLength": 100,
+            "pattern": "^[A-Za-z0-9_.-]+$",
+            "title": "Key Name",
+            "type": "string"
+          },
+          "mount": {
+            "default": "transit",
+            "maxLength": 100,
+            "title": "Mount",
+            "type": "string"
+          },
+          "namespace": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Namespace",
+            "type": "string"
+          },
+          "role_id": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Role Id",
+            "type": "string"
+          },
+          "url": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "title": "VaultIn",
+        "type": "object"
+      },
+      "VaultStatus": {
+        "properties": {
+          "attached": {
+            "title": "Attached",
+            "type": "boolean"
+          },
+          "config": {
+            "additionalProperties": true,
+            "title": "Config",
+            "type": "object"
+          },
+          "current_kek": {
+            "title": "Current Kek",
+            "type": "string"
+          },
+          "secrets_by_kek": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Secrets By Kek",
+            "type": "object"
+          }
+        },
+        "required": [
+          "config",
+          "current_kek",
+          "secrets_by_kek",
+          "attached"
+        ],
+        "title": "VaultStatus",
         "type": "object"
       },
       "VersionIn": {
@@ -15911,6 +17099,109 @@
         "summary": "Unlock User",
         "tags": [
           "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/vault": {
+      "get": {
+        "operationId": "get_vault",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VaultStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Vault",
+        "tags": [
+          "vault"
+        ]
+      },
+      "put": {
+        "operationId": "put_vault",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VaultIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VaultStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Vault",
+        "tags": [
+          "vault"
+        ]
+      }
+    },
+    "/api/v1/admin/vault/rewrap": {
+      "post": {
+        "description": "Re-wrap every secret's data key under the current KEK: the vault when it is active,\nthe built-in key otherwise. The values are not re-encrypted.",
+        "operationId": "rewrap",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RewrapOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Rewrap",
+        "tags": [
+          "vault"
+        ]
+      }
+    },
+    "/api/v1/admin/vault/test": {
+      "post": {
+        "operationId": "check_vault",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VaultCheck"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Check Vault",
+        "tags": [
+          "vault"
         ]
       }
     },
@@ -19742,6 +21033,696 @@
         "summary": "Update Datasource",
         "tags": [
           "tools"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/evals/datasets": {
+      "get": {
+        "operationId": "eval_list_datasets",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "prompt",
+                    "rag"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EvalDatasetOut"
+                  },
+                  "title": "Response Eval List Datasets",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Eval List Datasets",
+        "tags": [
+          "evaluations"
+        ]
+      },
+      "post": {
+        "operationId": "eval_create_dataset",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvalDatasetIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvalDatasetDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Eval Create Dataset",
+        "tags": [
+          "evaluations"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/evals/datasets/{dataset_id}": {
+      "delete": {
+        "operationId": "eval_delete_dataset",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataset_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Dataset Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Eval Delete Dataset",
+        "tags": [
+          "evaluations"
+        ]
+      },
+      "get": {
+        "operationId": "eval_get_dataset",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataset_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Dataset Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvalDatasetDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Eval Get Dataset",
+        "tags": [
+          "evaluations"
+        ]
+      },
+      "put": {
+        "operationId": "eval_update_dataset",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataset_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Dataset Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvalDatasetUpdateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvalDatasetDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Eval Update Dataset",
+        "tags": [
+          "evaluations"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/evals/datasets/{dataset_id}/import": {
+      "post": {
+        "operationId": "eval_import_cases",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataset_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Dataset Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvalImportIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvalDatasetDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Eval Import Cases",
+        "tags": [
+          "evaluations"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/evals/runs": {
+      "get": {
+        "operationId": "eval_list_runs",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dataset_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dataset Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EvalRunOut"
+                  },
+                  "title": "Response Eval List Runs",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Eval List Runs",
+        "tags": [
+          "evaluations"
+        ]
+      },
+      "post": {
+        "operationId": "eval_start_run",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvalRunIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvalRunOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Eval Start Run",
+        "tags": [
+          "evaluations"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/evals/runs/{run_id}": {
+      "delete": {
+        "operationId": "eval_delete_run",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Eval Delete Run",
+        "tags": [
+          "evaluations"
+        ]
+      },
+      "get": {
+        "operationId": "eval_get_run",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "failed_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Failed Only",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvalRunDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Eval Get Run",
+        "tags": [
+          "evaluations"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/evals/runs/{run_id}/cancel": {
+      "post": {
+        "operationId": "eval_cancel_run",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvalRunOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Eval Cancel Run",
+        "tags": [
+          "evaluations"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/evals/runs/{run_id}/compare/{other_id}": {
+      "get": {
+        "description": "`run_id` is the baseline (a), `other_id` the candidate (b).",
+        "operationId": "eval_compare_runs",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "other_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Other Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvalComparison"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Eval Compare Runs",
+        "tags": [
+          "evaluations"
         ]
       }
     },
@@ -25478,7 +27459,8 @@
                   "enum": [
                     "http",
                     "sql",
-                    "mcp"
+                    "mcp",
+                    "python"
                   ],
                   "type": "string"
                 },

@@ -1,0 +1,77 @@
+# Point-in-time recovery for the Compose database (E3.7): continuous WAL archiving and scheduled
+# base backups to the object store, encrypted. Add it to the stack with `make pitr/up`.
+# RPO: WAL is archived at least every 60 s (archive_timeout). RTO: see docs/operations/dr-runbook.md.
+#
+# The backups go to the same S3 as the documents unless FORGE_BACKUP_S3_* point elsewhere.
+# A backup on the same disk as the database protects against mistakes, not against losing the
+# machine: point FORGE_BACKUP_S3_ENDPOINT at storage somewhere else for that.
+
+x-walg: &walg
+  WALG_S3_PREFIX: s3://${FORGE_BACKUP_BUCKET:-forge-backups}/pg
+  AWS_ENDPOINT: ${FORGE_BACKUP_S3_ENDPOINT:-http://s3:8333}
+  AWS_S3_FORCE_PATH_STYLE: "true"
+  AWS_REGION: us-east-1
+  AWS_ACCESS_KEY_ID: ${FORGE_BACKUP_S3_ACCESS_KEY:-${S3_ACCESS_KEY}}
+  AWS_SECRET_ACCESS_KEY: ${FORGE_BACKUP_S3_SECRET_KEY:-${S3_SECRET_KEY}}
+  # Backups are encrypted with this key (64 hex characters). Lose it and they cannot be read.
+  WALG_LIBSODIUM_KEY: ${PITR_ENCRYPTION_KEY}
+  WALG_LIBSODIUM_KEY_TRANSFORM: hex
+
+services:
+  backup-init:
+    image: ${FORGE_BACKEND_IMAGE:-forge-backend:dev}
+    restart: "no"
+    command: ["storage", "ensure-bucket", "${FORGE_BACKUP_BUCKET:-forge-backups}"]
+    environment:
+      FORGE_DATABASE_URL: ${FORGE_DATABASE_URL}
+      FORGE_S3_ENDPOINT: ${FORGE_BACKUP_S3_ENDPOINT:-http://s3:8333}
+      FORGE_S3_ACCESS_KEY: ${FORGE_BACKUP_S3_ACCESS_KEY:-${S3_ACCESS_KEY}}
+      FORGE_S3_SECRET_KEY: ${FORGE_BACKUP_S3_SECRET_KEY:-${S3_SECRET_KEY}}
+      FORGE_MASTER_KEY: ${FORGE_MASTER_KEY}
+    depends_on:
+      s3: { condition: service_healthy }
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+
+  db:
+    image: ${FORGE_DB_IMAGE:-forge-db:dev}
+    build:
+      context: ./deploy/db
+    environment:
+      <<: *walg
+      PGHOST: /var/run/postgresql
+      PGUSER: postgres
+    command:
+      - postgres
+      - -c
+      - max_connections=300
+      - -c
+      - wal_level=replica
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_command=wal-g wal-push %p
+      - -c
+      - archive_timeout=60
+    depends_on:
+      backup-init: { condition: service_completed_successfully }
+
+  # Base backups every BACKUP_INTERVAL_HOURS (24), the last BACKUP_RETAIN_FULL (7) kept.
+  backup:
+    image: ${FORGE_DB_IMAGE:-forge-db:dev}
+    restart: unless-stopped
+    user: postgres
+    entrypoint: ["pitr-backup-loop.sh"]
+    environment:
+      <<: *walg
+      PGHOST: db
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data
+      BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
+      BACKUP_RETAIN_FULL: ${BACKUP_RETAIN_FULL:-7}
+    volumes:
+      - db-data:/var/lib/postgresql/data:ro
+    depends_on:
+      db: { condition: service_healthy }

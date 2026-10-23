@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import os
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
+from pathlib import Path
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from forge.core.db import create_engine
 from forge.core.settings import Settings
+from tests.support.sandbox_service import sandbox_service
 
 TEST_DB_URL = os.environ.get("FORGE_TEST_DATABASE_URL")
 
@@ -40,3 +42,13 @@ async def app_engine(settings: Settings) -> AsyncIterator[AsyncEngine]:
     engine = create_engine(settings)
     yield engine
     await engine.dispose()
+
+
+@pytest.fixture(scope="module")
+def sandbox_url() -> Iterator[str]:
+    """The sandbox runner service on a local port (empty when there is no container engine)."""
+    if not Path("/var/run/docker.sock").exists():
+        yield ""
+        return
+    with sandbox_service() as url:
+        yield url

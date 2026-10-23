@@ -510,3 +510,67 @@ def test_runs_are_invisible_to_other_projects(
     assert ok(stranger.get(f"{mine}/use-case-runs")) == []
     assert stranger.get(f"{mine}/use-case-runs/{run['id']}").status_code == 404
     _ = create_user
+
+
+def test_code_node_runs_in_the_sandbox_and_feeds_the_next_step(rt: dict[str, Any]) -> None:
+    code = (
+        "def run(args):\n"
+        "    nums = [int(x) for x in args['numbers'].split()]\n"
+        "    return {'total': sum(nums), 'count': len(nums)}\n"
+    )
+    graph = {
+        "nodes": [
+            node("start", "start"),
+            node("sum", "code", "start", code=code, args={"numbers": "{topic}"}, output="stats"),
+            node(
+                "route",
+                "router",
+                "sum",
+                sections=[
+                    {
+                        "name": "big",
+                        "conditions": [{"field": "stats.total", "op": ">", "value": 10}],
+                    }
+                ],
+            ),
+            node("big", "code", "route.big", code="def run(args):\n    return 'big'\n"),
+            node("small", "code", "route.default", code="def run(args):\n    return 'small'\n"),
+            node("end", "end", "big", "small", after_mode="any", output="{stats.total}"),
+        ]
+    }
+    uc = new_uc(rt, "graph", graph)
+    run = run_ok(rt, uc["id"], {"topic": "4 5 6"})
+    assert run["status"] == "succeeded", (run["error_code"], run["error"], run["error_node"])
+    assert keys(run) == ["sum", "big"]
+    assert run["outputs"]["result"] == 15
+    small = run_ok(rt, uc["id"], {"topic": "1 2"})
+    assert keys(small) == ["sum", "small"]
+    failing = new_uc(
+        rt,
+        "graph",
+        {
+            "nodes": [
+                node("start", "start"),
+                node("boom", "code", "start", code="def run(args):\n    raise ValueError('no')\n"),
+                node("end", "end", "boom", output="x"),
+            ]
+        },
+    )
+    bad = run_ok(rt, failing["id"])
+    assert bad["status"] == "failed"
+    assert bad["error_code"] == "code_error"
+    assert bad["error_node"] == "boom"
+    broken = new_uc(
+        rt,
+        "graph",
+        {
+            "nodes": [
+                node("start", "start"),
+                node("c", "code", "start", code="def run(args) return 1"),
+                node("end", "end", "c", output="x"),
+            ]
+        },
+    )
+    r = start(rt, broken["id"])
+    assert r.status_code == 422
+    assert "bad_code" in [i["code"] for i in r.json()["detail"]]

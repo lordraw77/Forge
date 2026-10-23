@@ -1,0 +1,21 @@
+# Every dependency external; ingress with TLS; proxy and extra CA.
+postgresql: { enabled: false }
+valkey: { enabled: false }
+opensearch: { enabled: false }
+seaweedfs: { enabled: false }
+temporal: { enabled: false }
+external:
+  postgresql: { host: pg.example.com, database: forge, username: forge, password: "p@ss/w+rd", sslmode: require }
+  valkey: { host: redis.example.com, password: "r&dis", tls: true }
+  s3: { endpoint: https://s3.example.com, bucket: forge, accessKey: AK, secretKey: SK }
+  opensearch: { url: "https://os.example.com:9200", password: osp, caSecret: { name: os-ca, key: ca.pem } }
+  temporal: { address: temporal.example.com:7233, namespace: forge }
+ingress:
+  enabled: true
+  className: nginx
+  host: forge.example.com
+  tls: [{ secretName: forge-tls, hosts: [forge.example.com] }]
+proxy: { http: "http://proxy:3128", https: "http://proxy:3128", noProxy: ".corp.example.com" }
+extraCA: { secretName: corp-ca, key: corp.pem }
+smtp: { host: smtp.example.com, username: forge, password: s3cr3t, passwordKey: smtp-password }
+global: { imageRegistry: registry.local:5000, imagePullSecrets: [regcred], storageClass: fast }

@@ -14,6 +14,8 @@ export * from './bundles.service';
 import { BundlesService } from './bundles.service';
 export * from './data.service';
 import { DataService } from './data.service';
+export * from './evaluations.service';
+import { EvaluationsService } from './evaluations.service';
 export * from './guardrails.service';
 import { GuardrailsService } from './guardrails.service';
 export * from './health.service';
@@ -42,6 +44,8 @@ export * from './tools.service';
 import { ToolsService } from './tools.service';
 export * from './useCases.service';
 import { UseCasesService } from './useCases.service';
+export * from './vault.service';
+import { VaultService } from './vault.service';
 export const APIS = [
   AdminService,
   AdminModelsService,
@@ -51,6 +55,7 @@ export const APIS = [
   AuthService,
   BundlesService,
   DataService,
+  EvaluationsService,
   GuardrailsService,
   HealthService,
   IdentityService,
@@ -65,4 +70,5 @@ export const APIS = [
   SystemService,
   ToolsService,
   UseCasesService,
+  VaultService,
 ];

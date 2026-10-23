@@ -1,0 +1,52 @@
+{{- $fn := include "forge.fullname" . }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fn }}-web
+  labels: {{ include "forge.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  replicas: {{ .Values.web.replicas }}
+  selector:
+    matchLabels: {{ include "forge.selector" (dict "root" . "component" "web") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{ include "forge.selector" (dict "root" . "component" "web") | nindent 8 }}
+    spec:
+      {{- include "forge.pullSecrets" . | nindent 6 }}
+      {{- include "forge.podSecurity" (dict "root" . "uid" 101) | nindent 6 }}
+      {{- include "forge.scheduling" .Values.web | nindent 6 }}
+      containers:
+        - name: web
+          image: {{ include "forge.image" (dict "root" . "image" .Values.images.web) }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          env:
+            - { name: FORGE_API_UPSTREAM, value: {{ printf "%s-api:8000" $fn | quote }} }
+            - { name: FORGE_DNS_RESOLVER, value: auto }
+            - { name: FORGE_TRUSTED_PROXIES, value: {{ .Values.web.trustedProxies | quote }} }
+          ports:
+            - { name: http, containerPort: 8080 }
+          livenessProbe:
+            httpGet: { path: /nginx-health, port: http }
+            periodSeconds: 15
+          readinessProbe:
+            httpGet: { path: /nginx-health, port: http }
+            periodSeconds: 10
+          resources: {{ toYaml .Values.web.resources | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+          {{- include "forge.containerSecurity" . | nindent 10 }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fn }}-web
+  labels: {{ include "forge.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  selector: {{ include "forge.selector" (dict "root" . "component" "web") | nindent 4 }}
+  ports:
+    - { name: http, port: 8080, targetPort: http }

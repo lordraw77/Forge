@@ -9,6 +9,9 @@ forge_app:
     - "cluster_monitor"
     - "indices:data/read/msearch"
     - "indices:data/write/bulk"
+    # delete-by-query (deleting a document or collection) reads through a scroll
+    - "indices:data/read/scroll"
+    - "indices:data/read/scroll/clear"
   index_permissions:
     - index_patterns:
         - "forge-*"

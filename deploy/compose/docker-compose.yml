@@ -29,6 +29,9 @@ x-backend: &backend
     FORGE_TOOLS_ALLOW_PRIVATE_HOSTS: ${FORGE_TOOLS_ALLOW_PRIVATE_HOSTS:-false}
     FORGE_MCP_STDIO_ALLOWED: ${FORGE_MCP_STDIO_ALLOWED:-}
     FORGE_SOURCE_ROOTS: ${FORGE_SOURCE_ROOTS:-}
+    # Sandbox runner (profile `sandbox`): Python tools and `code` nodes. Empty = unavailable.
+    FORGE_SANDBOX_URL: ${FORGE_SANDBOX_URL:-}
+    FORGE_SANDBOX_TOKEN: ${SANDBOX_TOKEN:-}
     # Email for approval notifications (optional; no host = no email).
     FORGE_SMTP_HOST: ${FORGE_SMTP_HOST:-}
     FORGE_SMTP_PORT: ${FORGE_SMTP_PORT:-587}
@@ -59,6 +62,9 @@ services:
     # Parallel index builds (HNSW, BM25) allocate maintenance_work_mem in /dev/shm;
     # Docker's 64 MB default fails them (spike E0.5b).
     shm_size: 2gb
+    # Forge's processes keep up to ~30 connections each (SQLAlchemy pool + overflow + the agent
+    # checkpoint pool) and Temporal ~30: PostgreSQL's default of 100 runs out under load (E3.7).
+    command: ["postgres", "-c", "max_connections=300"]
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -92,6 +98,40 @@ services:
       retries: 20
     environment:
       VALKEY_PASSWORD: ${VALKEY_PASSWORD}
+
+  # Sandbox for Python tools and `code` nodes (E3.4), profile `sandbox`: `make sandbox/up`.
+  # It is the only service that holds the container engine socket (that socket is root on the
+  # host: nothing else gets it). Each execution is a throw-away container of the runtime image.
+  sandbox:
+    image: ${FORGE_SANDBOX_IMAGE:-forge-sandbox:dev}
+    profiles: [sandbox]
+    build:
+      context: ./sandbox
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      SANDBOX_TOKEN: ${SANDBOX_TOKEN}
+      SANDBOX_RUNTIME_IMAGE: ${FORGE_SANDBOX_RUNTIME_IMAGE:-forge-sandbox-runtime:dev}
+      # "runsc" runs every execution under gVisor (needs runsc registered with the engine).
+      SANDBOX_RUNTIME: ${SANDBOX_RUNTIME:-}
+      SANDBOX_MAX_CONCURRENCY: ${SANDBOX_MAX_CONCURRENCY:-4}
+    group_add: ["${SANDBOX_DOCKER_GID:-0}"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+
+  # Builds the image the sandbox runs code in; it exits at once.
+  sandbox-runtime:
+    image: ${FORGE_SANDBOX_RUNTIME_IMAGE:-forge-sandbox-runtime:dev}
+    profiles: [sandbox]
+    build:
+      context: ./sandbox
+      dockerfile: Dockerfile.runtime
+    restart: "no"
+    command: ["true"]
 
   # BM25 full-text search for RAG (ADR-016). Security plugin on: TLS and users from
   # scripts/gen-env.sh; Forge connects as `forge` (role forge_app, indices forge-* only).
