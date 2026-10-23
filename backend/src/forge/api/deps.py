@@ -36,6 +36,7 @@ from forge.usecases.mail import Mailer
 from forge.usecases.planner import Planner
 from forge.usecases.runs import UseCaseRuns
 from forge.usecases.service import UseCaseStudio
+from forge.usecases.triggers import Triggers
 
 ACCESS_COOKIE = "forge_access"
 REFRESH_COOKIE = "forge_refresh"
@@ -61,6 +62,7 @@ class Services:
     tools: ToolStudio
     usecases: UseCaseStudio
     usecase_runs: UseCaseRuns
+    triggers: Triggers
     approvals: Approvals
     guardrails: Guardrails
     analytics: Analytics

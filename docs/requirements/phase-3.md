@@ -142,3 +142,22 @@ Roles as in [phase-1.md](phase-1.md): PA = Project Admin, B = Builder, SA = Supe
 4. The vault's own credential is kept under the built-in key, which therefore stays necessary (and is also the way back).
 
 **US-3.8.3 (S) – A lab vault.** `make vault/up` and `scripts/vault-setup.sh` start an OpenBao, initialise and unseal it, enable Transit and create the key, the policy and a token; the policy Forge needs is in `deploy/vault/forge-policy.hcl`.
+
+## M3.5 Triggers
+
+### E3.9 Async invocation and triggers
+
+Asynchronous runs with a completion webhook already exist (US-2.7.x, `delivery: async` and `webhook_url`); this epic adds the ways a run starts without a person.
+
+**US-3.9.1 (M) – Schedules.** As a Builder, I want a use case to run by itself on a schedule, so that a daily report or a weekly check needs nobody.
+1. A trigger is a five-field cron expression with a time zone, or a fixed interval in minutes, with fixed inputs; it runs the published version.
+2. The run belongs to the user who created the trigger and shows up in the normal run history; the optional completion webhook works as for any run.
+3. After downtime a schedule fires once, not once per missed slot; two API replicas never fire the same slot.
+4. A schedule that fails to start five times in a row is paused, with the reason kept (*last error*); resuming it resets the counter.
+
+**US-3.9.2 (M) – Inbound URL.** As a Builder, I want another system (CI, monitoring, a queue consumer) to start a use case with an HTTP call.
+1. A webhook trigger has a secret URL `/api/v1/triggers/<token>` (no session, no CSRF); the body may add or override inputs.
+2. The token is shown once, at creation or rotation; rotating invalidates the old one at once; pausing the trigger refuses calls.
+
+**US-3.9.3 (S) – Managed in the web interface.** *Build Your Own → Use case library → Triggers*: create, edit, pause, *Run now*, new token, delete, with next and last run and the last error. Needs `usecase.build`; end users cannot see triggers.
+

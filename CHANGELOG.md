@@ -8,6 +8,8 @@ Phase 1 milestones M1.2 (LLM gateway), M1.3 (Prompt Studio), M1.4 (RAG on upload
 
 ### Added
 
+**Triggers (E3.9)**
+- **Schedules and inbound URLs for use cases**: a Builder adds triggers to a published use case — a **cron** expression with a time zone, a fixed **interval**, or a secret **inbound URL** (`POST /api/v1/triggers/<token>`, optional `inputs` in the body) for CI, monitoring or queue consumers. Runs start as the user who created the trigger and appear in the normal run history; the completion webhook of M2.3d works as usual. A schedule fires once after downtime, never twice across API replicas, and pauses itself after five failed starts. Web interface: *Use case library → Triggers*. Migration 0021.
 **External vault (E3.8)**
 - **Super Admin → Secrets vault**: keep the key that protects stored secrets in **OpenBao / Vault Transit** instead of deriving it from `FORGE_MASTER_KEY`. Each secret still has its own data key; the vault wraps and unwraps those (the key never leaves it). Token or AppRole sign-in, a connection test before saving, *re-wrap now* to move every secret to or from the vault, cached keys for short outages (`503 vault_unavailable` otherwise), all processes follow a change without restart. Lab vault: `make vault/up` + `scripts/vault-setup.sh`; policy in `deploy/vault/forge-policy.hcl`.
 

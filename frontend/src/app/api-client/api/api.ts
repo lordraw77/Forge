@@ -42,6 +42,8 @@ export * from './system.service';
 import { SystemService } from './system.service';
 export * from './tools.service';
 import { ToolsService } from './tools.service';
+export * from './triggers.service';
+import { TriggersService } from './triggers.service';
 export * from './useCases.service';
 import { UseCasesService } from './useCases.service';
 export * from './vault.service';
@@ -69,6 +71,7 @@ export const APIS = [
   SourcesService,
   SystemService,
   ToolsService,
+  TriggersService,
   UseCasesService,
   VaultService,
 ];

@@ -133,6 +133,9 @@ const STATUS_COLOR: Record<string, string> = {
               <a nz-button nzType="link" nzSize="small" [routerLink]="['..', u.id, 'edit']" i18n
                 >Settings</a
               >
+              <a nz-button nzType="link" nzSize="small" [routerLink]="['..', u.id, 'triggers']" i18n
+                >Triggers</a
+              >
               <button nz-button nzType="link" nzSize="small" (click)="openDuplicate(u)" i18n>
                 Duplicate
               </button>

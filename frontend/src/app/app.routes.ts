@@ -169,6 +169,12 @@ export const routes: Routes = [
               import('./pages/prompts/prompt-editor').then((m) => m.PromptEditor),
           },
           {
+            path: ':id/triggers',
+            canActivate: [useCaseBuilderGuard],
+            loadComponent: () =>
+              import('./pages/usecases/usecase-triggers').then((m) => m.UseCaseTriggers),
+          },
+          {
             path: ':id/test',
             loadComponent: () => import('./pages/prompts/prompt-test').then((m) => m.PromptTest),
           },

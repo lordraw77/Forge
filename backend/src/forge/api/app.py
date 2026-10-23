@@ -34,6 +34,7 @@ from forge.api import (
     routes_rag,
     routes_sources,
     routes_tools,
+    routes_triggers,
     routes_usecases,
     routes_v1,
     routes_vault,
@@ -66,6 +67,7 @@ from forge.usecases.mail import Mailer
 from forge.usecases.planner import Planner
 from forge.usecases.runs import UseCaseRuns
 from forge.usecases.service import UseCaseStudio
+from forge.usecases.triggers import Triggers
 
 log = get_logger(__name__)
 
@@ -206,6 +208,7 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
             tools=tools,
             usecases=usecases,
             usecase_runs=usecase_runs,
+            triggers=Triggers(app.state.sessions, usecase_runs),
             approvals=Approvals(app.state.sessions, tenancy),
             guardrails=gateway.guardrails,
             analytics=Analytics(app.state.sessions, store),
@@ -220,16 +223,20 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
         app.state.services = svc
         init = asyncio.create_task(_initialise(app, svc))
         idp_sync = asyncio.create_task(_directory_sync(app, auth.external))
+        trigger_loop = asyncio.create_task(svc.triggers.loop())
         log.info("api.started", version=__version__)
         try:
             yield
         finally:
             init.cancel()
             idp_sync.cancel()
+            trigger_loop.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await init
             with contextlib.suppress(asyncio.CancelledError):
                 await idp_sync
+            with contextlib.suppress(asyncio.CancelledError):
+                await trigger_loop
             await store.stop()
             await svc.gateway.stop()
             await app.state.redis.aclose()
@@ -265,6 +272,8 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
     app.include_router(routes_agents.router)
     app.include_router(routes_tools.router)
     app.include_router(routes_usecases.router)
+    app.include_router(routes_triggers.router)
+    app.include_router(routes_triggers.public_router)
     app.include_router(routes_approvals.router)
     app.include_router(routes_approvals.public_router)
     app.include_router(routes_guardrails.router)

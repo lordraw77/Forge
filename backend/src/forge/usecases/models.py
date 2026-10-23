@@ -221,3 +221,30 @@ class ApprovalToken(Base):
     user_id: Mapped[uuid.UUID]
     expires_at: Mapped[datetime]
     used_at: Mapped[datetime | None]
+
+
+class UseCaseTrigger(Base):
+    """A schedule (cron or interval) or an inbound token that starts runs of a use case (E3.9)."""
+
+    __tablename__ = "use_case_trigger"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    project_id: Mapped[uuid.UUID]
+    use_case_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("use_case.id"))
+    name: Mapped[str]
+    kind: Mapped[str]
+    cron: Mapped[str | None]
+    interval_minutes: Mapped[int | None]
+    timezone: Mapped[str] = mapped_column(default="UTC")
+    token_hash: Mapped[bytes | None]
+    inputs: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    webhook_url: Mapped[str | None]
+    enabled: Mapped[bool] = mapped_column(default=True)
+    next_run_at: Mapped[datetime | None]
+    last_run_at: Mapped[datetime | None]
+    last_run_id: Mapped[uuid.UUID | None]
+    last_status: Mapped[str | None]
+    last_error: Mapped[str | None]
+    failures: Mapped[int] = mapped_column(default=0)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    created_by: Mapped[uuid.UUID]
+    updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
