@@ -161,3 +161,35 @@ Asynchronous runs with a completion webhook already exist (US-2.7.x, `delivery: 
 
 **US-3.9.3 (S) – Managed in the web interface.** *Build Your Own → Use case library → Triggers*: create, edit, pause, *Run now*, new token, delete, with next and last run and the last error. Needs `usecase.build`; end users cannot see triggers.
 
+## M3.6 Reaching Forge from outside
+
+### E3.5 Exposed MCP server and embeddable chat widget
+
+**US-3.5.1 (M) – The project's MCP server.** As a Builder, I want external MCP clients to use what I choose from my project, so that agents, documents and prompts are available in the tools people already use.
+1. `POST /api/v1/projects/{id}/mcp` speaks MCP over Streamable HTTP (JSON-RPC, no session), signed in with a project API key that has the `usecase.run` scope; a key without it, or no key, is refused.
+2. Only assets in the project's *exposure list* are offered: an **agent** becomes a tool (`message`, optional `conversation_id` to continue) that returns the agent's answer; a **data collection** becomes a search tool (`query`, `top_k`) that returns passages; a **prompt** becomes an MCP prompt whose arguments are its variables.
+3. Exposures have a name, a description and an on/off switch; the same asset can be exposed once; removing or deleting the asset removes the exposure.
+4. API keys search project-wide documents only (document ACLs, ADR-003); runs triggered through MCP are normal runs of the key's owner, with limits, guardrails and cost tracking.
+5. The official Python MCP client lists the tools and calls them.
+
+**US-3.5.2 (M) – Chat widget.** As a Project Admin, I want to put a chat bubble on another website, connected to a published agent, so that visitors can ask questions without a Forge account.
+1. A widget has a name, an agent, a title, a welcome message and a list of **allowed sites**; a browser from another site is refused (403, no CORS headers), including the preflight.
+2. One `<script src=".../api/v1/widget/widget.js" data-key="fw_…">` line adds the bubble; the script has no dependencies, lives in a shadow root and inserts text only.
+3. Visitors are limited per visitor address per minute and per widget per day (429); a visitor's session is a random token kept in their browser, expires after 24 hours without use and cannot read another visitor's answers.
+4. Disabling or deleting a widget stops it at once.
+
+**US-3.5.3 (S) – Managed in the web interface.** *Projects Studio → Integrations*: the endpoint, a ready command for Claude Code, the exposure list (add, pause, remove) for Builders, and the widgets with their embed code for Project Admins.
+
+### E3.6 Long-term memory
+
+**US-3.6.1 (M) – An agent that remembers.** As a Builder, I want an agent to remember lasting facts about each user, so that people do not repeat their preferences in every conversation.
+1. A switch in the agent's configuration (*versioned like the rest*); off by default.
+2. After a successful answer, a model call picks out at most three short facts (preferences, role, language) and stores them, embedded, for that agent and user; near-duplicates are not stored twice; at most 200 facts per user and agent are kept (the least recently used go first).
+3. Before each run, the facts closest to the question are added to the system prompt as background, not instructions.
+4. Only a person's own chats count: runs from widgets and MCP clients neither read nor write memory.
+5. A failure of the memory never fails a run.
+
+**US-3.6.2 (M) – Seeing and forgetting.** As a user, I want to see what an agent remembers about me and delete it.
+1. In the chat: *What the agent remembers about me*, with *Forget* per fact and *Forget everything*.
+2. Nobody else, including admins, can list or delete another person's facts through the API; deleting the user or the agent deletes their facts.
+

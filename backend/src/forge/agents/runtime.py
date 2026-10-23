@@ -35,6 +35,7 @@ from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from forge.agents.events import RunEvents
+from forge.agents.memory import LongTermMemory, as_notes
 from forge.agents.models import Agent, AgentRun, AgentVersion, Conversation, RunStep
 from forge.agents.schemas import AgentConfig
 from forge.agents.tools import (
@@ -137,6 +138,7 @@ class _Flag:
 class AgentRuntime:
     def __init__(self, deps: RuntimeDeps) -> None:
         self._d = deps
+        self._memory = LongTermMemory(deps.sessions, deps.gateway)
 
     # ------------------------------------------------------------ lifecycle
     async def execute(
@@ -281,10 +283,14 @@ class AgentRuntime:
         graph = self._graph(rec, cfg, tools, deadline)
         snapshot = await graph.aget_state(thread)
         graph_input: Any
+        recalled: list[str] = []
         if not snapshot.values:
             history = await self._history(rec, cfg)
-            system = instructions + (
-                CITATION_RULE if any(t for t in cfg.tools if t.kind == "rag") else ""
+            recalled = await self._recall(rec, cfg)
+            system = (
+                instructions
+                + (as_notes(recalled) if recalled else "")
+                + (CITATION_RULE if any(t for t in cfg.tools if t.kind == "rag") else "")
             )
             graph_input = {
                 "messages": [{"role": "system", "content": system}, *examples, *history,
@@ -330,7 +336,65 @@ class AgentRuntime:
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await watcher
         final = (await graph.aget_state(thread)).values or {}
-        return await self._finish(rec, final, failure, flag.cancelled)
+        summary = await self._finish(rec, final, failure, flag.cancelled)
+        remembers = summary["status"] == "succeeded" and cfg.memory.long_term and rec.user_id
+        if remembers and await self._is_app_chat(rec):
+            await self._remember(rec, cfg, str(final.get("answer") or ""), recalled)
+        return summary
+
+    def _memory_caller(self, rec: RunRecord, cfg: AgentConfig) -> Caller:
+        return Caller(
+            rec.project_id,
+            rec.user_id,
+            trace_id=f"run:{rec.run_id}",
+            guardrail_rules=tuple(r.model_dump() for r in cfg.guardrails),
+        )
+
+    async def _is_app_chat(self, rec: RunRecord) -> bool:
+        """Only a person's own conversations feed memory. Widget visitors and MCP clients run as
+        the user who set them up, so their facts would pile up under that user."""
+        async with project_scope(self._d.sessions, rec.project_id, rec.user_id) as s:
+            source = (
+                await s.execute(
+                    select(Conversation.source).where(Conversation.id == rec.conversation_id)
+                )
+            ).scalar_one_or_none()
+        return source == "app"
+
+    async def _recall(self, rec: RunRecord, cfg: AgentConfig) -> list[str]:
+        """Remembered facts for this question; the memory is a help, so any failure is logged and
+        the run goes on without it."""
+        if not (cfg.memory.long_term and rec.user_id and await self._is_app_chat(rec)):
+            return []
+        try:
+            return await self._memory.recall(
+                self._memory_caller(rec, cfg), rec.agent_id, cfg.memory, rec.input
+            )
+        except Exception as exc:
+            log.warning("agents.memory_recall_failed", run_id=str(rec.run_id), error=str(exc)[:200])
+            return []
+
+    async def _remember(
+        self, rec: RunRecord, cfg: AgentConfig, answer: str, known: list[str]
+    ) -> None:
+        try:
+            added = await asyncio.wait_for(
+                self._memory.remember(
+                    self._memory_caller(rec, cfg),
+                    rec.agent_id,
+                    rec.run_id,
+                    cfg.memory,
+                    "",
+                    rec.input,
+                    answer,
+                    known,
+                ),
+                timeout=MEMORY_TIMEOUT_S,
+            )
+            if added:
+                log.info("agents.memory_added", run_id=str(rec.run_id), count=added)
+        except Exception as exc:
+            log.warning("agents.memory_failed", run_id=str(rec.run_id), error=str(exc)[:200])
 
     async def _watch_cancel(self, rec: RunRecord, task: asyncio.Task[None], flag: _Flag) -> None:
         while not task.done():
@@ -903,6 +967,7 @@ class AgentRuntime:
         await self._finish(rec, {}, failure_of(code, message), False)
 
 
+MEMORY_TIMEOUT_S = 45
 CHECKPOINT_TABLES = ("checkpoint_writes", "checkpoint_blobs", "checkpoints")
 CHECKPOINT_RETENTION_DAYS = 7
 

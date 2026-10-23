@@ -10,6 +10,7 @@ Behaviour comes from the requested model name (suffixes can be combined, e.g. `a
   -guard    guard model: "unsafe\nS1" when the last message says "attack", else "safe"
             (`-guardjson`: NVIDIA-style JSON; `-guardscore`: a probability, 0.97 or 0.01)
   -assist   answers like Help Me Write (JSON with framework and prompts)
+  -memory   long-term memory extractor: "I prefer X" in the exchange becomes a fact
   -agent    scripted agent: calls a tool the first time (`search*` for a question, `http_get`
             when the message holds a URL, `current_time` when it asks for the time), then
             answers from the tool result, citing `[n]` when it holds passages
@@ -168,6 +169,11 @@ def _message(model: str, body: dict[str, Any]) -> dict[str, Any]:
         last = str(body["messages"][-1].get("content", ""))
         score = 0.1 if "BADANSWER" in last else 0.9
         return {"role": "assistant", "content": json.dumps({"score": score, "reason": "mock"})}
+    if "-memory" in model:
+        # Long-term memory extractor: "I prefer X" in the user's line becomes a fact.
+        last = str(body["messages"][-1].get("content", ""))
+        facts = [f"The user prefers {m.strip()}" for m in re.findall(r"I prefer ([^.\n]*)", last)]
+        return {"role": "assistant", "content": json.dumps({"memories": facts})}
     if "-echo" in model:
         return {"role": "assistant", "content": json.dumps(body["messages"])}
     if "-assist" in model:

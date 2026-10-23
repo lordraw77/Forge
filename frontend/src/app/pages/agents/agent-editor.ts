@@ -71,6 +71,11 @@ interface Draft {
   maxOutputTokens: number | null;
   /** The agent's own guardrail rules, as JSON text (a list of rules). */
   guardrails: string;
+  /** Long-term memory (E3.6): remember facts about each user across conversations. */
+  memory: boolean;
+  memoryRecall: number;
+  /** Memory settings the form does not edit, kept as they were. */
+  memoryRest: { embedding_model?: string; max_items?: number };
 }
 
 function defaults(): Draft {
@@ -92,6 +97,9 @@ function defaults(): Draft {
     temperature: 0.2,
     maxOutputTokens: null,
     guardrails: '[]',
+    memory: false,
+    memoryRecall: 5,
+    memoryRest: {},
   };
 }
 
@@ -129,6 +137,12 @@ function fromConfig(cfg: AgentConfig): Draft {
   d.temperature = cfg.temperature ?? null;
   d.maxOutputTokens = cfg.max_output_tokens ?? null;
   d.guardrails = JSON.stringify(cfg.guardrails ?? [], null, 2);
+  d.memory = cfg.memory?.long_term ?? false;
+  d.memoryRecall = cfg.memory?.recall ?? d.memoryRecall;
+  d.memoryRest = {
+    embedding_model: cfg.memory?.embedding_model,
+    max_items: cfg.memory?.max_items,
+  };
   return d;
 }
 
@@ -377,6 +391,7 @@ export class AgentEditor {
       temperature: d.temperature,
       max_output_tokens: d.maxOutputTokens,
       guardrails,
+      memory: { ...d.memoryRest, long_term: d.memory, recall: d.memoryRecall },
     };
   }
 

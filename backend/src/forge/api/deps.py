@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from fastapi import Request
 
 from forge.admin.service import SettingsStore, VaultLink
+from forge.agents.memory import LongTermMemory
 from forge.agents.service import AgentStudio, RunEvents
 from forge.analytics.service import Analytics
 from forge.bundles.service import Bundles
@@ -27,6 +28,8 @@ from forge.iam.service import (
     User,
     actor_for,
 )
+from forge.mcp_server.protocol import McpEndpoint
+from forge.mcp_server.service import McpExposures
 from forge.prompts.service import PromptStudio
 from forge.rag.service import Rag
 from forge.tenancy.service import GroupMappings, ProjectAccess, TenancyService
@@ -37,6 +40,7 @@ from forge.usecases.planner import Planner
 from forge.usecases.runs import UseCaseRuns
 from forge.usecases.service import UseCaseStudio
 from forge.usecases.triggers import Triggers
+from forge.widget.service import Widgets
 
 ACCESS_COOKIE = "forge_access"
 REFRESH_COOKIE = "forge_refresh"
@@ -63,6 +67,10 @@ class Services:
     usecases: UseCaseStudio
     usecase_runs: UseCaseRuns
     triggers: Triggers
+    memory: LongTermMemory
+    mcp: McpEndpoint
+    mcp_exposures: McpExposures
+    widgets: Widgets
     approvals: Approvals
     guardrails: Guardrails
     analytics: Analytics

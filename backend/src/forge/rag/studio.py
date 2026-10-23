@@ -1010,6 +1010,77 @@ class RagStudio:
             name = coll.name if coll else None
             return AgentPipeline(p.id, p.name, p.description, v.version, name)
 
+    async def collection_search(
+        self,
+        caller: Caller,
+        collection_id: uuid.UUID,
+        query: str,
+        top_k: int = 5,
+    ) -> AgentSearch:
+        """Retrieval over a whole data collection, for MCP clients (E3.5): the newest ready
+        knowledge base, hybrid search, no reranker. Readers are matched against document ACLs
+        as `caller.user_id` says; None sees project-wide documents only (API keys)."""
+        actor = Actor(id=caller.user_id, label="mcp")
+        project_id = caller.project_id
+        async with self._session(actor, project_id) as s:
+            coll = await s.get(DataCollection, collection_id)
+            if coll is None:
+                raise ProblemError(404, "not_found", "Data collection not found")
+            kb = (
+                await s.execute(
+                    select(KnowledgeBase)
+                    .where(
+                        KnowledgeBase.collection_id == collection_id,
+                        KnowledgeBase.status == "ready",
+                    )
+                    .order_by(KnowledgeBase.ready_at.desc())
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
+            if kb is None:
+                raise ProblemError(409, "no_ready_index", "The collection has no ready index yet")
+            kb_snapshot = (kb.id, kb.embedding_model, kb.dims)
+        groups = await self._groups(project_id, caller.user_id)
+        retrieval = await self._retriever.retrieve(
+            caller,
+            RetrievalParams(
+                kb_id=kb_snapshot[0],
+                embedding_model=kb_snapshot[1],
+                dims=kb_snapshot[2],
+                method="hybrid",
+                reranker=None,
+                top_k=top_k,
+                candidates=max(20, top_k * 4),
+                threshold=0.0,
+                context_budget=6000,
+            ),
+            query,
+            groups,
+            None,
+        )
+        return AgentSearch(
+            passages=[
+                AgentPassage(
+                    chunk_id=c.id,
+                    document_id=c.document_id,
+                    document_name=c.document_name,
+                    page=c.page,
+                    heading_path=c.heading_path,
+                    score=round(c.score, 4),
+                    content=c.content,
+                    url=(
+                        f"/api/v1/projects/{project_id}/collections/{c.collection_id}"
+                        f"/documents/{c.document_id}/content"
+                        + (f"#page={c.page}" if c.page else "")
+                    ),
+                )
+                for c in retrieval.chunks
+            ],
+            trace=retrieval.trace,
+            tokens=retrieval.tokens,
+            cost=retrieval.cost,
+        )
+
     async def agent_search(
         self,
         caller: Caller,

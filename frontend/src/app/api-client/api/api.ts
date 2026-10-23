@@ -22,6 +22,8 @@ export * from './health.service';
 import { HealthService } from './health.service';
 export * from './identity.service';
 import { IdentityService } from './identity.service';
+export * from './mcp.service';
+import { McpService } from './mcp.service';
 export * from './me.service';
 import { MeService } from './me.service';
 export * from './notifications.service';
@@ -48,6 +50,8 @@ export * from './useCases.service';
 import { UseCasesService } from './useCases.service';
 export * from './vault.service';
 import { VaultService } from './vault.service';
+export * from './widget.service';
+import { WidgetService } from './widget.service';
 export const APIS = [
   AdminService,
   AdminModelsService,
@@ -61,6 +65,7 @@ export const APIS = [
   GuardrailsService,
   HealthService,
   IdentityService,
+  McpService,
   MeService,
   NotificationsService,
   OpenaiService,
@@ -74,4 +79,5 @@ export const APIS = [
   TriggersService,
   UseCasesService,
   VaultService,
+  WidgetService,
 ];

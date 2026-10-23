@@ -8,6 +8,10 @@ Phase 1 milestones M1.2 (LLM gateway), M1.3 (Prompt Studio), M1.4 (RAG on upload
 
 ### Added
 
+**MCP server, chat widget and long-term memory (E3.5, E3.6)**
+- **Exposed MCP server** per project (`POST /api/v1/projects/{id}/mcp`, Streamable HTTP, project API key with `usecase.run`): agents become tools, data collections become search tools, prompts become MCP prompts; Builders choose what is offered (*Projects Studio → Integrations*). Checked with the official Python MCP client.
+- **Embeddable chat widget**: a one-line script puts a chat bubble on another site, bound to a published agent; allowed sites (CORS and origin check), per-visitor and daily limits, random session tokens, no accounts. Project Admins manage widgets and copy the embed code from *Integrations*.
+- **Long-term memory** for agents (switch in the agent editor, off by default): short facts per user and agent, embedded on pgvector, recalled before each run and extracted after it; users see and delete their own notes in the chat. Widget and MCP runs never use memory. Migrations 0022, 0023.
 **Triggers (E3.9)**
 - **Schedules and inbound URLs for use cases**: a Builder adds triggers to a published use case — a **cron** expression with a time zone, a fixed **interval**, or a secret **inbound URL** (`POST /api/v1/triggers/<token>`, optional `inputs` in the body) for CI, monitoring or queue consumers. Runs start as the user who created the trigger and appear in the normal run history; the completion webhook of M2.3d works as usual. A schedule fires once after downtime, never twice across API replicas, and pauses itself after five failed starts. Web interface: *Use case library → Triggers*. Migration 0021.
 **External vault (E3.8)**

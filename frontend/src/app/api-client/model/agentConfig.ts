@@ -9,6 +9,7 @@
  */
 import { Limits } from './limits';
 import { PromptRef } from './promptRef';
+import { MemoryConfig } from './memoryConfig';
 import { ToolsInner } from './toolsInner';
 import { GuardrailRuleIn } from './guardrailRuleIn';
 
@@ -16,6 +17,7 @@ export interface AgentConfig {
   guardrails?: Array<GuardrailRuleIn>;
   limits?: Limits;
   max_output_tokens?: number | null;
+  memory?: MemoryConfig;
   model?: string;
   prompt: PromptRef;
   temperature?: number | null;

@@ -101,6 +101,15 @@ class LibraryTool(In):
 ToolConfig = Annotated[RagTool | BuiltinToolRef | LibraryTool, Field(discriminator="kind")]
 
 
+class MemoryConfig(In):
+    """Long-term memory (E3.6): facts about the user that survive across conversations."""
+
+    long_term: bool = False
+    embedding_model: str = Field(default="embedding", min_length=1, max_length=100)
+    recall: int = Field(default=5, ge=1, le=20, description="Facts added to each run")
+    max_items: int = Field(default=200, ge=10, le=500, description="Per user; oldest unused go")
+
+
 class AgentConfig(In):
     prompt: PromptRef
     model: str = Field(default="default-chat", min_length=1, max_length=100)
@@ -111,6 +120,7 @@ class AgentConfig(In):
     # The agent's own guardrail rules, applied after the project's policy (E2.11): an agent can
     # be stricter than its project, never looser.
     guardrails: list[GuardrailRuleIn] = Field(default_factory=list, max_length=20)
+    memory: MemoryConfig = Field(default_factory=MemoryConfig)
 
     @model_validator(mode="after")
     def _unique_names(self) -> AgentConfig:

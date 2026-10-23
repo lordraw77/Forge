@@ -65,6 +65,11 @@ export const routes: Routes = [
               import('./pages/projects/project-sources').then((m) => m.ProjectSources),
           },
           {
+            path: 'integrations',
+            loadComponent: () =>
+              import('./pages/projects/project-integrations').then((m) => m.ProjectIntegrations),
+          },
+          {
             path: 'sync',
             loadComponent: () => import('./pages/projects/project-sync').then((m) => m.ProjectSync),
           },

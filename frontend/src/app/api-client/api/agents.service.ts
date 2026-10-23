@@ -62,6 +62,8 @@ import { FeedbackOut } from '../model/feedbackOut';
 // @ts-ignore
 import { HTTPValidationError } from '../model/hTTPValidationError';
 // @ts-ignore
+import { MemoryOut } from '../model/memoryOut';
+// @ts-ignore
 import { MessageIn } from '../model/messageIn';
 
 // @ts-ignore
@@ -106,6 +108,17 @@ export interface DuplicateAgentRequestParams {
   agentDuplicateIn: AgentDuplicateIn;
 }
 
+export interface ForgetAllMemoriesRequestParams {
+  agentId: string;
+  projectId: string;
+}
+
+export interface ForgetMemoryRequestParams {
+  agentId: string;
+  memoryId: string;
+  projectId: string;
+}
+
 export interface GetAgentRequestParams {
   agentId: string;
   projectId: string;
@@ -144,6 +157,11 @@ export interface ListConversationsRequestParams {
   projectId: string;
   agentId?: string | null;
   limit?: number;
+}
+
+export interface ListMemoriesRequestParams {
+  agentId: string;
+  projectId: string;
 }
 
 export interface ListRunsRequestParams {
@@ -942,6 +960,206 @@ export class AgentsService extends BaseService {
   }
 
   /**
+   * Forget All Memories
+   * @endpoint delete /api/v1/projects/{project_id}/agents/{agent_id}/memories
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public forgetAllMemories(
+    requestParameters: ForgetAllMemoriesRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any>;
+  public forgetAllMemories(
+    requestParameters: ForgetAllMemoriesRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<any>>;
+  public forgetAllMemories(
+    requestParameters: ForgetAllMemoriesRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<any>>;
+  public forgetAllMemories(
+    requestParameters: ForgetAllMemoriesRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const agentId = requestParameters?.agentId;
+    if (agentId === null || agentId === undefined) {
+      throw new Error(
+        'Required parameter agentId was null or undefined when calling forgetAllMemories.',
+      );
+    }
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error(
+        'Required parameter projectId was null or undefined when calling forgetAllMemories.',
+      );
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/agents/${this.configuration.encodeParam({ name: 'agentId', value: agentId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/memories`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<any>('delete', `${basePath}${localVarPath}`, {
+      context: localVarHttpContext,
+      responseType: <any>responseType_,
+      ...(withCredentials ? { withCredentials } : {}),
+      headers: localVarHeaders,
+      observe: observe,
+      ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+      reportProgress: reportProgress,
+    });
+  }
+
+  /**
+   * Forget Memory
+   * @endpoint delete /api/v1/projects/{project_id}/agents/{agent_id}/memories/{memory_id}
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public forgetMemory(
+    requestParameters: ForgetMemoryRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any>;
+  public forgetMemory(
+    requestParameters: ForgetMemoryRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<any>>;
+  public forgetMemory(
+    requestParameters: ForgetMemoryRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<any>>;
+  public forgetMemory(
+    requestParameters: ForgetMemoryRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const agentId = requestParameters?.agentId;
+    if (agentId === null || agentId === undefined) {
+      throw new Error(
+        'Required parameter agentId was null or undefined when calling forgetMemory.',
+      );
+    }
+    const memoryId = requestParameters?.memoryId;
+    if (memoryId === null || memoryId === undefined) {
+      throw new Error(
+        'Required parameter memoryId was null or undefined when calling forgetMemory.',
+      );
+    }
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error(
+        'Required parameter projectId was null or undefined when calling forgetMemory.',
+      );
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/agents/${this.configuration.encodeParam({ name: 'agentId', value: agentId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/memories/${this.configuration.encodeParam({ name: 'memoryId', value: memoryId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<any>('delete', `${basePath}${localVarPath}`, {
+      context: localVarHttpContext,
+      responseType: <any>responseType_,
+      ...(withCredentials ? { withCredentials } : {}),
+      headers: localVarHeaders,
+      observe: observe,
+      ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+      reportProgress: reportProgress,
+    });
+  }
+
+  /**
    * Get Agent
    * @endpoint get /api/v1/projects/{project_id}/agents/{agent_id}
    * @param requestParameters
@@ -1665,6 +1883,104 @@ export class AgentsService extends BaseService {
     return this.httpClient.request<Array<ConversationOut>>('get', `${basePath}${localVarPath}`, {
       context: localVarHttpContext,
       params: localVarQueryParameters.toHttpParams(),
+      responseType: <any>responseType_,
+      ...(withCredentials ? { withCredentials } : {}),
+      headers: localVarHeaders,
+      observe: observe,
+      ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+      reportProgress: reportProgress,
+    });
+  }
+
+  /**
+   * List Memories
+   * What this agent remembers about the caller (E3.6). Nobody else can read it.
+   * @endpoint get /api/v1/projects/{project_id}/agents/{agent_id}/memories
+   * @param requestParameters
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public listMemories(
+    requestParameters: ListMemoriesRequestParams,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<Array<MemoryOut>>;
+  public listMemories(
+    requestParameters: ListMemoriesRequestParams,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<Array<MemoryOut>>>;
+  public listMemories(
+    requestParameters: ListMemoriesRequestParams,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<Array<MemoryOut>>>;
+  public listMemories(
+    requestParameters: ListMemoriesRequestParams,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    const agentId = requestParameters?.agentId;
+    if (agentId === null || agentId === undefined) {
+      throw new Error(
+        'Required parameter agentId was null or undefined when calling listMemories.',
+      );
+    }
+    const projectId = requestParameters?.projectId;
+    if (projectId === null || projectId === undefined) {
+      throw new Error(
+        'Required parameter projectId was null or undefined when calling listMemories.',
+      );
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept(['application/json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/projects/${this.configuration.encodeParam({ name: 'projectId', value: projectId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/agents/${this.configuration.encodeParam({ name: 'agentId', value: agentId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/memories`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<Array<MemoryOut>>('get', `${basePath}${localVarPath}`, {
+      context: localVarHttpContext,
       responseType: <any>responseType_,
       ...(withCredentials ? { withCredentials } : {}),
       headers: localVarHeaders,

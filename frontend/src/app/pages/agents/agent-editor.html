@@ -167,6 +167,18 @@
         [(ngModel)]="draft.guardrails"
       ></textarea>
     </div>
+    <div class="field">
+      <label nz-checkbox name="memory" data-testid="agent-memory" [(ngModel)]="draft.memory" i18n
+        >Remember facts about each user across conversations (long-term memory)</label
+      >
+      @if (draft.memory) {
+        <small class="muted" i18n
+          >After each answer the agent keeps short notes about the user (preferences, role) and
+          reads the most relevant ones before the next question. Each user can see and delete their
+          own notes in the chat. Only the user's own chats count, not widget or MCP callers.</small
+        >
+      }
+    </div>
     @if (promptVariables().length) {
       <h4 i18n>Prompt variables</h4>
       <div class="params" data-testid="agent-variables">

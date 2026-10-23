@@ -24,6 +24,7 @@ import {
   AgentsService,
   AvailableAgent,
   ConversationOut,
+  MemoryOut,
   MessageOut,
 } from '../../api-client';
 import { problemMessage } from '../../core/http';
@@ -87,6 +88,26 @@ interface Turn {
         <button nz-button [disabled]="!agentId()" (click)="newChat()" data-testid="chat-new">
           <nz-icon nzType="plus" /><span i18n>New chat</span>
         </button>
+        @if (agentId()) {
+          <details class="memory" (toggle)="memoryToggled($event)" data-testid="chat-memory">
+            <summary i18n>What the agent remembers about me</summary>
+            @for (m of memories(); track m.id) {
+              <p class="memory-item">
+                {{ m.content }}
+                <button nz-button nzType="link" nzSize="small" nzDanger (click)="forget(m)" i18n>
+                  Forget
+                </button>
+              </p>
+            } @empty {
+              <p class="muted small" i18n>Nothing yet, or this agent has no long-term memory.</p>
+            }
+            @if (memories().length) {
+              <button nz-button nzSize="small" nzDanger (click)="forgetAll()" i18n>
+                Forget everything
+              </button>
+            }
+          </details>
+        }
         @for (c of conversations(); track c.id) {
           <button
             type="button"
@@ -300,6 +321,7 @@ export class AgentChat {
   protected readonly projectId = computed(() => this.session.project()?.id ?? null);
   protected readonly agents = signal<AvailableAgent[]>([]);
   protected readonly agentId = signal<string | null>(null);
+  protected readonly memories = signal<MemoryOut[]>([]);
   protected readonly conversations = signal<ConversationOut[]>([]);
   protected readonly conversationId = signal<string | null>(null);
   protected readonly turns = signal<Turn[]>([]);
@@ -330,9 +352,50 @@ export class AgentChat {
     }
   }
 
+  protected async memoryToggled(event: Event): Promise<void> {
+    if (!(event.target as HTMLDetailsElement).open) return;
+    await this.loadMemories();
+  }
+
+  private async loadMemories(): Promise<void> {
+    const projectId = this.projectId();
+    const agentId = this.agentId();
+    if (!projectId || !agentId) return;
+    try {
+      this.memories.set(await firstValueFrom(this.api.listMemories({ projectId, agentId })));
+    } catch (e) {
+      this.message.set({ ok: false, text: problemMessage(e) });
+    }
+  }
+
+  protected async forget(m: MemoryOut): Promise<void> {
+    const projectId = this.projectId();
+    const agentId = this.agentId();
+    if (!projectId || !agentId) return;
+    try {
+      await firstValueFrom(this.api.forgetMemory({ projectId, agentId, memoryId: m.id }));
+      await this.loadMemories();
+    } catch (e) {
+      this.message.set({ ok: false, text: problemMessage(e) });
+    }
+  }
+
+  protected async forgetAll(): Promise<void> {
+    const projectId = this.projectId();
+    const agentId = this.agentId();
+    if (!projectId || !agentId) return;
+    try {
+      await firstValueFrom(this.api.forgetAllMemories({ projectId, agentId }));
+      this.memories.set([]);
+    } catch (e) {
+      this.message.set({ ok: false, text: problemMessage(e) });
+    }
+  }
+
   protected async pickAgent(agentId: string, conversation: string | null = null): Promise<void> {
     this.closeStream();
     this.agentId.set(agentId);
+    this.memories.set([]);
     this.turns.set([]);
     this.conversationId.set(null);
     this.busy.set(false);

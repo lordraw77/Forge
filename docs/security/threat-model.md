@@ -124,3 +124,6 @@ Status: **P1** = control delivered in Phase 1, **P2** / **P3** later phases.
 | Prompt injection cannot be fully prevented | Mitigated by HITL on side-effecting tools and least-privilege credentials; AC8 targets ≥ 90% on the known set only |
 | `forge_admin` BYPASSRLS path | Kept to named jobs, audited, code-owner review required |
 | Loss of `FORGE_MASTER_KEY` | Secrets unrecoverable; operator must back it up separately (runbook) |
+| Public chat widget (E3.5) | Anonymous visitors reach a published agent. Mitigated by the allowed-sites check (a browser control; a server-side caller can omit `Origin`), per-visitor and daily limits, random 24 h session tokens, the agent's guardrails. Not mitigated: an agent with action tools behind a widget acts for its creator; use read-only agents. |
+| MCP server (E3.5) | Anyone with a `usecase.run` key can call every exposed asset of the project; keys are per project, revocable, and limited to project-wide documents. Rotate keys like any API key. |
+| Long-term memory (E3.6) | Stores model-extracted facts about people. The prompt excludes sensitive categories but does not filter them; users can delete their facts, the switch is off by default. A fact comes from user text, so it is injected as background, not as instructions. |

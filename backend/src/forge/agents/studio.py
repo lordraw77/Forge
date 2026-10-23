@@ -814,7 +814,13 @@ class AgentStudio:
             return out
 
     async def create_conversation(
-        self, actor: Actor, project_id: uuid.UUID, body: ConversationIn, *, is_builder: bool
+        self,
+        actor: Actor,
+        project_id: uuid.UUID,
+        body: ConversationIn,
+        *,
+        is_builder: bool,
+        source: str = "app",
     ) -> ConversationOut:
         async with self._session(actor, project_id) as s:
             a = await self._agent(s, body.agent_id)
@@ -831,6 +837,7 @@ class AgentStudio:
                 agent_id=a.id,
                 agent_version=v.version,
                 title=body.title,
+                source=source,
                 created_by=actor.id,
             )
             s.add(conv)

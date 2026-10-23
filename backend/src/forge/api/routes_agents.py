@@ -18,6 +18,7 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, Depends, Header, Query, Request, status
 from fastapi.responses import StreamingResponse
 
+from forge.agents.memory import MemoryOut
 from forge.agents.service import (
     AgentCreateIn,
     AgentDetail,
@@ -173,6 +174,24 @@ async def remove_agent_tag(
 
 
 # ------------------------------------------------------------------ chat
+@router.get("/agents/{agent_id}/memories", response_model=list[MemoryOut])
+async def list_memories(agent_id: uuid.UUID, ctx: ChatReader, request: Request) -> list[MemoryOut]:
+    """What this agent remembers about the caller (E3.6). Nobody else can read it."""
+    return await services(request).memory.list(ctx.actor, ctx.project_id, agent_id)
+
+
+@router.delete("/agents/{agent_id}/memories/{memory_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def forget_memory(
+    agent_id: uuid.UUID, memory_id: uuid.UUID, ctx: Chatter, request: Request
+) -> None:
+    await services(request).memory.forget(ctx.actor, ctx.project_id, agent_id, memory_id)
+
+
+@router.delete("/agents/{agent_id}/memories", status_code=status.HTTP_204_NO_CONTENT)
+async def forget_all_memories(agent_id: uuid.UUID, ctx: Chatter, request: Request) -> None:
+    await services(request).memory.forget_all(ctx.actor, ctx.project_id, agent_id)
+
+
 @router.post("/conversations", response_model=ConversationOut, status_code=201)
 async def create_conversation(
     body: ConversationIn, ctx: Chatter, request: Request

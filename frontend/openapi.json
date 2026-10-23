@@ -388,6 +388,9 @@
             ],
             "title": "Max Output Tokens"
           },
+          "memory": {
+            "$ref": "#/components/schemas/MemoryConfig"
+          },
           "model": {
             "default": "default-chat",
             "maxLength": 100,
@@ -5036,6 +5039,172 @@
         "title": "ExportIn",
         "type": "object"
       },
+      "ExposureIn": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "collection_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Id"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tool or prompt name; defaults to the asset's",
+            "title": "Name"
+          },
+          "prompt_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Id"
+          }
+        },
+        "title": "ExposureIn",
+        "type": "object"
+      },
+      "ExposureOut": {
+        "properties": {
+          "asset_id": {
+            "format": "uuid",
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "asset_name": {
+            "title": "Asset Name",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "agent",
+              "prompt",
+              "collection"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "asset_id",
+          "asset_name",
+          "name",
+          "description",
+          "enabled",
+          "created_at"
+        ],
+        "title": "ExposureOut",
+        "type": "object"
+      },
+      "ExposureUpdateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "ExposureUpdateIn",
+        "type": "object"
+      },
       "FeedbackIn": {
         "additionalProperties": false,
         "properties": {
@@ -6975,6 +7144,78 @@
           }
         },
         "title": "MemberUpdateIn",
+        "type": "object"
+      },
+      "MemoryConfig": {
+        "additionalProperties": false,
+        "description": "Long-term memory (E3.6): facts about the user that survive across conversations.",
+        "properties": {
+          "embedding_model": {
+            "default": "embedding",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Embedding Model",
+            "type": "string"
+          },
+          "long_term": {
+            "default": false,
+            "title": "Long Term",
+            "type": "boolean"
+          },
+          "max_items": {
+            "default": 200,
+            "description": "Per user; oldest unused go",
+            "maximum": 500.0,
+            "minimum": 10.0,
+            "title": "Max Items",
+            "type": "integer"
+          },
+          "recall": {
+            "default": 5,
+            "description": "Facts added to each run",
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Recall",
+            "type": "integer"
+          }
+        },
+        "title": "MemoryConfig",
+        "type": "object"
+      },
+      "MemoryOut": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_used_at": {
+            "format": "date-time",
+            "title": "Last Used At",
+            "type": "string"
+          },
+          "use_count": {
+            "title": "Use Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "content",
+          "created_at",
+          "last_used_at",
+          "use_count"
+        ],
+        "title": "MemoryOut",
         "type": "object"
       },
       "MessageIn": {
@@ -15662,6 +15903,352 @@
         ],
         "title": "WhoAmI",
         "type": "object"
+      },
+      "WidgetAnswerOut": {
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "output": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "WidgetAnswerOut",
+        "type": "object"
+      },
+      "WidgetIn": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_id": {
+            "format": "uuid",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "allowed_origins": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Allowed Origins",
+            "type": "array"
+          },
+          "daily_limit": {
+            "default": 1000,
+            "maximum": 1000000.0,
+            "minimum": 1.0,
+            "title": "Daily Limit",
+            "type": "integer"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "messages_per_minute": {
+            "default": 10,
+            "maximum": 600.0,
+            "minimum": 1.0,
+            "title": "Messages Per Minute",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "title": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Title",
+            "type": "string"
+          },
+          "welcome": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Welcome",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "agent_id"
+        ],
+        "title": "WidgetIn",
+        "type": "object"
+      },
+      "WidgetMessageIn": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Content",
+            "type": "string"
+          },
+          "session": {
+            "maxLength": 100,
+            "minLength": 10,
+            "title": "Session",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session",
+          "content"
+        ],
+        "title": "WidgetMessageIn",
+        "type": "object"
+      },
+      "WidgetMessageOut": {
+        "properties": {
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id"
+        ],
+        "title": "WidgetMessageOut",
+        "type": "object"
+      },
+      "WidgetOut": {
+        "properties": {
+          "agent_id": {
+            "format": "uuid",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "agent_name": {
+            "title": "Agent Name",
+            "type": "string"
+          },
+          "allowed_origins": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowed Origins",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "daily_limit": {
+            "title": "Daily Limit",
+            "type": "integer"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "messages_per_minute": {
+            "title": "Messages Per Minute",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "public_key": {
+            "title": "Public Key",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "welcome": {
+            "title": "Welcome",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "agent_id",
+          "agent_name",
+          "public_key",
+          "title",
+          "welcome",
+          "allowed_origins",
+          "enabled",
+          "messages_per_minute",
+          "daily_limit",
+          "created_at"
+        ],
+        "title": "WidgetOut",
+        "type": "object"
+      },
+      "WidgetPublicConfig": {
+        "properties": {
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "welcome": {
+            "title": "Welcome",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "welcome"
+        ],
+        "title": "WidgetPublicConfig",
+        "type": "object"
+      },
+      "WidgetSessionOut": {
+        "properties": {
+          "session": {
+            "title": "Session",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session"
+        ],
+        "title": "WidgetSessionOut",
+        "type": "object"
+      },
+      "WidgetUpdateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "allowed_origins": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 20,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Origins"
+          },
+          "daily_limit": {
+            "anyOf": [
+              {
+                "maximum": 1000000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Limit"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "messages_per_minute": {
+            "anyOf": [
+              {
+                "maximum": 600.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Messages Per Minute"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "welcome": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Welcome"
+          }
+        },
+        "title": "WidgetUpdateIn",
+        "type": "object"
       }
     }
   },
@@ -18734,6 +19321,164 @@
           }
         },
         "summary": "Duplicate Agent",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/agents/{agent_id}/memories": {
+      "delete": {
+        "operationId": "forget_all_memories",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Forget All Memories",
+        "tags": [
+          "agents"
+        ]
+      },
+      "get": {
+        "description": "What this agent remembers about the caller (E3.6). Nobody else can read it.",
+        "operationId": "list_memories",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MemoryOut"
+                  },
+                  "title": "Response List Memories",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Memories",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/agents/{agent_id}/memories/{memory_id}": {
+      "delete": {
+        "operationId": "forget_memory",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "memory_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Memory Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Forget Memory",
         "tags": [
           "agents"
         ]
@@ -22873,6 +23618,48 @@
         ]
       }
     },
+    "/api/v1/projects/{project_id}/mcp": {
+      "post": {
+        "description": "MCP over Streamable HTTP (JSON-RPC, answered without a session). Authenticate with a\nproject API key: `Authorization: Bearer fk_\u2026`. The key needs the `usecase.run` scope.",
+        "operationId": "mcp_endpoint",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mcp Endpoint",
+        "tags": [
+          "mcp"
+        ]
+      }
+    },
     "/api/v1/projects/{project_id}/mcp-servers": {
       "get": {
         "operationId": "list_mcp_servers",
@@ -23199,6 +23986,211 @@
         "summary": "Import Mcp Tools",
         "tags": [
           "tools"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/mcp/exposures": {
+      "get": {
+        "operationId": "list_exposures",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExposureOut"
+                  },
+                  "title": "Response List Exposures",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Exposures",
+        "tags": [
+          "mcp"
+        ]
+      },
+      "post": {
+        "operationId": "add_exposure",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExposureIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExposureOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Exposure",
+        "tags": [
+          "mcp"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/mcp/exposures/{exposure_id}": {
+      "delete": {
+        "operationId": "remove_exposure",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exposure_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Exposure Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Exposure",
+        "tags": [
+          "mcp"
+        ]
+      },
+      "patch": {
+        "operationId": "update_exposure",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exposure_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Exposure Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExposureUpdateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExposureOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Exposure",
+        "tags": [
+          "mcp"
         ]
       }
     },
@@ -30511,6 +31503,211 @@
         ]
       }
     },
+    "/api/v1/projects/{project_id}/widgets": {
+      "get": {
+        "operationId": "list_widgets",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WidgetOut"
+                  },
+                  "title": "Response List Widgets",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Widgets",
+        "tags": [
+          "widget"
+        ]
+      },
+      "post": {
+        "operationId": "create_widget",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WidgetIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WidgetOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Widget",
+        "tags": [
+          "widget"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/widgets/{widget_id}": {
+      "delete": {
+        "operationId": "delete_widget",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "widget_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Widget Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Widget",
+        "tags": [
+          "widget"
+        ]
+      },
+      "patch": {
+        "operationId": "update_widget",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "widget_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Widget Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WidgetUpdateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WidgetOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Widget",
+        "tags": [
+          "widget"
+        ]
+      }
+    },
     "/api/v1/triggers/{token}": {
       "post": {
         "description": "Inbound trigger: the token in the URL is the credential (no session, no CSRF).",
@@ -30611,6 +31808,203 @@
         "summary": "Whoami",
         "tags": [
           "me"
+        ]
+      }
+    },
+    "/api/v1/widget/{key}/config": {
+      "get": {
+        "operationId": "widget_config",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WidgetPublicConfig"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Widget Config",
+        "tags": [
+          "widget"
+        ]
+      }
+    },
+    "/api/v1/widget/{key}/messages": {
+      "post": {
+        "operationId": "widget_message",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WidgetMessageIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WidgetMessageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Widget Message",
+        "tags": [
+          "widget"
+        ]
+      }
+    },
+    "/api/v1/widget/{key}/runs/{run_id}": {
+      "get": {
+        "operationId": "widget_answer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "session",
+            "required": true,
+            "schema": {
+              "title": "Session",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WidgetAnswerOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Widget Answer",
+        "tags": [
+          "widget"
+        ]
+      }
+    },
+    "/api/v1/widget/{key}/session": {
+      "post": {
+        "operationId": "widget_session",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WidgetSessionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Widget Session",
+        "tags": [
+          "widget"
         ]
       }
     },

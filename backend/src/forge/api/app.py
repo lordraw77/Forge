@@ -13,6 +13,7 @@ from fastapi import FastAPI, Request, Response
 
 from forge import __version__
 from forge.admin.service import SettingsStore, VaultLink, listen_dsn
+from forge.agents.memory import LongTermMemory
 from forge.agents.service import AgentStudio, RunEvents, RunStarter
 from forge.analytics.service import Analytics
 from forge.api import (
@@ -27,6 +28,7 @@ from forge.api import (
     routes_evals,
     routes_guardrails,
     routes_idp,
+    routes_mcp,
     routes_models,
     routes_notifications,
     routes_projects,
@@ -39,6 +41,7 @@ from forge.api import (
     routes_v1,
     routes_vault,
     routes_whoami,
+    routes_widget,
 )
 from forge.api.deps import Services
 from forge.bundles.service import Bundles
@@ -51,6 +54,8 @@ from forge.core.settings import Settings, get_settings
 from forge.evals.service import Evaluations
 from forge.gateway.service import Gateway
 from forge.iam.service import AuthService, ExternalAuth, IdentityProviders, TokenCodec
+from forge.mcp_server.protocol import McpEndpoint
+from forge.mcp_server.service import McpExposures
 from forge.observability.service import (
     instrument_app,
     metrics,
@@ -68,6 +73,7 @@ from forge.usecases.planner import Planner
 from forge.usecases.runs import UseCaseRuns
 from forge.usecases.service import UseCaseStudio
 from forge.usecases.triggers import Triggers
+from forge.widget.service import Widgets
 
 log = get_logger(__name__)
 
@@ -209,6 +215,10 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
             usecases=usecases,
             usecase_runs=usecase_runs,
             triggers=Triggers(app.state.sessions, usecase_runs),
+            memory=LongTermMemory(app.state.sessions, gateway),
+            mcp=McpEndpoint(app.state.sessions, agents, rag.studio, prompts),
+            mcp_exposures=McpExposures(app.state.sessions),
+            widgets=Widgets(app.state.sessions, agents, app.state.redis),
             approvals=Approvals(app.state.sessions, tenancy),
             guardrails=gateway.guardrails,
             analytics=Analytics(app.state.sessions, store),
@@ -272,6 +282,9 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
     app.include_router(routes_agents.router)
     app.include_router(routes_tools.router)
     app.include_router(routes_usecases.router)
+    app.include_router(routes_mcp.router)
+    app.include_router(routes_widget.router)
+    app.include_router(routes_widget.public_router)
     app.include_router(routes_triggers.router)
     app.include_router(routes_triggers.public_router)
     app.include_router(routes_approvals.router)

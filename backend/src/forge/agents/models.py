@@ -5,6 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import ForeignKey, Numeric
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -57,6 +58,7 @@ class Conversation(Base):
     agent_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("agent.id"))
     agent_version: Mapped[int]
     title: Mapped[str] = mapped_column(default="")
+    source: Mapped[str] = mapped_column(default="app")  # app | mcp | widget
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     created_by: Mapped[uuid.UUID | None]
     updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
@@ -132,3 +134,20 @@ class RunFeedback(Base):
     comment: Mapped[str] = mapped_column(default="")
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
+
+
+class AgentMemory(Base):
+    """A fact an agent remembers about one user across conversations (E3.6)."""
+
+    __tablename__ = "agent_memory"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    project_id: Mapped[uuid.UUID]
+    agent_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("agent.id"))
+    user_id: Mapped[uuid.UUID]
+    content: Mapped[str]
+    embedding: Mapped[list[float]] = mapped_column(Vector())
+    dims: Mapped[int]
+    source_run_id: Mapped[uuid.UUID | None]
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    last_used_at: Mapped[datetime] = mapped_column(default=utcnow)
+    use_count: Mapped[int] = mapped_column(default=0)
