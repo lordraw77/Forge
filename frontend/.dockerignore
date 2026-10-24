@@ -5,3 +5,4 @@ dist
 *.md
 e2e
 playwright.config.ts
+guide-src

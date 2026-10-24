@@ -16,7 +16,7 @@ Projects Studio is where a **project** is set up: who belongs to it, which model
 | **Models** | Providers, models, aliases, limits and cache | section 2.3 |
 | **Data** | Data collections (files for RAG) | [chapter 4](04-data-and-rag.md) |
 | **Sources** | Scheduled synchronisation of external data | [chapter 4](04-data-and-rag.md) |
-| **Integrations** | MCP server and chat widget | [chapter 10](10-integrations-and-sync.md) |
+| **Integrations** | Chat widgets (the MCP server is in MCP Studio) | [chapter 10](10-integrations-and-sync.md) |
 | **Sync** | Keep the project in a Git repository with `forgectl` | [chapter 10](10-integrations-and-sync.md) |
 | **Export / Import** | Move assets between projects and installations | [chapter 10](10-integrations-and-sync.md) |
 | **Users** | Members and their role | section 2.4 |

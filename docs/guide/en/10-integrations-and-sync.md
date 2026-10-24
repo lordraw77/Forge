@@ -17,32 +17,25 @@ Forge does not live alone. This chapter shows how to **let other applications us
 | keep prompts, pipelines, agents and use cases in Git, review changes, deploy them | **Sync** and `forgectl` | 10.6 |
 | copy assets to another project or another Forge | **Export / Import** | 10.7 |
 
-> **About the "MCP Studio" menu entry.** The side menu has an *MCP Studio* entry, but today it only shows a notice that the area arrives in a later phase. The MCP server and the widgets are already available, in **Projects Studio → Integrations**.
+> **Where things are.** The MCP server is in **MCP Studio** (side menu). The chat widgets are in **Projects Studio → Integrations**.
 
 ## 10.2 The project's MCP server
 
-**MCP** (Model Context Protocol) is the standard way for AI assistants to use outside tools. Each Forge project is an MCP server: you choose **what to expose**, and MCP clients see it as tools and prompts. Open **Projects Studio → Integrations**.
+**MCP** (Model Context Protocol) is the standard way for AI assistants to use outside tools. Each Forge project is an MCP server: you choose **what to expose**, and MCP clients see it as tools and prompts. Everything about it is in **MCP Studio** (side menu), in three tabs: **Exposed**, **Connect** and **Try**. Project Admins and Builders can open it.
 
-![Integrations](../images/en/10-integrations.png)
+### Exposed: what the server offers
 
-The page shows the **Endpoint** (marker 1), the address clients connect to, and a ready-to-copy command for Claude Code:
+![MCP Studio, Exposed](../images/en/10-mcp-exposed.png)
 
-```bash
-claude mcp add --transport http forge http://<your-forge>/api/v1/projects/<project-id>/mcp \
-  --header "Authorization: Bearer fk_…"
-```
-
-Clients authenticate with a **project API token** that has the `usecase.run` scope (section 2.2). They can use only what you exposed, with the permissions of the token.
-
-### Expose an asset
+The table lists each exposure with its **Name** (what the client sees), **Kind**, **Asset**, **Description** and **Status**: **Active**, or **Inactive** when paused. Use the search box (marker 1) and the two filters to narrow the list. The row buttons are **Try** (marker 3, section below), **Edit** (name and description), **Pause / Resume** (an inactive exposure is invisible to clients) and **Remove**. Deleting the asset removes its exposure. The same list can be started from a prompt: in the Prompt Library, **Add to MCP Servers** opens this page with the form filled in.
 
 Click **Expose an asset** (marker 2).
 
 ![Expose an asset](../images/en/10-expose.png)
 
-1. Choose the kind: **Agent (published)**, **Data collection** or **Prompt**, then **pick the asset**.
-2. Optionally give it a **Name** (the tool name seen by the client; lower case with underscores works best) and a **Description** that tells the *client's model* when to use it.
-3. Click **Expose**.
+1. Choose the kind: **Agent** (only published agents are listed), **Data collection** or **Prompt**, then **pick the asset**.
+2. Optionally give it a **Name** (the tool name seen by the client: letters, digits, `_` and `-`, up to 64) and a **Description** that tells the *client's model* when to use it.
+3. Click **Save**.
 
 How each kind appears to a client:
 
@@ -52,15 +45,31 @@ How each kind appears to a client:
 | **collection** | a **search tool** over the documents | Hybrid search on the newest ready index; the client picks how many results (1 to 10). Tokens see only documents readable by the **whole project** (chapter 4). |
 | **prompt** | an **MCP prompt** | The client fills in the prompt's variables; Forge returns the rendered text. The latest version is served. |
 
-The table lists each exposure with its **Name**, **Kind**, **Asset** and **Description**; **Pause** hides it temporarily and **Remove** deletes it. Deleting the asset removes its exposure.
-
 > **Think before exposing.** Whoever holds the token can use everything exposed, and an agent runs with the *token owner's* rights. Create a dedicated token with only `usecase.run`, expose only what is needed and avoid exposing agents with tools that change data.
+
+### Connect: how a client signs in
+
+![MCP Studio, Connect](../images/en/10-mcp-connect.png)
+
+The tab shows the **Endpoint** (marker 1), the address clients connect to, and ready-to-copy settings for the common clients: the `claude mcp add` command for Claude Code (marker 2), a JSON block for Claude Desktop, Cursor and other clients that go through `mcp-remote` (marker 3), and a `curl` example. Replace `fk_…` with a **project API token** that has the `usecase.run` scope (section 2.2). Clients use only what is exposed, with the permissions of the token.
+
+> If Forge sits behind a reverse proxy, open it at its public address: the endpoint shown is built from the address in your browser.
+
+### Try: see what a client sees
+
+![MCP Studio, Try](../images/en/10-mcp-try.png)
+
+**Try** asks the server, as a client would, for its tools and prompts. Pick one (marker 1), edit the **Arguments (JSON)** (marker 2; a skeleton with the declared properties is filled in for you) and click **Send** (marker 3). The **Answer** (marker 4) is shown as text; **Raw response** shows the JSON the client receives. Remember that it runs for real, as you: an agent answers (and costs what it costs), a search reads documents. If the list is empty, nothing is exposed or everything is paused. **Reload list** asks again.
 
 ## 10.3 Chat widgets
 
 A **widget** puts a chat bubble on **another website**, connected to **one published agent**. Visitors need no account.
 
-Click **New widget** (marker 3 of the previous figure).
+Open **Projects Studio → Integrations**.
+
+![Integrations](../images/en/10-integrations.png)
+
+The page explains the link to MCP Studio (marker 1) and lists the widgets. Click **New widget** (marker 2).
 
 ![New widget](../images/en/10-new-widget.png)
 
@@ -182,14 +191,14 @@ Items refer to each other **by name**, so a pipeline imported into a project fin
 - **Use aliases in applications**, never provider model names: you can change models without touching the code.
 - **Start with Git for anything that goes to production**; use bundles for quick copies.
 - **Publish in Forge, not from the pipeline**: let the pipeline propose and test, and a person decide.
-- **Test an exposure** from a real MCP client before announcing it.
+- **Test an exposure** with **Try** and then from a real MCP client before announcing it.
 
 ## 10.9 Troubleshooting
 
 | Symptom | Cause and remedy |
 | --- | --- |
 | An MCP client gets 401/403 | Wrong token, or the token lacks `usecase.run`. |
-| The client sees no tools | Nothing is exposed, or the exposure is paused (**Pause** / **Resume**). |
+| The client sees no tools | Nothing is exposed, or the exposure is paused (**Pause** / **Resume**). Open the **Try** tab of MCP Studio to see what a client gets. |
 | The widget does not appear | The site is not in **Allowed sites** (exact origin, including `https://`), or the widget is disabled. |
 | The widget says it is busy | A rate limit was hit (per visitor or daily). Raise it or wait. |
 | `/v1` returns "model not found" | The alias or model is not enabled for the project (chapter 2). |

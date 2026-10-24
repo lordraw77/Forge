@@ -41,7 +41,7 @@ I tre puntini a fine riga aprono le azioni:
 - **Prova** apre la pagina di test (sezione 3.6).
 - **Modifica** apre l'editor.
 - **Duplica** crea un nuovo prompt, con il nome che scegli, la cui prima versione è una copia dell'ultima versione di questo (la nota dice *Duplicated from …*). Usalo per partire da un prompt ben riuscito.
-- **Aggiungi ai server MCP** è grigio qui. Per esporre un prompt ad applicazioni esterne usa la scheda *Integrazioni* di Projects Studio (capitolo 10).
+- **Aggiungi ai server MCP** apre MCP Studio con questo prompt pronto da esporre ad applicazioni esterne (capitolo 10).
 - **Elimina** rimuove il prompt e le sue versioni dopo conferma. Se un agente o una pipeline lo usa ancora, l'eliminazione è rifiutata e il messaggio indica cosa lo usa.
 
 ## 3.3 Scrivere un prompt

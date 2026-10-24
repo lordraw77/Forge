@@ -121,9 +121,9 @@ describe('App shell and session (US-1.4.1, US-1.2.2)', () => {
     expect(TestBed.inject(Router).url).toBe('/');
   });
 
-  it('routes a studio entry to its placeholder with the phase', async () => {
+  it('shows MCP Studio, and a notice when the role cannot manage it', async () => {
     await signedIn('/mcp');
     expect(harness.routeNativeElement!.textContent).toContain('MCP Studio');
-    expect(harness.routeNativeElement!.textContent).toContain('Phase 3');
+    expect(harness.routeNativeElement!.textContent).toContain('cannot manage the MCP server');
   });
 });

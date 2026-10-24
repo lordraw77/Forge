@@ -192,10 +192,11 @@ type StatusFilter = 'draft' | 'published' | null;
                   </li>
                   <li
                     nz-menu-item
-                    nzDisabled
-                    nz-tooltip
-                    nzTooltipTitle="Available with MCP Studio (Phase 3)"
-                    i18n-nzTooltipTitle
+                    role="menuitem"
+                    tabindex="0"
+                    (click)="exposeInMcp(p)"
+                    (keydown.enter)="exposeInMcp(p)"
+                    data-testid="action-mcp"
                     i18n
                   >
                     Add to MCP Servers
@@ -297,6 +298,10 @@ export class PromptLibrary {
   private readonly api = inject(PromptsService);
   private readonly session = inject(Session);
   private readonly router = inject(Router);
+
+  protected exposeInMcp(p: { id: string }): void {
+    void this.router.navigate(['/mcp', 'exposed'], { queryParams: { expose: `prompt:${p.id}` } });
+  }
   protected readonly projectId = computed(() => this.session.project()?.id ?? null);
   protected readonly items = signal<PromptOut[]>([]);
   protected readonly nextCursor = signal<string | null>(null);

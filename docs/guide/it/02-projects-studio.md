@@ -16,7 +16,7 @@ Projects Studio è il posto in cui si configura un **progetto**: chi ne fa parte
 | **Modelli** | Provider, modelli, alias, limiti e cache | sezione 2.3 |
 | **Dati** | Raccolte di dati (file per il RAG) | [capitolo 4](04-dati-e-rag.md) |
 | **Fonti** | Sincronizzazione programmata di dati esterni | [capitolo 4](04-dati-e-rag.md) |
-| **Integrazioni** | Server MCP e widget di chat | [capitolo 10](10-integrazioni-e-sincronizzazione.md) |
+| **Integrazioni** | Widget di chat (il server MCP è in MCP Studio) | [capitolo 10](10-integrazioni-e-sincronizzazione.md) |
 | **Sync** | Tenere il progetto in un repository Git con `forgectl` | [capitolo 10](10-integrazioni-e-sincronizzazione.md) |
 | **Esporta / Importa** | Spostare risorse tra progetti e installazioni | [capitolo 10](10-integrazioni-e-sincronizzazione.md) |
 | **Utenti** | Membri e relativo ruolo | sezione 2.4 |

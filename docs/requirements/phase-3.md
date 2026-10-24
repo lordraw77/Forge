@@ -178,7 +178,17 @@ Asynchronous runs with a completion webhook already exist (US-2.7.x, `delivery: 
 3. Visitors are limited per visitor address per minute and per widget per day (429); a visitor's session is a random token kept in their browser, expires after 24 hours without use and cannot read another visitor's answers.
 4. Disabling or deleting a widget stops it at once.
 
-**US-3.5.3 (S) – Managed in the web interface.** *Projects Studio → Integrations*: the endpoint, a ready command for Claude Code, the exposure list (add, pause, remove) for Builders, and the widgets with their embed code for Project Admins.
+**US-3.5.3 (S) – Managed in the web interface.** *MCP Studio* (Builders): the exposure list (add, edit, pause, remove, filter by name, kind and status), the endpoint with ready settings for common clients, and a **Try** console. *Projects Studio → Integrations* (Project Admins): the widgets with their embed code. (Revised 2026-10-24: the exposure list first lived in Integrations; MCP Studio was a placeholder until then.)
+
+**US-3.5.4 (S) – MCP Studio.** As a Builder, I want one place to publish, check and connect the project's MCP server.
+1. Three tabs: **Exposed** (the list, Active/Inactive status, Try, Edit, Pause/Resume, Remove; the Prompt Library's "Add to MCP Servers" opens the form prefilled), **Connect** (endpoint, Claude Code command, JSON for `mcp-remote` clients, curl) and **Try**.
+2. **Try** calls the project's MCP endpoint with the user's session — `tools/list`, `prompts/list`, then `tools/call` or `prompts/get` with JSON arguments proposed from the declared schema — and shows the text answer and the raw JSON. It runs for real, as the user; paused exposures do not appear.
+3. Only users with `asset.write` open it.
+
+**US-3.5.5 (S) – The user guide in the application.** As any user, I want to read the user guide without leaving Forge.
+1. A menu entry *User guide* is visible to every role and shows the chapters of `docs/guide` with their figures, in the interface language, with a switch to the other language.
+2. Links between chapters and to headings work inside the page; outside links open in a new tab.
+3. The guide is part of the web image; an installation without it shows a notice, not an error page.
 
 ### E3.6 Long-term memory
 

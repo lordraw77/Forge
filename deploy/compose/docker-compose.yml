@@ -260,6 +260,8 @@ services:
     image: ${FORGE_WEB_IMAGE:-forge-web:dev}
     build:
       context: ./frontend
+      additional_contexts:
+        guide: ./docs/guide
     restart: unless-stopped
     depends_on:
       api: { condition: service_healthy }

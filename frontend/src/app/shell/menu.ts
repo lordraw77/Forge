@@ -25,4 +25,5 @@ export const MENU: readonly MenuEntry[] = [
     phase: 2,
   },
   { path: 'analytics', label: $localize`Analytics`, icon: 'bar-chart', phase: 2 },
+  { path: 'guide', label: $localize`User guide`, icon: 'question-circle', phase: 3 },
 ];

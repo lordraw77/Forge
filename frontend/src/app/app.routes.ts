@@ -11,8 +11,6 @@ import {
 import { ChangePassword, Eula, TotpEnroll } from './pages/account/account-steps';
 import { Home } from './pages/home/home';
 import { Login } from './pages/login/login';
-import { Placeholder } from './pages/placeholder/placeholder';
-import { MENU } from './shell/menu';
 import { Shell } from './shell/shell';
 
 export const routes: Routes = [
@@ -282,6 +280,43 @@ export const routes: Routes = [
         ],
       },
       {
+        path: 'mcp',
+        title: 'MCP Studio · Forge',
+        loadComponent: () => import('./pages/mcp/mcp-studio').then((m) => m.McpStudio),
+        children: [
+          {
+            path: '',
+            pathMatch: 'full',
+            loadComponent: () => import('./pages/mcp/mcp-studio').then((m) => m.McpIndex),
+          },
+          {
+            path: 'exposed',
+            canActivate: [builderGuard],
+            loadComponent: () => import('./pages/mcp/mcp-exposed').then((m) => m.McpExposed),
+          },
+          {
+            path: 'connect',
+            canActivate: [builderGuard],
+            loadComponent: () => import('./pages/mcp/mcp-connect').then((m) => m.McpConnect),
+          },
+          {
+            path: 'try',
+            canActivate: [builderGuard],
+            loadComponent: () => import('./pages/mcp/mcp-try').then((m) => m.McpTry),
+          },
+        ],
+      },
+      {
+        path: 'guide',
+        title: 'User guide · Forge',
+        loadComponent: () => import('./pages/guide/guide-page').then((m) => m.GuidePage),
+      },
+      {
+        path: 'guide/:chapter',
+        title: 'User guide · Forge',
+        loadComponent: () => import('./pages/guide/guide-page').then((m) => m.GuidePage),
+      },
+      {
         path: 'governance',
         title: 'Governance and Evaluation Studio · Forge',
         loadComponent: () =>
@@ -397,25 +432,6 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./spikes/graph-editor/graph-editor').then((m) => m.GraphEditor),
       },
-      ...MENU.filter(
-        (entry) =>
-          ![
-            'projects',
-            'prompts',
-            'rag',
-            'agents',
-            'tools',
-            'build',
-            'catalog',
-            'governance',
-            'analytics',
-          ].includes(entry.path),
-      ).map((entry) => ({
-        path: entry.path,
-        component: Placeholder,
-        title: `${entry.label} · Forge`,
-        data: { title: entry.label, phase: entry.phase },
-      })),
     ],
   },
   { path: '**', redirectTo: '' },

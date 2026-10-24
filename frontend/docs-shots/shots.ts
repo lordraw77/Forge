@@ -77,6 +77,11 @@ const click = (sel: string) => async (p: Page) => {
 };
 
 SHOTS.push(
+  // ---- 01 User guide inside the app
+  tab('01-guide', '/guide/01-getting-started', { ready: '[data-testid=guide-doc] h1', marks: [ctrl('guide-lang'), ctrl('guide-index')] }),
+);
+
+SHOTS.push(
   // ---- 02 Projects Studio
   tab('02-info', '/projects/info', {
     marks: ['a[href$="/projects/models"]', 'form.head input', 'nz-select.scopes', 'form.head button', 'nz-table'],
@@ -382,8 +387,20 @@ SHOTS.push(
 
 SHOTS.push(
   // ---- 10 Integrations, sync and transfer
-  tab('10-integrations', '/projects/integrations', { fullPage: true, marks: [ctrl('mcp-url'), ctrl('mcp-add'), ctrl('widget-new')] }),
-  tab('10-expose', '/projects/integrations', { clip: '.ant-modal-content', before: click(ctrl('mcp-add')) }),
+  tab('10-mcp-exposed', '/mcp/exposed', { marks: [ctrl('mcp-search'), ctrl('mcp-add'), ctrl('mcp-try')] }),
+  tab('10-expose', '/mcp/exposed', { clip: '.ant-modal-content', before: click(ctrl('mcp-add')) }),
+  tab('10-mcp-connect', '/mcp/connect', { fullPage: true, marks: [ctrl('mcp-url'), ctrl('mcp-snippet-code'), ctrl('mcp-snippet-json')] }),
+  tab('10-mcp-try', '/mcp/try?name=search_policies', {
+    fullPage: true,
+    ready: ctrl('try-send'),
+    before: async (p) => {
+      await p.locator('#try-args').fill('{"query": "How many days of annual leave do I have?", "top_k": 3}');
+      await p.locator(ctrl('try-send')).click();
+      await p.locator(ctrl('try-answer')).waitFor({ timeout: 60000 });
+    },
+    marks: ['#try-offer', '#try-args', ctrl('try-send'), ctrl('try-answer')],
+  }),
+  tab('10-integrations', '/projects/integrations', { fullPage: true, marks: [ctrl('mcp-link'), ctrl('widget-new')] }),
   tab('10-new-widget', '/projects/integrations', { clip: '.ant-modal-content', before: click(ctrl('widget-new')) }),
   tab('10-sync', '/projects/sync', { fullPage: true, marks: [ctrl('sync-download'), ctrl('sync-folder'), ctrl('sync-key')] }),
   tab('10-transfer', '/projects/transfer', { fullPage: true, marks: [ctrl('export-run'), ctrl('import-file')] }),

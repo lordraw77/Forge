@@ -17,32 +17,25 @@ Forge non vive da solo. Questo capitolo mostra come **far usare ad altre applica
 | tenere in Git prompt, pipeline, agenti e casi d'uso, rivedere le modifiche, distribuirle | **Sync** e `forgectl` | 10.6 |
 | copiare risorse in un altro progetto o in un altro Forge | **Esporta / Importa** | 10.7 |
 
-> **Sulla voce di menu «MCP Studio».** Nel menu laterale c'è una voce *MCP Studio*, ma oggi mostra solo un avviso che l'area arriva in una fase successiva. Il server MCP e i widget sono già disponibili, in **Projects Studio → Integrazioni**.
+> **Dove sta cosa.** Il server MCP è in **MCP Studio** (menu laterale). I widget di chat sono in **Projects Studio → Integrazioni**.
 
 ## 10.2 Il server MCP del progetto
 
-**MCP** (Model Context Protocol) è il modo standard con cui gli assistenti AI usano strumenti esterni. Ogni progetto Forge è un server MCP: scegli **cosa esporre**, e i client MCP lo vedono come strumenti e prompt. Apri **Projects Studio → Integrazioni**.
+**MCP** (Model Context Protocol) è il modo standard con cui gli assistenti AI usano strumenti esterni. Ogni progetto Forge è un server MCP: scegli **cosa esporre**, e i client MCP lo vedono come strumenti e prompt. Tutto si fa in **MCP Studio** (menu laterale), in tre schede: **Esposti**, **Connetti** e **Prova**. Possono aprirlo Project Admin e Builder.
 
-![Integrazioni](../images/it/10-integrations.png)
+### Esposti: ciò che il server offre
 
-La pagina mostra l'**Endpoint** (indicatore 1), l'indirizzo a cui si collegano i client, e un comando pronto da copiare per Claude Code:
+![MCP Studio, Esposti](../images/it/10-mcp-exposed.png)
 
-```bash
-claude mcp add --transport http forge http://<il-tuo-forge>/api/v1/projects/<id-progetto>/mcp \
-  --header "Authorization: Bearer fk_…"
-```
-
-I client si autenticano con un **token API del progetto** che ha lo scope `usecase.run` (sezione 2.2). Possono usare solo ciò che hai esposto, con i permessi del token.
-
-### Esporre una risorsa
+La tabella elenca ogni esposizione con **Nome** (ciò che vede il client), **Tipo**, **Risorsa**, **Descrizione** e **Stato**: **Attivo**, oppure **Inattivo** se in pausa. Usa la casella di ricerca (indicatore 1) e i due filtri per restringere l'elenco. I pulsanti di riga sono **Prova** (indicatore 3, sezione sotto), **Modifica** (nome e descrizione), **Sospendi / Riprendi** (un'esposizione inattiva è invisibile ai client) e **Rimuovi**. Eliminare la risorsa ne elimina l'esposizione. Si può partire anche da un prompt: nella Libreria dei prompt, **Aggiungi ai server MCP** apre questa pagina con il modulo già compilato.
 
 Premi **Esponi una risorsa** (indicatore 2).
 
 ![Esporre una risorsa](../images/it/10-expose.png)
 
-1. Scegli il tipo: **Agente (pubblicato)**, **Collezione di dati** o **Prompt**, poi **scegli la risorsa**.
-2. Facoltativamente dagli un **Nome** (il nome dello strumento visto dal client; meglio minuscolo con underscore) e una **Descrizione** che dica al *modello del client* quando usarlo.
-3. Premi **Esponi**.
+1. Scegli il tipo: **Agente** (sono elencati solo gli agenti pubblicati), **Collezione di dati** o **Prompt**, poi **scegli la risorsa**.
+2. Facoltativamente dagli un **Nome** (il nome dello strumento visto dal client: lettere, cifre, `_` e `-`, fino a 64) e una **Descrizione** che dica al *modello del client* quando usarlo.
+3. Premi **Salva**.
 
 Come appare ogni tipo a un client:
 
@@ -52,15 +45,31 @@ Come appare ogni tipo a un client:
 | **collection** | uno **strumento di ricerca** sui documenti | Ricerca ibrida sull'indice pronto più recente; il client sceglie quanti risultati (da 1 a 10). I token vedono solo i documenti leggibili da **tutto il progetto** (capitolo 4). |
 | **prompt** | un **prompt MCP** | Il client compila le variabili del prompt; Forge restituisce il testo composto. Viene servita l'ultima versione. |
 
-La tabella elenca ogni esposizione con **Nome**, **Tipo**, **Risorsa** e **Descrizione**; **Sospendi** la nasconde temporaneamente e **Rimuovi** la elimina. Eliminare la risorsa ne elimina l'esposizione.
-
 > **Rifletti prima di esporre.** Chi possiede il token può usare tutto ciò che è esposto, e un agente gira con i diritti del *proprietario del token*. Crea un token dedicato con il solo `usecase.run`, esponi solo il necessario ed evita di esporre agenti con strumenti che modificano dati.
+
+### Connetti: come accede un client
+
+![MCP Studio, Connetti](../images/it/10-mcp-connect.png)
+
+La scheda mostra l'**Endpoint** (indicatore 1), l'indirizzo a cui si collegano i client, e le impostazioni pronte da copiare per i client più comuni: il comando `claude mcp add` per Claude Code (indicatore 2), un blocco JSON per Claude Desktop, Cursor e altri client che passano da `mcp-remote` (indicatore 3) e un esempio con `curl`. Sostituisci `fk_…` con un **token API del progetto** che abbia lo scope `usecase.run` (sezione 2.2). I client usano solo ciò che è esposto, con i permessi del token.
+
+> Se Forge sta dietro un reverse proxy, aprilo dal suo indirizzo pubblico: l'endpoint mostrato è costruito con l'indirizzo del tuo browser.
+
+### Prova: vedere ciò che vede un client
+
+![MCP Studio, Prova](../images/it/10-mcp-try.png)
+
+**Prova** chiede al server, come farebbe un client, i suoi strumenti e prompt. Scegline uno (indicatore 1), modifica gli **Argomenti (JSON)** (indicatore 2; ti viene preparato uno schema con le proprietà dichiarate) e premi **Invia** (indicatore 3). La **Risposta** (indicatore 4) è mostrata come testo; **Risposta grezza** mostra il JSON che riceve il client. Ricorda che viene eseguito davvero, a tuo nome: un agente risponde (e costa quel che costa), una ricerca legge documenti. Se l'elenco è vuoto, non c'è nulla di esposto o tutto è in pausa. **Ricarica elenco** chiede di nuovo.
 
 ## 10.3 Widget di chat
 
 Un **widget** mette una bolla di chat in **un altro sito web**, collegata a **un agente pubblicato**. I visitatori non hanno bisogno di un account.
 
-Premi **Nuovo widget** (indicatore 3 della figura precedente).
+Apri **Projects Studio → Integrazioni**.
+
+![Integrazioni](../images/it/10-integrations.png)
+
+La pagina rimanda a MCP Studio (indicatore 1) ed elenca i widget. Premi **Nuovo widget** (indicatore 2).
 
 ![Nuovo widget](../images/it/10-new-widget.png)
 

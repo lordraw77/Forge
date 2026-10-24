@@ -4,6 +4,8 @@ All notable changes to Forge are recorded here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+- **MCP Studio** (side menu, was a placeholder): *Exposed* (the project's exposure list with search, kind and status filters, edit, pause/resume, remove; "Add to MCP Servers" in the Prompt Library opens it prefilled), *Connect* (endpoint and ready settings for Claude Code, Claude Desktop/Cursor via `mcp-remote`, curl) and *Try* (lists the server's tools and prompts as a client would and calls them, as the signed-in user). The exposure list moved out of *Projects Studio → Integrations*, which keeps the chat widgets. The placeholder page was removed: every menu entry is now a real screen.
+- **User guide inside the application**: new menu entry *User guide* renders the guide (`docs/guide`) in the web interface, in the interface language with an English/Italian switch, chapter list, working links and figures. The guide ships with the web image (second build context `guide`, `scripts/release.sh` and Compose pass it; `frontend/guide-src` links to it in development). New dependency `marked` (MIT).
 - **User guide** in English and Italian (`docs/guide/`, 12 chapters, 108 screenshots per language), with a screenshot pipeline (`scripts/docs-seed.py`, `scripts/docs-screenshots.sh`, `frontend/docs-shots/`, `make docs/screenshots`) and a checker (`scripts/docs-check.py`).
 - Fixed while documenting: the Monaco editor CSS was never loaded (editors rendered unstyled), the Triggers page was unreachable (its route sat under `/prompts`), and five dialogs that open after an `await` stayed closed without zone.js (Import OpenAPI, New project, group mappings, MCP tool discovery, edit evaluation dataset).
 

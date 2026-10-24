@@ -1,5 +1,6 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
@@ -11,30 +12,22 @@ import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTagModule } from 'ng-zorro-antd/tag';
 import { firstValueFrom } from 'rxjs';
 
-import {
-  AgentsService,
-  DataService,
-  ExposureOut,
-  McpService,
-  PromptsService,
-  WidgetOut,
-  WidgetService,
-} from '../../api-client';
+import { AgentsService, WidgetOut, WidgetService } from '../../api-client';
 import { problemMessage } from '../../core/http';
 import { Session } from '../../core/session';
 
-type Kind = 'agent' | 'prompt' | 'collection';
 interface Pick {
   id: string;
   name: string;
 }
 
-/** Projects Studio → Integrations (E3.5): what the project's MCP server offers to external
- * clients, and the embeddable chat widgets. */
+/** Projects Studio → Integrations (E3.5): the embeddable chat widgets. The MCP server is in
+ * MCP Studio. */
 @Component({
   selector: 'forge-project-integrations',
   imports: [
     FormsModule,
+    RouterLink,
     NzAlertModule,
     NzButtonModule,
     NzCheckboxModule,
@@ -49,65 +42,10 @@ interface Pick {
     @if (error()) {
       <nz-alert nzType="error" [nzMessage]="error()" />
     }
-    <div class="head">
-      <h2 i18n>MCP server</h2>
-      <span class="spacer"></span>
-      <button nz-button nzType="primary" (click)="openExpose()" data-testid="mcp-add" i18n>
-        Expose an asset
-      </button>
-    </div>
     <p class="intro" i18n>
-      External MCP clients (Claude Desktop, Claude Code, IDE assistants) can use what you expose
-      here: agents become tools that answer, data collections become search tools, prompts become
-      MCP prompts. They sign in with a project API key that has the “usecase.run” scope.
+      The project’s MCP server, what it exposes and how to connect to it are in
+      <a routerLink="/mcp" data-testid="mcp-link">MCP Studio</a>.
     </p>
-    <p>
-      <span i18n>Endpoint:</span> <code data-testid="mcp-url">{{ mcpUrl() }}</code>
-    </p>
-    <p class="hint">
-      <code
-        >claude mcp add --transport http forge {{ mcpUrl() }} --header "Authorization: Bearer
-        fk_…"</code
-      >
-    </p>
-    <nz-table [nzData]="exposures()" nzSize="small" [nzShowPagination]="false">
-      <thead>
-        <tr>
-          <th i18n>Name</th>
-          <th i18n>Kind</th>
-          <th i18n>Asset</th>
-          <th i18n>Description</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (e of exposures(); track e.id) {
-          <tr>
-            <td>
-              <code>{{ e.name }}</code>
-              @if (!e.enabled) {
-                <nz-tag i18n>Paused</nz-tag>
-              }
-            </td>
-            <td>
-              <nz-tag>{{ e.kind }}</nz-tag>
-            </td>
-            <td>{{ e.asset_name }}</td>
-            <td>{{ e.description }}</td>
-            <td class="actions">
-              <button nz-button nzSize="small" (click)="toggleExposure(e)">
-                {{ e.enabled ? pauseLabel : resumeLabel }}
-              </button>
-              <button nz-button nzSize="small" nzDanger (click)="unexpose(e)" i18n>Remove</button>
-            </td>
-          </tr>
-        } @empty {
-          <tr>
-            <td colspan="5" class="muted" i18n>Nothing is exposed yet.</td>
-          </tr>
-        }
-      </tbody>
-    </nz-table>
 
     @if (session.can('project.manage')) {
       <div class="head">
@@ -162,44 +100,6 @@ interface Pick {
         </tbody>
       </nz-table>
     }
-
-    <nz-modal
-      [(nzVisible)]="exposeOpen"
-      nzTitle="Expose an asset"
-      i18n-nzTitle
-      [nzFooter]="null"
-      [nzWidth]="560"
-    >
-      <ng-container *nzModalContent>
-        <div class="form">
-          <label i18n>Kind</label>
-          <nz-select nzId="mcp-kind" [(ngModel)]="expose.kind" (ngModelChange)="expose.asset = ''">
-            <nz-option nzValue="agent" nzLabel="Agent" i18n-nzLabel />
-            <nz-option nzValue="collection" nzLabel="Data collection" i18n-nzLabel />
-            <nz-option nzValue="prompt" nzLabel="Prompt" i18n-nzLabel />
-          </nz-select>
-          <label i18n>Asset</label>
-          <nz-select nzId="mcp-asset" nzShowSearch [(ngModel)]="expose.asset">
-            @for (a of assets(); track a.id) {
-              <nz-option [nzValue]="a.id" [nzLabel]="a.name" />
-            }
-          </nz-select>
-          <label for="mcp-name" i18n>Name (optional)</label>
-          <input nz-input id="mcp-name" maxlength="64" [(ngModel)]="expose.name" />
-          <label for="mcp-desc" i18n>Description (optional)</label>
-          <textarea nz-input id="mcp-desc" rows="3" [(ngModel)]="expose.description"></textarea>
-        </div>
-        @if (formError()) {
-          <nz-alert nzType="error" [nzMessage]="formError()" />
-        }
-        <div class="footer">
-          <button nz-button (click)="exposeOpen = false" i18n>Cancel</button>
-          <button nz-button nzType="primary" (click)="saveExpose()" data-testid="mcp-save" i18n>
-            Expose
-          </button>
-        </div>
-      </ng-container>
-    </nz-modal>
 
     <nz-modal
       [(nzVisible)]="widgetOpen"
@@ -302,42 +202,22 @@ interface Pick {
   `,
 })
 export class ProjectIntegrations {
-  private readonly mcp = inject(McpService);
   private readonly widgetApi = inject(WidgetService);
   private readonly agentApi = inject(AgentsService);
-  private readonly promptApi = inject(PromptsService);
-  private readonly dataApi = inject(DataService);
   protected readonly session = inject(Session);
 
   protected readonly newTitle = $localize`New widget`;
   protected readonly editTitle = $localize`Edit widget`;
-  protected readonly pauseLabel = $localize`Pause`;
-  protected readonly resumeLabel = $localize`Resume`;
-  protected readonly exposures = signal<ExposureOut[]>([]);
   protected readonly widgets = signal<WidgetOut[]>([]);
   protected readonly agents = signal<Pick[]>([]);
-  protected readonly prompts = signal<Pick[]>([]);
-  protected readonly collections = signal<Pick[]>([]);
   protected readonly error = signal<string | null>(null);
   protected readonly formError = signal<string | null>(null);
   protected readonly embed = signal<WidgetOut | null>(null);
-  protected exposeOpen = false;
   protected widgetOpen = false;
   protected editing: WidgetOut | null = null;
-  protected expose = { kind: 'agent' as Kind, asset: '', name: '', description: '' };
   protected widget = this.blankWidget();
   private readonly projectId = computed(() => this.session.project()?.id ?? null);
 
-  protected readonly mcpUrl = computed(
-    () => `${window.location.origin}/api/v1/projects/${this.projectId()}/mcp`,
-  );
-  protected readonly assets = computed(() =>
-    this.expose.kind === 'agent'
-      ? this.agents()
-      : this.expose.kind === 'prompt'
-        ? this.prompts()
-        : this.collections(),
-  );
   protected readonly snippet = computed(() => {
     const w = this.embed();
     return w
@@ -368,85 +248,18 @@ export class ProjectIntegrations {
     const projectId = this.projectId();
     if (!projectId) return;
     try {
-      const [exposures, agents, prompts, collections] = await Promise.all([
-        firstValueFrom(this.mcp.listExposures({ projectId })),
-        firstValueFrom(this.agentApi.listAgents({ projectId, limit: 200 })),
-        firstValueFrom(this.promptApi.listPrompts({ projectId, limit: 200 })),
-        firstValueFrom(this.dataApi.listCollections({ projectId })),
-      ]);
-      this.exposures.set(exposures);
+      const agents = await firstValueFrom(this.agentApi.listAgents({ projectId, limit: 200 }));
       this.agents.set(
         agents.items
           .filter((a) => a.status === 'published')
           .map((a) => ({ id: a.id, name: a.name })),
       );
-      this.prompts.set(prompts.items.map((p) => ({ id: p.id, name: p.name })));
-      this.collections.set(collections.map((c) => ({ id: c.id, name: c.name })));
       if (this.session.can('project.manage')) {
         this.widgets.set(await firstValueFrom(this.widgetApi.listWidgets({ projectId })));
       }
       this.error.set(null);
     } catch (e) {
       this.error.set(problemMessage(e));
-    }
-  }
-
-  protected openExpose(): void {
-    this.expose = { kind: 'agent', asset: '', name: '', description: '' };
-    this.formError.set(null);
-    this.exposeOpen = true;
-  }
-
-  protected async saveExpose(): Promise<void> {
-    const projectId = this.projectId();
-    if (!projectId || !this.expose.asset) {
-      this.formError.set($localize`Pick the asset to expose.`);
-      return;
-    }
-    const e = this.expose;
-    try {
-      await firstValueFrom(
-        this.mcp.addExposure({
-          projectId,
-          exposureIn: {
-            [`${e.kind}_id`]: e.asset,
-            name: e.name.trim() || null,
-            description: e.description.trim() || null,
-          },
-        }),
-      );
-      this.exposeOpen = false;
-      await this.load();
-    } catch (err) {
-      this.formError.set(problemMessage(err));
-    }
-  }
-
-  protected async toggleExposure(e: ExposureOut): Promise<void> {
-    const projectId = this.projectId();
-    if (!projectId) return;
-    try {
-      await firstValueFrom(
-        this.mcp.updateExposure({
-          projectId,
-          exposureId: e.id,
-          exposureUpdateIn: { enabled: !e.enabled },
-        }),
-      );
-      await this.load();
-    } catch (err) {
-      this.error.set(problemMessage(err));
-    }
-  }
-
-  protected async unexpose(e: ExposureOut): Promise<void> {
-    const projectId = this.projectId();
-    if (!projectId) return;
-    try {
-      await firstValueFrom(this.mcp.removeExposure({ projectId, exposureId: e.id }));
-      await this.load();
-    } catch (err) {
-      this.error.set(problemMessage(err));
     }
   }
 

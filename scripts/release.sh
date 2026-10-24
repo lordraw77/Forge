@@ -24,7 +24,7 @@ builds=(
   "forge-backend|$version-slim|$root/backend|--build-arg MODELS=download"
   "forge-backend-ingest|$version|$root/backend|--build-arg EXTRAS=ingest --build-arg MODELS=embedded"
   "forge-backend-ingest|$version-slim|$root/backend|--build-arg EXTRAS=ingest --build-arg MODELS=download"
-  "forge-frontend|$version|$root/frontend|"
+  "forge-frontend|$version|$root/frontend|--build-context guide=$root/docs/guide"
   "forge-db|$version|$root/deploy/db|"
   "forge-sandbox|$version|$root/sandbox|"
   "forge-sandbox-runtime|$version|$root/sandbox|-f $root/sandbox/Dockerfile.runtime"

@@ -82,11 +82,18 @@ The **API** tag at the top right shows the version of the Forge server you are c
 | **Tools Studio** | Define the tools that agents can call. | [5](05-tools.md) |
 | **RAG Studio** | Question your documents with cited answers. | [4](04-data-and-rag.md) |
 | **Agentic AI Studio** | Create agents and chat with them. | [6](06-agents.md) |
-| **MCP Studio** | Today it only shows a notice that the area arrives in a later phase. The MCP server and the chat widgets are in **Projects Studio → Integrations**. | [10](10-integrations-and-sync.md) |
+| **MCP Studio** | Choose what the project's MCP server offers to external AI assistants, connect a client and try it. | [10](10-integrations-and-sync.md) |
 | **Governance and Evaluation Studio** | Guardrails and quality evaluations. | [8](08-governance.md) |
 | **Analytics** | Usage, cost, quality and activity dashboards. | [9](09-analytics.md) |
+| **User guide** | This guide, inside the application (see below). | [1](01-getting-started.md) |
 
-You only see the entries your role allows. A Project Admin sees everything of the project; an end user typically sees the catalog and the approvals.
+### The guide inside Forge
+
+The last entry, **User guide**, shows this guide without leaving the application: the chapters are on the left, the text on the right, and the pictures are the ones in this book. It opens in the language of the interface; the button at the top (marker 1) switches between English and Italian, and **Contents** (marker 2) goes back to the index. Links between chapters stay inside the page.
+
+![The guide inside Forge](../images/en/01-guide.png)
+
+You only see the entries your role allows, except the guide, which everyone sees. A Project Admin sees everything of the project; an end user typically sees the catalog and the approvals.
 
 ## 1.5 Choose the project
 

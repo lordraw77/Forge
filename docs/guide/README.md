@@ -30,6 +30,12 @@ How it works:
 
 Le immagini sono **generate, non disegnate a mano**: si rigenerano dopo ogni modifica dell'interfaccia, in entrambe le lingue, con un solo comando (vedi sopra). Lo script `scripts/docs-seed.py` crea il progetto dimostrativo **Forge Demo**; `frontend/docs-shots/shots.ts` elenca ogni immagine; i passaggi non dipendono mai dal testo visibile, quindi la stessa lista produce l'immagine italiana e quella inglese. I dati dimostrativi (nomi e descrizioni di prompt, agenti, ecc.) sono in inglese in entrambe le lingue perché sono contenuto, non interfaccia.
 
+## The guide inside the application · La guida dentro l'applicazione
+
+The side menu entry **User guide** shows these chapters in the web interface. The text is not copied: the web image is built with this folder as a second build context (`additional_contexts: guide` in `deploy/compose/docker-compose.yml`, `--build-context guide=docs/guide` in `scripts/release.sh`) and `frontend/angular.json` serves it under `/guide`. For local development `frontend/guide-src` is a symbolic link to this folder. The page reads each language's `README.md` for the chapter list (a table whose rows start with the chapter number and then a link to the chapter file), so **keep that table format**; the links between chapters, the figures and the anchors work as they do on GitHub. Chapters with the same number correspond across the two languages.
+
+La voce di menu **Guida utente** mostra questi capitoli nell'interfaccia web. Il testo non è copiato: l'immagine web si costruisce con questa cartella come secondo contesto di build e `frontend/angular.json` la serve sotto `/guide`. Per lo sviluppo locale `frontend/guide-src` è un collegamento simbolico a questa cartella. La pagina legge il `README.md` di ogni lingua per l'elenco dei capitoli (una tabella le cui righe iniziano con il numero del capitolo e poi un collegamento al file del capitolo): **mantieni quel formato di tabella**.
+
 ## Conventions · Convenzioni
 
 - **Bold** is the text of a button, tab or field exactly as it appears on screen in that language. · Il **grassetto** è il testo di un pulsante, scheda o campo così com'è sullo schermo in quella lingua.

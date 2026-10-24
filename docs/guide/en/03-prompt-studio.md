@@ -41,7 +41,7 @@ The three dots at the end of a row open the actions:
 - **Try** opens the test page (section 3.6).
 - **Edit** opens the editor.
 - **Duplicate** creates a new prompt, under a name you choose, whose first version is a copy of the latest version of this one (the note says *Duplicated from …*). Use it to start from a good prompt.
-- **Add to MCP Servers** is greyed out here. To expose a prompt to external applications use the *Integrations* tab of Projects Studio (chapter 10).
+- **Add to MCP Servers** opens MCP Studio with this prompt ready to be exposed to external applications (chapter 10).
 - **Delete** removes the prompt and its versions after you confirm. If an agent or pipeline still uses it, deletion is refused and the message names what uses it.
 
 ## 3.3 Write a prompt

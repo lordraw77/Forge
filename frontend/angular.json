@@ -31,6 +31,11 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "**/*",
+                "input": "guide-src",
+                "output": "guide"
               }
             ],
             "styles": [

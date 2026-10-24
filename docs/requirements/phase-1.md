@@ -185,7 +185,7 @@ Conventions:
 **US-1.11.2 (M) – Publish and library.** As a B, I want to publish prompts and manage them in the Prompt Library.
 
 1. Library lists Published and Draft, filter by status, time range, name search.
-2. Row actions: Try, Edit, Duplicate (asks a new name), Delete (confirmation); Add/Remove from MCP shown disabled until Phase 3.
+2. Row actions: Try, Edit, Duplicate (asks a new name), Delete (confirmation); Add/Remove from MCP shown disabled until Phase 3 (enabled with MCP Studio, 2026-10-24: "Add to MCP Servers" opens MCP Studio prefilled).
 3. Delete of a prompt used by an agent is blocked with the list of references.
 
 ### E1.12 Playground

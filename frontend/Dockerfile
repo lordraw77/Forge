@@ -4,6 +4,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 COPY . .
+# The user guide (docs/guide of the repository) is a named build context: `--build-context
+# guide=docs/guide`; compose and scripts/release.sh pass it. angular.json ships guide-src under /guide (a symlink to docs/guide in the repository).
+COPY --from=guide . /app/guide-src
 RUN npm run build
 
 FROM nginxinc/nginx-unprivileged:1.31-alpine AS runtime

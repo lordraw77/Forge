@@ -84,13 +84,20 @@ L'etichetta **API** in alto a destra mostra la versione del server Forge a cui s
 | **Tools Studio** | Definire gli strumenti che gli agenti possono chiamare. | [5](05-strumenti.md) |
 | **RAG Studio** | Interrogare i documenti con risposte citate. | [4](04-dati-e-rag.md) |
 | **Agentic AI Studio** | Creare agenti e conversare con loro. | [6](06-agenti.md) |
-| **MCP Studio** | Oggi mostra solo un avviso che l'area arriverà in una fase successiva. Il server MCP e i widget di chat sono in **Projects Studio → Integrazioni**. | [10](10-integrazioni-e-sincronizzazione.md) |
+| **MCP Studio** | Scegli cosa il server MCP del progetto offre agli assistenti AI esterni, collega un client e provalo. | [10](10-integrazioni-e-sincronizzazione.md) |
 | **Governance and Evaluation Studio** | Guardrail e valutazioni di qualità. | [8](08-governance.md) |
 | **Analytics** | Dashboard di utilizzo, costi, qualità e attività. | [9](09-analytics.md) |
+| **User guide** | Questa guida, dentro l'applicazione (vedi sotto). | [1](01-per-iniziare.md) |
 
 I nomi dei sei Studio e di Analytics sono nomi di prodotto e restano in inglese anche nell'interfaccia italiana.
 
-Vedi solo le voci consentite dal tuo ruolo. Un Project Admin vede tutto il progetto; un utente finale di solito vede il catalogo e le approvazioni.
+### La guida dentro Forge
+
+L'ultima voce, **Guida utente**, mostra questa guida senza uscire dall'applicazione: i capitoli sono a sinistra, il testo a destra e le immagini sono quelle di questo libro. Si apre nella lingua dell'interfaccia; il pulsante in alto (indicatore 1) passa dall'inglese all'italiano e **Indice** (indicatore 2) torna all'indice. I collegamenti tra capitoli restano nella pagina.
+
+![La guida dentro Forge](../images/it/01-guide.png)
+
+Vedi solo le voci consentite dal tuo ruolo, tranne la guida, che vedono tutti. Un Project Admin vede tutto il progetto; un utente finale di solito vede il catalogo e le approvazioni.
 
 ## 1.5 Scegliere il progetto
 
