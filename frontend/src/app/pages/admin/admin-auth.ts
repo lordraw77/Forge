@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -458,6 +458,7 @@ function blank(kind: Kind): Draft {
   styleUrl: './admin.scss',
 })
 export class AdminAuth implements OnInit {
+  private readonly cdr = inject(ChangeDetectorRef);
   private readonly identity = inject(IdentityService);
   private readonly admin = inject(AdminService);
   private readonly projectsApi = inject(ProjectsService);
@@ -631,6 +632,7 @@ export class AdminAuth implements OnInit {
     this.projects.set(await firstValueFrom(this.admin.listProjects({})));
     await this.reloadMappings();
     this.mapOpen = true;
+    this.cdr.markForCheck(); // zoneless: a plain field set after an `await` schedules no check
   }
 
   private async reloadMappings(): Promise<void> {

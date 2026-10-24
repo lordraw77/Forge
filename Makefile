@@ -55,6 +55,10 @@ test/integration: ## Backend integration tests against the compose database
 test/e2e: ## Playwright E2E tests against the running stack (make docker/run first)
 	@scripts/test-e2e.sh
 
+.PHONY: docs/screenshots
+docs/screenshots: ## Regenerate the user guide pictures (docs/guide/images, en and it); SHOTS='^03-' limits them
+	@SHOTS="$(SHOTS)" scripts/docs-screenshots.sh shots.spec.ts
+
 ## ---- Code generation
 .PHONY: api/client
 api/client: ## Regenerate the frontend API client from the backend OpenAPI spec

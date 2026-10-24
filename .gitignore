@@ -17,6 +17,7 @@ frontend/dist/
 frontend/.angular/
 frontend/e2e/.results/
 frontend/e2e/.auth/
+frontend/docs-shots/.results/
 
 # Build output
 dist/

@@ -4,6 +4,9 @@ All notable changes to Forge are recorded here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+- **User guide** in English and Italian (`docs/guide/`, 12 chapters, 108 screenshots per language), with a screenshot pipeline (`scripts/docs-seed.py`, `scripts/docs-screenshots.sh`, `frontend/docs-shots/`, `make docs/screenshots`) and a checker (`scripts/docs-check.py`).
+- Fixed while documenting: the Monaco editor CSS was never loaded (editors rendered unstyled), the Triggers page was unreachable (its route sat under `/prompts`), and five dialogs that open after an `await` stayed closed without zone.js (Import OpenAPI, New project, group mappings, MCP tool discovery, edit evaluation dataset).
+
 Phase 1 milestones M1.2 (LLM gateway), M1.3 (Prompt Studio), M1.4 (RAG on upload) and M1.5 (single agent and tracing), the closing items of Phase 0, SeaweedFS confirmed as object store (ADR-015, 2026-10-19), and two PO decisions of 2026-10-18: NG-ZORRO on Angular 22 instead of PrimeNG (ADR-017), and OpenSearch for BM25 instead of pg_search (ADR-016).
 
 ### Added

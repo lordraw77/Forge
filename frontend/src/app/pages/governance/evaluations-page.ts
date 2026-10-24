@@ -1,5 +1,13 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, effect, inject, OnDestroy, signal } from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  computed,
+  effect,
+  inject,
+  OnDestroy,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -437,6 +445,7 @@ interface Target {
   `,
 })
 export class EvaluationsPage implements OnDestroy {
+  private readonly cdr = inject(ChangeDetectorRef);
   private readonly api = inject(EvaluationsService);
   private readonly prompts = inject(PromptsService);
   private readonly rag = inject(RagService);
@@ -685,6 +694,7 @@ export class EvaluationsPage implements OnDestroy {
       };
       this.formError.set(null);
       this.formOpen = true;
+      this.cdr.markForCheck(); // zoneless: a plain field set after an `await` schedules no check
     } catch (e) {
       this.error.set(problemMessage(e));
     }

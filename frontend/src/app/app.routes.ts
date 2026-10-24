@@ -174,12 +174,6 @@ export const routes: Routes = [
               import('./pages/prompts/prompt-editor').then((m) => m.PromptEditor),
           },
           {
-            path: ':id/triggers',
-            canActivate: [useCaseBuilderGuard],
-            loadComponent: () =>
-              import('./pages/usecases/usecase-triggers').then((m) => m.UseCaseTriggers),
-          },
-          {
             path: ':id/test',
             loadComponent: () => import('./pages/prompts/prompt-test').then((m) => m.PromptTest),
           },
@@ -376,6 +370,12 @@ export const routes: Routes = [
             canActivate: [useCaseBuilderGuard],
             loadComponent: () =>
               import('./pages/usecases/usecase-workflow').then((m) => m.UseCaseWorkflow),
+          },
+          {
+            path: ':id/triggers',
+            canActivate: [useCaseBuilderGuard],
+            loadComponent: () =>
+              import('./pages/usecases/usecase-triggers').then((m) => m.UseCaseTriggers),
           },
           {
             path: ':id/test',

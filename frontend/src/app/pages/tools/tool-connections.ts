@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -446,6 +446,7 @@ import { Session } from '../../core/session';
   styleUrl: '../admin/admin.scss',
 })
 export class ToolConnections {
+  private readonly cdr = inject(ChangeDetectorRef);
   private readonly api = inject(ToolsService);
   private readonly session = inject(Session);
 
@@ -618,6 +619,7 @@ export class ToolConnections {
         ),
       );
       this.discoverOpen = true;
+      this.cdr.markForCheck(); // zoneless: a plain field set after an `await` schedules no check
     } catch (e) {
       this.message.set({ ok: false, text: problemMessage(e) });
     }

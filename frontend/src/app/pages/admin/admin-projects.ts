@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { A11yModule } from '@angular/cdk/a11y';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
@@ -199,6 +199,7 @@ import { Session } from '../../core/session';
   styleUrl: './admin.scss',
 })
 export class AdminProjects implements OnInit {
+  private readonly cdr = inject(ChangeDetectorRef);
   private readonly admin = inject(AdminService);
   private readonly session = inject(Session);
   protected readonly projects = signal<AdminProjectOut[]>([]);
@@ -227,6 +228,7 @@ export class AdminProjects implements OnInit {
       (await firstValueFrom(this.admin.listUsers({}))).filter((u) => u.status === 'active'),
     );
     this.createOpen = true;
+    this.cdr.markForCheck(); // zoneless: a plain field set after an `await` schedules no check
   }
 
   protected async create(): Promise<void> {

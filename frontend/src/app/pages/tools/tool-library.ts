@@ -363,9 +363,11 @@ export class ToolLibrary {
     this.spec.set(null);
     this.picked.set(new Set());
     this.importError.set(null);
+    // Open first: without zone.js a plain field set after an `await` does not schedule a change
+    // detection, so the dialog stayed closed until some unrelated event.
+    this.importOpen = true;
     const creds = await firstValueFrom(this.api.listCredentials({ projectId: this.projectId()! }));
     this.credentials.set(creds.map((c) => c.name));
-    this.importOpen = true;
   }
 
   protected async readFile(event: Event): Promise<void> {

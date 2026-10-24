@@ -13,6 +13,7 @@ Self-hosted, LLM-agnostic platform to build and run agents, RAG pipelines and go
 
 | Document | Content |
 | --- | --- |
+| [docs/guide/README.md](docs/guide/README.md) | **User guide**, illustrated, in English and Italian (screenshots regenerated with `make docs/screenshots`) |
 | [docs/specs.md](docs/specs.md) | Product specification |
 | [docs/planning/01-spec-analysis.md](docs/planning/01-spec-analysis.md) | Gaps, contradictions, risks, PO decisions |
 | [docs/planning/02-implementation-plan.md](docs/planning/02-implementation-plan.md) | Phases, epics, acceptance-criteria mapping |
