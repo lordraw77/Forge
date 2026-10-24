@@ -80,7 +80,7 @@ import { Chapter, chaptersFromReadme, GuideLang, renderGuide } from './guide-ren
       display: flex;
       flex-direction: column;
       gap: 0.15rem;
-      max-height: calc(100vh - 2rem);
+      max-height: calc(100dvh - 8rem);
       overflow-y: auto;
       a {
         padding: 0.3rem 0.6rem;
