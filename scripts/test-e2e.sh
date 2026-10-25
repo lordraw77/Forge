@@ -17,6 +17,7 @@ printf '%s\n' "$admin_password" | "${compose[@]}" exec -T api forge users ensure
 version="$(python3 -c "import json;print(json.load(open('$root/frontend/package.json'))['devDependencies']['@playwright/test'])")"
 docker run --rm --network host -u "$(id -u):$(id -g)" -e HOME=/tmp \
   -e FORGE_E2E_ADMIN_USER="$admin_user" -e FORGE_E2E_ADMIN_PASSWORD="$admin_password" \
+  -e FORGE_E2E_DEMO_PASSWORD="${FORGE_E2E_DEMO_PASSWORD:-}" \
   -e FORGE_E2E_BASE_URL="${FORGE_E2E_BASE_URL:-http://localhost:${FORGE_HTTP_PORT:-8080}}" \
   -v "$root/frontend:/app" -w /app \
   "mcr.microsoft.com/playwright:v${version}-noble" npx playwright test "$@"

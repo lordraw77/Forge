@@ -91,6 +91,10 @@ admin/reset: ## Reset (or create) a Super Admin and unlock it; prompts for a tem
 providers/import: ## Register lab model providers from the API keys in .env (idempotent)
 	$(COMPOSE) exec -T api forge providers import-env
 
+.PHONY: demo/seed
+demo/seed: ## Create the Meridiana demo project through the API (needs FORGE_DEMO_ADMIN, FORGE_DEMO_ADMIN_PASSWORD and model provider keys); idempotent
+	@scripts/demo/seed_meridiana.py $(STAGES)
+
 migrate: ## Apply database migrations
 	$(COMPOSE) run --rm migrate
 
