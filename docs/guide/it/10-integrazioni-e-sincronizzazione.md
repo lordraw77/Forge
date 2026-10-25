@@ -45,13 +45,13 @@ Come appare ogni tipo a un client:
 | **collection** | uno **strumento di ricerca** sui documenti | Ricerca ibrida sull'indice pronto più recente; il client sceglie quanti risultati (da 1 a 10). I token vedono solo i documenti leggibili da **tutto il progetto** (capitolo 4). |
 | **prompt** | un **prompt MCP** | Il client compila le variabili del prompt; Forge restituisce il testo composto. Viene servita l'ultima versione. |
 
-> **Rifletti prima di esporre.** Chi possiede il token può usare tutto ciò che è esposto, e un agente gira con i diritti del *proprietario del token*. Crea un token dedicato con il solo `usecase.run`, esponi solo il necessario ed evita di esporre agenti con strumenti che modificano dati.
+> **Rifletti prima di esporre.** Chi possiede il token può usare tutto ciò che è esposto, e un agente gira con i diritti del *proprietario del token*. Crea un token dedicato con il solo `mcp.invoke`, esponi solo il necessario ed evita di esporre agenti con strumenti che modificano dati.
 
 ### Connetti: come accede un client
 
 ![MCP Studio, Connetti](../images/it/10-mcp-connect.png)
 
-La scheda mostra l'**Endpoint** (indicatore 1), l'indirizzo a cui si collegano i client, e le impostazioni pronte da copiare per i client più comuni: il comando `claude mcp add` per Claude Code (indicatore 2), un blocco JSON per Claude Desktop, Cursor e altri client che passano da `mcp-remote` (indicatore 3) e un esempio con `curl`. Sostituisci `fk_…` con un **token API del progetto** che abbia lo scope `usecase.run` (sezione 2.2). I client usano solo ciò che è esposto, con i permessi del token.
+La scheda mostra l'**Endpoint** (indicatore 1), l'indirizzo a cui si collegano i client, e le impostazioni pronte da copiare per i client più comuni: il comando `claude mcp add` per Claude Code (indicatore 2), un blocco JSON per Claude Desktop, Cursor e altri client che passano da `mcp-remote` (indicatore 3) e un esempio con `curl`. Sostituisci `fk_…` con un **token API del progetto** che abbia lo scope `mcp.invoke` (sezione 2.2). I client usano solo ciò che è esposto, con i permessi del token.
 
 > Se Forge sta dietro un reverse proxy, aprilo dal suo indirizzo pubblico: l'endpoint mostrato è costruito con l'indirizzo del tuo browser.
 
@@ -64,6 +64,8 @@ La scheda mostra l'**Endpoint** (indicatore 1), l'indirizzo a cui si collegano i
 ## 10.3 Widget di chat
 
 Un **widget** mette una bolla di chat in **un altro sito web**, collegata a **un agente pubblicato**. I visitatori non hanno bisogno di un account.
+
+> **Solo agenti che cercano nei documenti.** I visitatori sono sconosciuti e la conversazione gira con *i tuoi* diritti, quindi un widget accetta solo un agente i cui strumenti sono la ricerca nei documenti (RAG) e che non ha memoria a lungo termine. Forge rifiuta qualsiasi altro agente quando salvi il widget (il messaggio dice cosa togliere) e smette di rispondere se l'agente viene ripubblicato con un altro strumento.
 
 Apri **Projects Studio → Integrazioni**.
 
@@ -197,7 +199,7 @@ Gli elementi si riferiscono l'uno all'altro **per nome**, quindi una pipeline im
 
 | Sintomo | Causa e rimedio |
 | --- | --- |
-| Un client MCP riceve 401/403 | Token sbagliato, oppure al token manca `usecase.run`. |
+| Un client MCP riceve 401/403 | Token sbagliato, oppure al token manca `mcp.invoke`. |
 | Il client non vede strumenti | Non è esposto nulla, oppure l'esposizione è sospesa (**Sospendi** / **Riprendi**). |
 | Il widget non compare | Il sito non è in **Siti consentiti** (origine esatta, compreso `https://`), oppure il widget è disattivato. |
 | Il widget dice di essere occupato | È stato raggiunto un limite di frequenza (per visitatore o giornaliero). Alzalo o attendi. |

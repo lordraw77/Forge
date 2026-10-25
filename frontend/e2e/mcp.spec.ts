@@ -68,6 +68,9 @@ test.describe('MCP Studio and user guide', () => {
     await expect(page.locator('#try-args')).toHaveValue(/query/);
     await page.locator('#try-args').fill('{"query": "refund", "top_k": 3}');
     await page.getByTestId('try-send').click();
+    // It runs for real, so the page asks first.
+    await expect(page.getByText('Run it for real?')).toBeVisible();
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
     await expect(page.getByTestId('try-answer')).toBeVisible();
 
     // ---- Pause hides it from clients, Remove deletes it

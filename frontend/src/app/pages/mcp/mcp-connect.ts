@@ -11,7 +11,7 @@ import { Session } from '../../core/session';
   template: `
     <p class="intro" i18n>
       Every project has its own MCP server. Clients sign in with a project API key that has the
-      “usecase.run” scope; create one in
+      “mcp.invoke” scope; create one in
       <a routerLink="/projects/info">Projects Studio → Information</a>. What the server offers is
       the <a routerLink="/mcp/exposed">Exposed</a> list.
     </p>

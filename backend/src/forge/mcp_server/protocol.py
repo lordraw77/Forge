@@ -1,7 +1,11 @@
 """The project's MCP server (E3.5): JSON-RPC over Streamable HTTP, answered statelessly.
 
-It speaks the handshake era of the protocol (`initialize`, versions 2024-11-05 to 2025-11-25) and
-refuses `server/discover`, so current clients fall back to `initialize`. No session id is issued:
+Two protocol eras are served from the same URL. The handshake era (`initialize`, versions
+2024-11-05 to 2025-11-25) and the stateless era of 2026-07-28, where every request carries its
+protocol version and the client's capabilities in `_meta`, `MCP-Protocol-Version`, `Mcp-Method`
+and `Mcp-Name` travel as headers, and `server/discover` replaces the handshake. A request belongs
+to the stateless era when it says so (that version in the header or in `_meta`) or is
+`server/discover`; anything else is answered as before. No session id is issued in either era:
 every POST is complete in itself and carries the caller's API key, which lets any replica answer.
 What is offered is the project's *exposure list*: agents (a tool that asks the agent),
 data collections (a tool that searches) and prompts (MCP prompts, rendered with arguments).
@@ -12,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
+from collections.abc import Mapping
 from typing import Any
 
 from sqlalchemy import select
@@ -33,6 +38,10 @@ from forge.rag.studio import RagStudio
 log = get_logger(__name__)
 
 SUPPORTED_VERSIONS = ("2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25")
+STATELESS_VERSION = "2026-07-28"
+META = "io.modelcontextprotocol/"
+HEADER_MISMATCH, MISSING_CLIENT_CAPABILITY, UNSUPPORTED_VERSION = -32020, -32021, -32022
+CACHE_TTL_MS = 60_000  # the exposure list changes by hand; a client may keep it a minute
 PARSE_ERROR, INVALID_REQUEST, METHOD_NOT_FOUND, INVALID_PARAMS, INTERNAL = (
     -32700,
     -32600,
@@ -75,6 +84,10 @@ def text_result(text: str, *, error: bool = False, **structured: Any) -> dict[st
     return out
 
 
+def _bad_request(request_id: Any, code: int, message: str, data: Any = None) -> tuple[int, Any]:
+    return 400, failure(request_id, code, message, data)
+
+
 class McpEndpoint:
     def __init__(
         self,
@@ -89,6 +102,127 @@ class McpEndpoint:
         self._prompts = prompts
 
     # ------------------------------------------------------------------ entry
+    async def handle_http(
+        self, actor: Actor, project_id: uuid.UUID, payload: Any, headers: Mapping[str, str]
+    ) -> tuple[int, Any]:
+        """One POST: (HTTP status, JSON body or None for 202). Picks the era of the request."""
+        header_version = headers.get("mcp-protocol-version")
+        message = payload if isinstance(payload, dict) else {}
+        params = message.get("params")
+        meta = (params.get("_meta") if isinstance(params, dict) else None) or {}
+        meta = meta if isinstance(meta, dict) else {}
+        meta_version = meta.get(META + "protocolVersion")
+        method = message.get("method")
+        stateless = (
+            STATELESS_VERSION in (header_version, meta_version) or method == "server/discover"
+        )
+        stated = header_version or meta_version
+        if not stateless:
+            if stated and stated not in SUPPORTED_VERSIONS:
+                return _bad_request(
+                    message.get("id"),
+                    UNSUPPORTED_VERSION,
+                    "Unsupported protocol version",
+                    {
+                        "supported": [STATELESS_VERSION, *SUPPORTED_VERSIONS[::-1]],
+                        "requested": stated,
+                    },
+                )
+            answer = await self.handle(actor, project_id, payload)
+            return (202, None) if answer is None else (200, answer)
+        return await self._stateless(actor, project_id, message, headers, meta, header_version)
+
+    async def _stateless(
+        self,
+        actor: Actor,
+        project_id: uuid.UUID,
+        message: dict[str, Any],
+        headers: Mapping[str, str],
+        meta: dict[str, Any],
+        header_version: str | None,
+    ) -> tuple[int, Any]:
+        request_id, method = message.get("id"), message.get("method")
+        if message.get("jsonrpc") != "2.0" or not isinstance(method, str):
+            return _bad_request(request_id, INVALID_REQUEST, "Not a JSON-RPC 2.0 request")
+        params = message.get("params") or {}
+        if not isinstance(params, dict):
+            return _bad_request(request_id, INVALID_PARAMS, "Bad params")
+        is_notification = "id" not in message
+        discovering = method == "server/discover"
+        version = meta.get(META + "protocolVersion")
+        if (
+            version is not None
+            and version != STATELESS_VERSION
+            and version not in SUPPORTED_VERSIONS
+        ):
+            return _bad_request(
+                request_id,
+                UNSUPPORTED_VERSION,
+                "Unsupported protocol version",
+                {"supported": [STATELESS_VERSION, *SUPPORTED_VERSIONS[::-1]], "requested": version},
+            )
+        if not discovering:
+            if version != STATELESS_VERSION or header_version != version:
+                return _bad_request(
+                    request_id,
+                    HEADER_MISMATCH,
+                    "MCP-Protocol-Version must be present and equal to _meta protocolVersion",
+                )
+            if not isinstance(meta.get(META + "clientCapabilities"), dict):
+                return _bad_request(
+                    request_id,
+                    INVALID_PARAMS,
+                    "_meta needs io.modelcontextprotocol/clientCapabilities",
+                )
+            if headers.get("mcp-method") != method:
+                return _bad_request(
+                    request_id,
+                    HEADER_MISMATCH,
+                    "Mcp-Method must be present and equal to the method",
+                )
+            if method in ("tools/call", "prompts/get") and headers.get("mcp-name") != params.get(
+                "name"
+            ):
+                return _bad_request(
+                    request_id, HEADER_MISMATCH, "Mcp-Name must be present and equal to params.name"
+                )
+        if is_notification:
+            return 202, None
+        try:
+            result = await self._dispatch_stateless(actor, project_id, method, params)
+        except RpcError as exc:
+            status = 404 if exc.code == METHOD_NOT_FOUND else 200
+            return status, failure(request_id, exc.code, exc.message, exc.data)
+        except ProblemError as exc:
+            return 200, failure(request_id, INVALID_PARAMS, exc.title)
+        except Exception:
+            log.exception("mcp.internal_error", method=method)
+            return 500, failure(request_id, INTERNAL, "Internal error")
+        return 200, reply(request_id, result)
+
+    async def _dispatch_stateless(
+        self, actor: Actor, project_id: uuid.UUID, method: str, params: dict[str, Any]
+    ) -> dict[str, Any]:
+        if method == "server/discover":
+            return {
+                "resultType": "complete",
+                "supportedVersions": [STATELESS_VERSION, *SUPPORTED_VERSIONS[::-1]],
+                "capabilities": {"tools": {}, "prompts": {}},
+                "_meta": {META + "serverInfo": {"name": "forge", "version": __version__}},
+                "instructions": INSTRUCTIONS,
+                "ttlMs": CACHE_TTL_MS,
+                "cacheScope": "private",
+            }
+        if method == "ping":
+            return {"resultType": "complete"}
+        if method == "initialize":  # gone in this era
+            raise RpcError(METHOD_NOT_FOUND, "initialize does not exist in 2026-07-28")
+        result = await self._dispatch(actor, project_id, method, params)
+        out: dict[str, Any] = {"resultType": "complete", **(result or {})}
+        if method in ("tools/list", "prompts/list"):
+            out |= {"ttlMs": CACHE_TTL_MS, "cacheScope": "private"}
+        return out
+
     async def handle(
         self, actor: Actor, project_id: uuid.UUID, payload: Any
     ) -> dict[str, Any] | list[dict[str, Any]] | None:

@@ -45,13 +45,13 @@ How each kind appears to a client:
 | **collection** | a **search tool** over the documents | Hybrid search on the newest ready index; the client picks how many results (1 to 10). Tokens see only documents readable by the **whole project** (chapter 4). |
 | **prompt** | an **MCP prompt** | The client fills in the prompt's variables; Forge returns the rendered text. The latest version is served. |
 
-> **Think before exposing.** Whoever holds the token can use everything exposed, and an agent runs with the *token owner's* rights. Create a dedicated token with only `usecase.run`, expose only what is needed and avoid exposing agents with tools that change data.
+> **Think before exposing.** Whoever holds the token can use everything exposed, and an agent runs with the *token owner's* rights. Create a dedicated token with only `mcp.invoke`, expose only what is needed and avoid exposing agents with tools that change data.
 
 ### Connect: how a client signs in
 
 ![MCP Studio, Connect](../images/en/10-mcp-connect.png)
 
-The tab shows the **Endpoint** (marker 1), the address clients connect to, and ready-to-copy settings for the common clients: the `claude mcp add` command for Claude Code (marker 2), a JSON block for Claude Desktop, Cursor and other clients that go through `mcp-remote` (marker 3), and a `curl` example. Replace `fk_…` with a **project API token** that has the `usecase.run` scope (section 2.2). Clients use only what is exposed, with the permissions of the token.
+The tab shows the **Endpoint** (marker 1), the address clients connect to, and ready-to-copy settings for the common clients: the `claude mcp add` command for Claude Code (marker 2), a JSON block for Claude Desktop, Cursor and other clients that go through `mcp-remote` (marker 3), and a `curl` example. Replace `fk_…` with a **project API token** that has the `mcp.invoke` scope (section 2.2). Clients use only what is exposed, with the permissions of the token.
 
 > If Forge sits behind a reverse proxy, open it at its public address: the endpoint shown is built from the address in your browser.
 
@@ -64,6 +64,8 @@ The tab shows the **Endpoint** (marker 1), the address clients connect to, and r
 ## 10.3 Chat widgets
 
 A **widget** puts a chat bubble on **another website**, connected to **one published agent**. Visitors need no account.
+
+> **Only agents that search documents.** Visitors are strangers and the conversation runs with *your* rights, so a widget accepts only an agent whose tools are document search (RAG) and which has no long-term memory. Forge refuses any other agent when you save the widget (the message names what to remove), and stops answering if the agent is later republished with another tool.
 
 Open **Projects Studio → Integrations**.
 
@@ -197,7 +199,7 @@ Items refer to each other **by name**, so a pipeline imported into a project fin
 
 | Symptom | Cause and remedy |
 | --- | --- |
-| An MCP client gets 401/403 | Wrong token, or the token lacks `usecase.run`. |
+| An MCP client gets 401/403 | Wrong token, or the token lacks `mcp.invoke`. |
 | The client sees no tools | Nothing is exposed, or the exposure is paused (**Pause** / **Resume**). Open the **Try** tab of MCP Studio to see what a client gets. |
 | The widget does not appear | The site is not in **Allowed sites** (exact origin, including `https://`), or the widget is disabled. |
 | The widget says it is busy | A rate limit was hit (per visitor or daily). Raise it or wait. |

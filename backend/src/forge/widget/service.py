@@ -20,7 +20,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from forge.admin.service import audit
-from forge.agents.models import Agent, AgentTag
+from forge.agents.models import Agent, AgentTag, AgentVersion
 from forge.agents.schemas import ConversationIn
 from forge.agents.studio import AgentStudio
 from forge.core.context import Actor
@@ -126,6 +126,37 @@ class WidgetAnswerOut(BaseModel):
     error: str | None = None
 
 
+async def unsafe_for_visitors(s: AsyncSession, agent_id: uuid.UUID) -> str | None:
+    """Why an agent may not sit behind a public widget, else None (PO decision 2026-10-25).
+
+    Visitors are anonymous and everything runs as the person who made the widget, so the agent
+    may only search documents: any other tool (HTTP, SQL, Python, MCP, built-in) could be driven
+    by a stranger with that person's rights, and long-term memory would pool every visitor's
+    facts under one user. The published version is checked, or the latest when there is none."""
+    tag = (
+        await s.execute(
+            select(AgentTag.version).where(AgentTag.agent_id == agent_id, AgentTag.tag == "prod")
+        )
+    ).scalar_one_or_none()
+    query = select(AgentVersion.config).where(AgentVersion.agent_id == agent_id)
+    query = (
+        query.where(AgentVersion.version == tag)
+        if tag is not None
+        else query.order_by(AgentVersion.version.desc()).limit(1)
+    )
+    config = (await s.execute(query)).scalar_one_or_none() or {}
+    others = [
+        str(t.get("name") or t.get("kind"))
+        for t in config.get("tools") or []
+        if t.get("kind") != "rag"
+    ]
+    if others:
+        return "A widget's agent may only use document search tools; remove: " + ", ".join(others)
+    if (config.get("memory") or {}).get("long_term"):
+        return "A widget's agent cannot use long-term memory: every visitor would share it"
+    return None
+
+
 class Widgets:
     def __init__(
         self,
@@ -166,6 +197,8 @@ class Widgets:
         async with project_scope(self._sessions, project_id, actor.id) as s:
             if await s.get(Agent, body.agent_id) is None:
                 raise ProblemError(422, "unknown_agent", "Agent not found")
+            if reason := await unsafe_for_visitors(s, body.agent_id):
+                raise ProblemError(422, "agent_not_public_safe", reason)
             w = ChatWidget(
                 project_id=project_id,
                 agent_id=body.agent_id,
@@ -205,6 +238,10 @@ class Widgets:
             changes = body.model_dump(exclude_none=True)
             if "agent_id" in changes and await s.get(Agent, changes["agent_id"]) is None:
                 raise ProblemError(422, "unknown_agent", "Agent not found")
+            if "agent_id" in changes and (
+                reason := await unsafe_for_visitors(s, changes["agent_id"])
+            ):
+                raise ProblemError(422, "agent_not_public_safe", reason)
             for field, value in changes.items():
                 setattr(w, field, value)
             try:
@@ -278,6 +315,12 @@ class Widgets:
 
     async def open_session(self, w: ChatWidget) -> WidgetSessionOut:
         actor = self._actor(w)
+        # The agent may have been republished with tools after the widget was made
+        async with project_scope(self._sessions, w.project_id, actor.id) as s:
+            if await unsafe_for_visitors(s, w.agent_id):
+                raise ProblemError(
+                    503, "assistant_unavailable", "This assistant is not available right now"
+                )
         conversation = await self._agents.create_conversation(
             actor,
             w.project_id,

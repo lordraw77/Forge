@@ -17,7 +17,7 @@ router = APIRouter(prefix="/api/v1/projects/{project_id}/mcp", tags=["mcp"])
 
 Reader = Annotated[ProjectContext, Depends(project_permission("asset.write"))]
 Writer = Annotated[ProjectContext, Depends(project_permission("asset.write", writable=True))]
-Caller = Annotated[ProjectContext, Depends(project_permission("usecase.run", writable=True))]
+Caller = Annotated[ProjectContext, Depends(project_permission("mcp.invoke", writable=True))]
 
 
 @router.get("/exposures", response_model=list[ExposureOut])
@@ -48,15 +48,17 @@ async def remove_exposure(exposure_id: uuid.UUID, ctx: Writer, request: Request)
 @router.post("", include_in_schema=True, response_model=None)
 async def mcp_endpoint(ctx: Caller, request: Request) -> Response:
     """MCP over Streamable HTTP (JSON-RPC, answered without a session). Authenticate with a
-    project API key: `Authorization: Bearer fk_…`. The key needs the `usecase.run` scope."""
+    project API key: `Authorization: Bearer fk_…`. The key needs the `mcp.invoke` scope."""
     try:
         payload = json.loads(await request.body())
     except ValueError:
         return JSONResponse(failure(None, PARSE_ERROR, "Parse error"), status_code=400)
-    answer = await services(request).mcp.handle(ctx.actor, ctx.project_id, payload)
+    code, answer = await services(request).mcp.handle_http(
+        ctx.actor, ctx.project_id, payload, request.headers
+    )
     if answer is None:
         return Response(status_code=status.HTTP_202_ACCEPTED)
-    return JSONResponse(answer)
+    return JSONResponse(answer, status_code=code)
 
 
 @router.api_route("", methods=["GET", "DELETE"], include_in_schema=False)

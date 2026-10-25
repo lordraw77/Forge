@@ -5,6 +5,7 @@ import { ActivatedRoute } from '@angular/router';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { firstValueFrom } from 'rxjs';
 
@@ -52,7 +53,14 @@ interface Offer {
  * for real: an agent answers, a search reads documents. */
 @Component({
   selector: 'forge-mcp-try',
-  imports: [FormsModule, NzAlertModule, NzButtonModule, NzInputModule, NzSelectModule],
+  imports: [
+    FormsModule,
+    NzAlertModule,
+    NzButtonModule,
+    NzInputModule,
+    NzModalModule,
+    NzSelectModule,
+  ],
   template: `
     @if (error()) {
       <nz-alert nzType="error" [nzMessage]="error()" />
@@ -87,13 +95,30 @@ interface Offer {
           nz-button
           nzType="primary"
           [disabled]="busy()"
-          (click)="send(o)"
+          (click)="confirming.set(o)"
           data-testid="try-send"
           i18n
         >
           Send
         </button>
       </div>
+      <nz-modal
+        [nzVisible]="!!confirming()"
+        nzTitle="Run it for real?"
+        i18n-nzTitle
+        nzOkText="Run"
+        i18n-nzOkText
+        (nzOnOk)="runConfirmed()"
+        (nzOnCancel)="confirming.set(null)"
+        [nzOkDisabled]="busy()"
+      >
+        <ng-container *nzModalContent>
+          <p i18n>
+            “{{ o.name }}” runs now as you, not as a simulation: an agent or a prompt uses model
+            tokens and a data tool reads real documents. Run it?
+          </p>
+        </ng-container>
+      </nz-modal>
     } @else if (loaded() && !offers().length) {
       <nz-alert
         nzType="info"
@@ -173,12 +198,15 @@ export class McpTry {
 
   private async rpc(method: string, params?: unknown): Promise<McpResult | undefined> {
     const reply = await firstValueFrom(
-      this.http.post<{ result?: McpResult; error?: { message: string } }>(`/api/v1/projects/${this.projectId()}/mcp`, {
-        jsonrpc: '2.0',
-        id: this.nextId++,
-        method,
-        params,
-      }),
+      this.http.post<{ result?: McpResult; error?: { message: string } }>(
+        `/api/v1/projects/${this.projectId()}/mcp`,
+        {
+          jsonrpc: '2.0',
+          id: this.nextId++,
+          method,
+          params,
+        },
+      ),
     );
     this.raw.set(JSON.stringify(reply, null, 2));
     if (reply?.error) throw new Error(reply.error.message);
@@ -225,6 +253,14 @@ export class McpTry {
     this.selected.set(key);
     this.args = this.current()?.skeleton ?? '{}';
     this.answer.set('');
+  }
+
+  protected readonly confirming = signal<Offer | null>(null);
+
+  protected runConfirmed(): void {
+    const o = this.confirming();
+    this.confirming.set(null);
+    if (o) void this.send(o);
   }
 
   protected async send(o: Offer): Promise<void> {

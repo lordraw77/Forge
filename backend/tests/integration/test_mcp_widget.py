@@ -86,7 +86,7 @@ def mcp_env(env: dict[str, Any], client: TestClient) -> dict[str, Any]:
     prompt = make_prompt(env, system="You are an expert in {topic}.")
     out = dict(env)
     out["collection_id"], out["agent"], out["prompt"] = cid, agent, prompt
-    out["token"] = api_key(env, ["usecase.run"])
+    out["token"] = api_key(env, ["mcp.invoke"])
     return out
 
 
@@ -113,6 +113,8 @@ def test_only_exposed_assets_are_offered_and_the_key_needs_a_scope(
     # A key without the scope, and no key at all, are refused
     weak = api_key(e, ["run.read"])
     assert rpc(client, e, weak, "tools/list").status_code == 403
+    # Running use cases is not the same right as calling the MCP server
+    assert rpc(client, e, api_key(e, ["usecase.run"]), "tools/list").status_code == 403
     assert new_client(client).post(f"{e['base']}/mcp", json={}).status_code == 401
 
 
@@ -198,7 +200,10 @@ def test_protocol_basics(mcp_env: dict[str, Any], client: TestClient) -> None:
     odd = rpc(client, e, token, "initialize", {"protocolVersion": "1999-01-01"}).json()["result"]
     assert odd["protocolVersion"] == "2025-11-25"
     assert rpc(client, e, token, "ping").json()["result"] == {}
-    assert rpc(client, e, token, "server/discover").json()["error"]["code"] == -32601
+    # server/discover belongs to the stateless era and is answered on its own
+    found = rpc(client, e, token, "server/discover").json()["result"]
+    assert found["supportedVersions"][0] == "2026-07-28"
+    assert found["_meta"]["io.modelcontextprotocol/serverInfo"]["name"] == "forge"
     note = rpc(client, e, token, "notifications/initialized", id=0)
     assert note.status_code == 202
     c = new_client(client)
@@ -364,3 +369,161 @@ def test_widget_limits_validation_and_script(mcp_env: dict[str, Any], client: Te
     assert e["end_user"].get(f"{e['base']}/widgets").status_code == 403
     assert c.delete(f"{e['base']}/widgets/{w['id']}", headers=csrf(c)).status_code == 204
     assert anon.get(f"/api/v1/widget/{key}/config").status_code == 404
+
+
+STATELESS = "2026-07-28"
+META = "io.modelcontextprotocol/"
+
+
+def stateless(
+    client: TestClient,
+    e: dict[str, Any],
+    token: str,
+    method: str,
+    params: dict[str, Any] | None = None,
+    *,
+    headers: dict[str, str] | None = None,
+    meta: dict[str, Any] | None = None,
+) -> Any:
+    """A request of the stateless era: version and capabilities in `_meta`, routing headers."""
+    params = dict(params or {})
+    params["_meta"] = (
+        {META + "protocolVersion": STATELESS, META + "clientCapabilities": {}}
+        if meta is None
+        else meta
+    )
+    h = {
+        "Authorization": f"Bearer {token}",
+        "MCP-Protocol-Version": STATELESS,
+        "Mcp-Method": method,
+    }
+    if method in ("tools/call", "prompts/get"):
+        h["Mcp-Name"] = str(params.get("name"))
+    h |= headers or {}
+    body = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
+    return new_client(client).post(f"{e['base']}/mcp", json=body, headers=h)
+
+
+def test_stateless_era(mcp_env: dict[str, Any], client: TestClient) -> None:
+    e, token = mcp_env, mcp_env["token"]
+    if not any(
+        x["name"] == "search_manual" for x in ok(e["owner"].get(f"{e['base']}/mcp/exposures"))
+    ):
+        expose(e, collection_id=e["collection_id"], name="search_manual")
+    listed = stateless(client, e, token, "tools/list")
+    assert listed.status_code == 200
+    body = listed.json()["result"]
+    assert body["resultType"] == "complete"
+    assert body["cacheScope"] == "private"
+    assert body["ttlMs"] > 0
+    assert "search_manual" in {t["name"] for t in body["tools"]}
+    assert stateless(client, e, token, "ping").json()["result"]["resultType"] == "complete"
+    called = stateless(
+        client, e, token, "tools/call", {"name": "search_manual", "arguments": {"query": "x"}}
+    )
+    assert called.status_code == 200
+    assert called.json()["result"]["resultType"] == "complete"
+    assert "content" in called.json()["result"]
+
+    # the envelope is checked: header and _meta must agree, capabilities and routing are required
+    wrong = stateless(
+        client, e, token, "tools/list", headers={"MCP-Protocol-Version": "2025-11-25"}
+    )
+    assert wrong.status_code == 400
+    assert wrong.json()["error"]["code"] == -32020
+    no_caps = stateless(client, e, token, "tools/list", meta={META + "protocolVersion": STATELESS})
+    assert no_caps.status_code == 400
+    assert no_caps.json()["error"]["code"] == -32602
+    method = stateless(client, e, token, "tools/list", headers={"Mcp-Method": "tools/call"})
+    assert method.status_code == 400
+    assert method.json()["error"]["code"] == -32020
+    name = stateless(
+        client,
+        e,
+        token,
+        "tools/call",
+        {"name": "search_manual", "arguments": {"query": "x"}},
+        headers={"Mcp-Name": "other"},
+    )
+    assert name.status_code == 400
+    assert name.json()["error"]["code"] == -32020
+    unknown = stateless(client, e, token, "nope/nothing")
+    assert unknown.status_code == 404
+    assert unknown.json()["error"]["code"] == -32601
+
+    # a version nobody speaks gets the list of those we do
+    odd = stateless(
+        client,
+        e,
+        token,
+        "tools/list",
+        headers={"MCP-Protocol-Version": "1900-01-01"},
+        meta={META + "protocolVersion": "1900-01-01", META + "clientCapabilities": {}},
+    )
+    assert odd.status_code == 400
+    data = odd.json()["error"]["data"]
+    assert odd.json()["error"]["code"] == -32022
+    assert data["requested"] == "1900-01-01"
+    assert STATELESS in data["supported"]
+    # the handshake era is untouched, and a notification needs no answer
+    assert rpc(client, e, token, "tools/list").json()["result"]["tools"]
+
+
+def test_a_widget_agent_may_only_search_documents(
+    mcp_env: dict[str, Any], client: TestClient
+) -> None:
+    """PO 2026-10-25: strangers must not be able to drive an agent's tools or share its memory."""
+    e, c = mcp_env, mcp_env["owner"]
+    prompt = make_prompt(e)["id"]
+    risky = make_agent(e, prompt, tools=[{"kind": "builtin", "name": "http_get"}])
+    publish(e, risky["id"])
+    refused = c.post(
+        f"{e['base']}/widgets",
+        headers=csrf(c),
+        json={"name": f"Site {uid()}", "agent_id": risky["id"], "allowed_origins": []},
+    )
+    assert refused.status_code == 422
+    assert refused.json()["code"] == "agent_not_public_safe"
+    assert "http_get" in refused.json()["title"]
+    remembering = make_agent(e, prompt, memory={"long_term": True, "embedding_model": "embedding"})
+    publish(e, remembering["id"])
+    assert (
+        c.post(
+            f"{e['base']}/widgets",
+            headers=csrf(c),
+            json={"name": f"Site {uid()}", "agent_id": remembering["id"], "allowed_origins": []},
+        ).status_code
+        == 422
+    )
+
+    # Search tools are fine, and moving a widget to a risky agent is refused as well
+    safe = make_agent(e, prompt)
+    publish(e, safe["id"])
+    w = make_widget(e, agent_id=safe["id"])
+    moved = c.patch(
+        f"{e['base']}/widgets/{w['id']}", headers=csrf(c), json={"agent_id": risky["id"]}
+    )
+    assert moved.status_code == 422
+
+    # An agent republished with a tool after the widget exists stops being served
+    key, good = w["public_key"], "https://intranet.example.com"
+    anon = new_client(client)
+    assert anon.post(f"/api/v1/widget/{key}/session", headers={"Origin": good}).status_code == 200
+    ok(
+        c.post(
+            f"{e['base']}/agents/{safe['id']}/versions",
+            headers=csrf(c),
+            json={
+                "config": {
+                    "prompt": {"prompt_id": prompt},
+                    "model": e["models"]["agent"]["name"],
+                    "tools": [{"kind": "builtin", "name": "http_get"}],
+                }
+            },
+        ),
+        201,
+    )
+    publish(e, safe["id"])
+    gone = anon.post(f"/api/v1/widget/{key}/session", headers={"Origin": good})
+    assert gone.status_code == 503
+    assert gone.json()["code"] == "assistant_unavailable"
