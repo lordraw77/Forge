@@ -310,7 +310,10 @@ function jsonText(value: unknown): string {
                 />
               }
               @case ('code') {
-                <label for="n-code" i18n>Python (sandbox: no network, standard library only)</label>
+                <label for="n-code" i18n
+                  >Python (sandbox: standard library only, no network unless hosts are
+                  listed)</label
+                >
                 <textarea
                   nz-input
                   id="n-code"
@@ -319,6 +322,22 @@ function jsonText(value: unknown): string {
                   spellcheck="false"
                   [ngModel]="node.code"
                   (ngModelChange)="patch('code', $event)"
+                ></textarea>
+                <label for="n-hosts" i18n
+                  >Hosts it may reach (one per line, from the allowed hosts)</label
+                >
+                <textarea
+                  nz-input
+                  id="n-hosts"
+                  rows="2"
+                  class="mono"
+                  [ngModel]="
+                    (node.allowed_hosts ?? []).join(
+                      '
+'
+                    )
+                  "
+                  (ngModelChange)="patchHosts($event)"
                 ></textarea>
                 <label for="n-args" i18n>Arguments (JSON, passed to run)</label>
                 <textarea
@@ -692,6 +711,14 @@ export class GraphCanvas {
     this.commit(next);
     this.selection = { nodeIds: [], connectionIds: [] };
     this.selectedId.set(null);
+  }
+
+  protected patchHosts(text: string): void {
+    const hosts = text
+      .split('\n')
+      .map((h) => h.trim())
+      .filter(Boolean);
+    this.patch('allowed_hosts', hosts.length ? hosts : undefined);
   }
 
   protected patch(field: keyof GraphNode, value: unknown): void {

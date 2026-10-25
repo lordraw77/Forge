@@ -120,14 +120,26 @@ class ToolPyParam(In):
 
 
 class PythonConfig(In):
-    """A Python function run in the sandbox: `def run(args): ...` returns a JSON value. No
-    network, no files, standard library only; limits from the tool version."""
+    """A Python function run in the sandbox: `def run(args): ...` returns a JSON value. No files,
+    standard library only; limits from the tool version. No network unless `allowed_hosts` names
+    some, which must also be in the project's allowed hosts (Tools Studio → Allowed hosts); the
+    code reaches them over HTTP(S) through the sandbox's proxy (urllib does this by itself)."""
 
     kind: Literal["python"] = "python"
     code: str = Field(min_length=10, max_length=40_000)
     params: list[ToolPyParam] = Field(default_factory=list, max_length=40)
     memory_mb: int = Field(default=128, ge=32, le=512)
     response_max_chars: int = Field(default=8000, ge=500, le=64000)
+    allowed_hosts: list[str] = Field(default_factory=list, max_length=20)
+
+    @field_validator("allowed_hosts")
+    @classmethod
+    def _hosts(cls, hosts: list[str]) -> list[str]:
+        clean = [h.strip().lower() for h in hosts if h.strip()]
+        for h in clean:
+            if not HOST.match(h):
+                raise ValueError(f"invalid host pattern: {h!r}")
+        return list(dict.fromkeys(clean))
 
     @model_validator(mode="after")
     def _check(self) -> PythonConfig:

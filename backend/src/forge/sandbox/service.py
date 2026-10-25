@@ -32,6 +32,19 @@ class SandboxResult:
     duration_ms: int = 0
 
 
+def within_policy(hosts: list[str], policy: list[str]) -> list[str]:
+    """The hosts a piece of code asks for that the project's egress policy does not cover: a
+    wildcard is covered only by the same wildcard, a name also by a wildcard that matches it."""
+    from forge.core.egress import host_allowed
+
+    uncovered: list[str] = []
+    for h in hosts:
+        ok = h in policy or (not h.startswith("*.") and host_allowed(h, policy))
+        if not ok:
+            uncovered.append(h)
+    return uncovered
+
+
 def check_code(code: str, entry: str = "run") -> str | None:
     """None when the code parses and defines `entry(args)`; else what is wrong. Nothing runs."""
     if len(code) > MAX_CODE:
@@ -70,6 +83,8 @@ class SandboxClient:
         timeout_s: int = 10,
         memory_mb: int = 128,
         entry: str = "run",
+        allowed_hosts: list[str] | None = None,
+        allow_private: bool = False,
     ) -> SandboxResult:
         body = {
             "code": code,
@@ -77,6 +92,8 @@ class SandboxClient:
             "entry": entry,
             "timeout_s": timeout_s,
             "memory_mb": memory_mb,
+            "allowed_hosts": allowed_hosts or [],
+            "allow_private": allow_private,
         }
         client = self._http or httpx.AsyncClient()
         try:

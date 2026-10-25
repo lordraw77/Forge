@@ -39,6 +39,8 @@ export interface GraphNode {
   /** `code` node: Python run in the sandbox, `def run(args): ...`. */
   code?: string;
   memory_mb?: number;
+  /** `code` node: hosts the code may reach (must be in the project's allowed hosts). */
+  allowed_hosts?: string[];
   timeout_s?: number;
   task?: string;
   input?: string;

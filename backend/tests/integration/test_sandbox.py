@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import os
 import subprocess
+import threading
 from collections.abc import Iterator
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
@@ -150,3 +152,170 @@ def test_token_and_limits(sandbox: TestClient) -> None:
     big = run(sandbox, "def run(args):\n    return 1", args={"blob": "x" * 150_000})
     assert big["status"] == "invalid"
     assert sandbox.get("/readyz").json()["status"] == "ok"
+
+
+# ---- network through the egress proxy, and gVisor
+class _Page(BaseHTTPRequestHandler):
+    def do_GET(self) -> None:
+        body = b"hello from the allowed host"
+        self.send_response(200)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *_: Any) -> None:
+        return
+
+
+@pytest.fixture(scope="module")
+def networked() -> Iterator[tuple[TestClient, int]]:
+    """A runner whose executions may join an internal network and reach a local web page through
+    the proxy. The runner itself runs here, on the host: the proxy answers on the network's
+    gateway address."""
+    name = f"forge-sbx-test-{os.getpid()}"
+    subprocess.run(
+        ["docker", "network", "create", "--internal", name], check=True, capture_output=True
+    )
+    try:
+        gateway = subprocess.run(
+            [
+                "docker",
+                "network",
+                "inspect",
+                name,
+                "--format",
+                "{{(index .IPAM.Config 0).Gateway}}",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        server = ThreadingHTTPServer(("127.0.0.1", 0), _Page)
+        port = server.server_address[1]
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        cfg = Config()
+        cfg.token, cfg.socket, cfg.image = TOKEN, SOCKET, IMAGE
+        cfg.network, cfg.proxy_host, cfg.proxy_port = name, gateway, 18091
+        cfg.proxy_ports = frozenset({port})
+        with TestClient(create_app(cfg)) as client:
+            yield client, port
+        server.shutdown()
+    finally:
+        subprocess.run(["docker", "network", "rm", name], capture_output=True)
+
+
+FETCH = (
+    "import urllib.request\n"
+    "def run(args):\n"
+    "    with urllib.request.urlopen(args['url'], timeout=5) as r:\n"
+    "        return {'status': r.status, 'body': r.read().decode()}\n"
+)
+
+
+def test_an_allowed_host_is_reachable_through_the_proxy(
+    networked: tuple[TestClient, int],
+) -> None:
+    client, port = networked
+    out = run(
+        client,
+        FETCH,
+        args={"url": f"http://127.0.0.1:{port}/"},
+        allowed_hosts=["127.0.0.1"],
+        allow_private=True,
+    )
+    assert out["status"] == "ok", out
+    assert out["result"] == {"status": 200, "body": "hello from the allowed host"}
+
+
+def test_https_tunnels_use_connect_and_are_checked_the_same_way(
+    networked: tuple[TestClient, int],
+) -> None:
+    client, port = networked
+    code = (
+        "import http.client, os, urllib.parse\n"
+        "def run(args):\n"
+        "    p = urllib.parse.urlsplit(os.environ['HTTP_PROXY'])\n"
+        "    c = http.client.HTTPConnection(p.hostname, p.port, timeout=5)\n"
+        "    import base64\n"
+        "    auth = base64.b64encode(f'{p.username}:{p.password}'.encode()).decode()\n"
+        "    c.set_tunnel(args['host'], args['port'], {'Proxy-Authorization': 'Basic ' + auth})\n"
+        "    c.request('GET', '/')\n"
+        "    r = c.getresponse()\n"
+        "    return {'status': r.status, 'body': r.read().decode()}\n"
+    )
+    ok = run(
+        client,
+        code,
+        args={"host": "127.0.0.1", "port": port},
+        allowed_hosts=["127.0.0.1"],
+        allow_private=True,
+    )
+    assert ok["status"] == "ok", ok
+    assert ok["result"]["status"] == 200
+    refused = run(
+        client,
+        code,
+        args={"host": "example.org", "port": port},
+        allowed_hosts=["127.0.0.1"],
+        allow_private=True,
+    )
+    assert refused["status"] == "error"  # the proxy answered 403 to the CONNECT
+
+
+def test_hosts_outside_the_list_and_private_addresses_are_refused(
+    networked: tuple[TestClient, int],
+) -> None:
+    client, port = networked
+    other = run(
+        client,
+        FETCH,
+        args={"url": f"http://localhost:{port}/"},  # resolves to loopback, not in the list
+        allowed_hosts=["127.0.0.1"],
+        allow_private=True,
+    )
+    assert other["status"] == "error"
+    assert "403" in other["error"]
+    private = run(
+        client, FETCH, args={"url": f"http://127.0.0.1:{port}/"}, allowed_hosts=["127.0.0.1"]
+    )
+    assert private["status"] == "error"
+    assert "403" in private["error"]  # loopback is not a public address
+
+
+def test_code_cannot_go_around_the_proxy(networked: tuple[TestClient, int]) -> None:
+    client, _port = networked
+    direct = (
+        "import socket\n"
+        "def run(args):\n"
+        "    s = socket.socket()\n"
+        "    s.settimeout(3)\n"
+        "    s.connect(('1.1.1.1', 80))\n"
+    )
+    out = run(client, direct, allowed_hosts=["127.0.0.1"], allow_private=True)
+    assert out["status"] == "error"
+    # and without hosts there is no network device at all
+    plain = run(
+        client, "import os\ndef run(args):\n    return sorted(os.listdir('/sys/class/net'))"
+    )
+    assert plain["result"] == ["lo"]
+
+
+def test_hosts_need_a_configured_network(sandbox: TestClient) -> None:
+    out = run(sandbox, "def run(args):\n    return 1", allowed_hosts=["example.org"])
+    assert out["status"] == "invalid"
+
+
+@pytest.mark.skipif(
+    "runsc"
+    not in subprocess.run(
+        ["docker", "info", "--format", "{{.Runtimes}}"], capture_output=True, text=True
+    ).stdout,
+    reason="gVisor (runsc) is not registered with the engine",
+)
+def test_executions_run_under_gvisor() -> None:
+    cfg = Config()
+    cfg.token, cfg.socket, cfg.image, cfg.runtime = TOKEN, SOCKET, IMAGE, "runsc"
+    with TestClient(create_app(cfg)) as client:
+        out = run(client, "import platform\ndef run(args):\n    return platform.release()")
+    assert out["status"] == "ok", out
+    assert "gvisor" in out["result"]

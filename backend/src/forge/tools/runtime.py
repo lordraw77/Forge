@@ -20,7 +20,7 @@ import asyncpg
 import jsonschema
 
 from forge.core.egress import EgressError, _check, request
-from forge.sandbox.service import SandboxClient, SandboxUnavailable
+from forge.sandbox.service import SandboxClient, SandboxUnavailable, within_policy
 from forge.tools import sqlguard
 from forge.tools.schemas import HttpConfig, McpConfig, PythonConfig, SqlConfig
 
@@ -349,12 +349,28 @@ async def run_python(
     *,
     client: SandboxClient | None,
     timeout_s: int,
+    allowed_hosts: list[str] | None = None,
+    allow_private: bool = False,
 ) -> ExecResult:
     if client is None:
         return error("sandbox_unavailable", "The sandbox service is not configured")
+    uncovered = within_policy(config.allowed_hosts, allowed_hosts or [])
+    if uncovered:
+        return error(
+            "host_not_allowed",
+            f"{', '.join(uncovered)} not in the project's allowed hosts "
+            "(Tools Studio → Allowed hosts)",
+        )
     started = time.monotonic()
     try:
-        res = await client.run(config.code, args, timeout_s=timeout_s, memory_mb=config.memory_mb)
+        res = await client.run(
+            config.code,
+            args,
+            timeout_s=timeout_s,
+            memory_mb=config.memory_mb,
+            allowed_hosts=config.allowed_hosts,
+            allow_private=allow_private,
+        )
     except SandboxUnavailable as exc:
         return error("sandbox_unavailable", str(exc))
     view = {"args": args}

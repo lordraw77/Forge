@@ -77,6 +77,8 @@ interface Draft {
   // python (sandbox)
   code: string;
   memory_mb: number;
+  /** Hosts the code may reach (one per line in the form), a subset of the project's allowed hosts */
+  pyHosts: string;
   pyParams: SqlParamRow[];
   // mcp (kept as imported)
   mcp: Record<string, unknown> | null;
@@ -102,6 +104,7 @@ function blank(): Draft {
     sqlParams: [],
     code: 'def run(args):\n    return {}\n',
     memory_mb: 128,
+    pyHosts: '',
     pyParams: [],
     mcp: null,
   };
@@ -372,8 +375,8 @@ function blank(): Draft {
           @case ('python') {
             <h3 i18n>Python function</h3>
             <label for="t-code" i18n
-              >Define run(args) and return a JSON value. No network, no files, standard library
-              only.</label
+              >Define run(args) and return a JSON value. No files, standard library only; no network
+              unless you list hosts below.</label
             >
             <textarea
               nz-input
@@ -393,6 +396,22 @@ function blank(): Draft {
               [nzMax]="512"
               [(ngModel)]="draft.memory_mb"
             />
+            <label for="t-hosts" i18n>Network access (one host per line, optional)</label>
+            <textarea
+              nz-input
+              id="t-hosts"
+              name="hosts"
+              rows="3"
+              class="mono"
+              placeholder="api.example.com"
+              [(ngModel)]="draft.pyHosts"
+              data-testid="tool-hosts"
+            ></textarea>
+            <p class="hint" i18n>
+              Each host must also be in the project's allowed hosts. The code reaches them over HTTP
+              and HTTPS only (urllib uses the proxy by itself); the sandbox refuses everything else,
+              including private addresses.
+            </p>
             <h3 i18n>Arguments</h3>
             @for (p of draft.pyParams; track $index) {
               <div class="row param">
@@ -643,10 +662,12 @@ export class ToolEditor {
       const cfg = v.config as unknown as {
         code: string;
         memory_mb?: number;
+        allowed_hosts?: string[];
         params?: SqlParamRow[];
       };
       draft.code = cfg.code;
       draft.memory_mb = cfg.memory_mb ?? 128;
+      draft.pyHosts = (cfg.allowed_hosts ?? []).join('\n');
       draft.pyParams = (cfg.params ?? []).map((p) => ({
         name: p.name,
         type: p.type,
@@ -733,7 +754,16 @@ export class ToolEditor {
       };
     }
     if (d.kind === 'python') {
-      return { kind: 'python', code: d.code, memory_mb: d.memory_mb, params: d.pyParams };
+      return {
+        kind: 'python',
+        code: d.code,
+        memory_mb: d.memory_mb,
+        allowed_hosts: d.pyHosts
+          .split('\n')
+          .map((h) => h.trim())
+          .filter(Boolean),
+        params: d.pyParams,
+      };
     }
     return d.mcp ?? {};
   }

@@ -20,11 +20,17 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from forge.admin.service import audit, secrets
 from forge.core.context import Actor
 from forge.core.crypto import Envelope
-from forge.core.db import project_scope
+from forge.core.db import admin_scope, project_scope
 from forge.core.egress import EgressError
 from forge.core.errors import ProblemError
 from forge.core.settings import Settings
-from forge.sandbox.service import SandboxClient, SandboxResult, SandboxUnavailable, check_code
+from forge.sandbox.service import (
+    SandboxClient,
+    SandboxResult,
+    SandboxUnavailable,
+    check_code,
+    within_policy,
+)
 from forge.tools import openapi, runtime, sqlguard
 from forge.tools.models import (
     Credential,
@@ -131,7 +137,12 @@ class PreparedTool:
                 )
             elif isinstance(self.config, PythonConfig):
                 res = await runtime.run_python(
-                    self.config, args, client=self.sandbox, timeout_s=self.timeout_s
+                    self.config,
+                    args,
+                    client=self.sandbox,
+                    timeout_s=self.timeout_s,
+                    allowed_hosts=self.allowed_hosts,
+                    allow_private=self.allow_private,
                 )
             elif isinstance(self.config, SqlConfig):
                 assert self.datasource
@@ -187,12 +198,39 @@ class ToolStudio:
         self._sandbox = SandboxClient.from_settings(settings)
 
     async def run_code(
-        self, code: str, args: dict[str, Any], *, timeout_s: int, memory_mb: int = 128
+        self,
+        code: str,
+        args: dict[str, Any],
+        *,
+        timeout_s: int,
+        memory_mb: int = 128,
+        project_id: uuid.UUID | None = None,
+        allowed_hosts: list[str] | None = None,
     ) -> SandboxResult:
-        """Inline code of a use case `code` node, in the sandbox (E3.4)."""
+        """Inline code of a use case `code` node, in the sandbox (E3.4). `allowed_hosts` are the
+        hosts the node asks to reach; they must be covered by the project's egress policy."""
         if self._sandbox is None:
             raise SandboxUnavailable("The sandbox service is not configured")
-        return await self._sandbox.run(code, args, timeout_s=timeout_s, memory_mb=memory_mb)
+        hosts = allowed_hosts or []
+        if hosts:
+            if project_id is None:
+                raise SandboxUnavailable("A code node with network access needs its project")
+            async with admin_scope(self._sessions) as s:
+                policy = await self._hosts(s, project_id)
+            uncovered = within_policy(hosts, policy)
+            if uncovered:
+                return SandboxResult(
+                    status="invalid",
+                    error=f"{', '.join(uncovered)} not in the project's allowed hosts",
+                )
+        return await self._sandbox.run(
+            code,
+            args,
+            timeout_s=timeout_s,
+            memory_mb=memory_mb,
+            allowed_hosts=hosts,
+            allow_private=self._settings.tools_allow_private_hosts,
+        )
 
     @staticmethod
     async def name_in(s: AsyncSession, item_id: uuid.UUID) -> str | None:

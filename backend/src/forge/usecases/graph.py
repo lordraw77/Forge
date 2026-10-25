@@ -311,6 +311,13 @@ def analyze(graph: dict[str, Any], input_names: list[str]) -> list[Issue]:
             mem = n.get("memory_mb", 128)
             if not isinstance(mem, int) or isinstance(mem, bool) or not 32 <= mem <= 512:
                 bad("bad_code", "memory_mb is a whole number from 32 to 512", nid)
+            hosts = n.get("allowed_hosts", [])
+            if (
+                not isinstance(hosts, list)
+                or len(hosts) > 20
+                or not all(isinstance(h, str) and h.strip() for h in hosts)
+            ):
+                bad("bad_code", "allowed_hosts is a list of up to 20 host names", nid)
         if t == "human_approval" and not n.get("input"):
             bad("missing_input", "An approval node needs the input to review", nid)
         if t in {"human_approval", "agent", "tool", "llm"}:

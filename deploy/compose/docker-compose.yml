@@ -115,6 +115,14 @@ services:
       # "runsc" runs every execution under gVisor (needs runsc registered with the engine).
       SANDBOX_RUNTIME: ${SANDBOX_RUNTIME:-}
       SANDBOX_MAX_CONCURRENCY: ${SANDBOX_MAX_CONCURRENCY:-4}
+      # Executions that are given hosts to reach join this internal network and go out through
+      # the proxy this service runs (port 8091); without it they have no network at all.
+      SANDBOX_NETWORK: forge-sandbox-egress
+      SANDBOX_PROXY_HOST: sandbox
+    networks:
+      default: {}
+      sandbox-egress:
+        aliases: [sandbox]
     group_add: ["${SANDBOX_DOCKER_GID:-0}"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -362,6 +370,13 @@ services:
     depends_on:
       prometheus: { condition: service_healthy }
       loki: { condition: service_started }
+
+networks:
+  # Only the sandbox runner is on it with the throw-away executions that may reach some hosts:
+  # `internal` means no route to anywhere else, so the runner's proxy is the only way out.
+  sandbox-egress:
+    name: forge-sandbox-egress
+    internal: true
 
 volumes:
   db-data:

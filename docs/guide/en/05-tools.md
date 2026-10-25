@@ -83,7 +83,7 @@ For a small calculation or a transformation that no API offers, write a Python f
 2. Declare the **Arguments** (**Add argument**): name, type, description, required.
 3. Set **Memory (MB)** (32 to 512).
 
-The code runs in a throw-away container with **no network, no files, the standard library only**, a memory limit and a time limit. It is meant for pure computation. Python tools need the *sandbox* service, which your administrators enable (chapter 12); without it a Python tool fails and reports that the sandbox service is not available or not configured.
+The code runs in a throw-away container (isolated with gVisor where your administrators enabled it) with **no files, the standard library only**, a memory limit and a time limit, and **no network** unless you list hosts in *Network access*. Each host you list must also be in the project's **Allowed hosts**; the code reaches them over HTTP and HTTPS only (Python's `urllib` does this by itself), and everything else, including private addresses, is refused. It is meant for computation and for small calls to a service you trust. Python tools need the *sandbox* service, which your administrators enable (chapter 12); without it a Python tool fails and reports that the sandbox service is not available or not configured.
 
 ### MCP tools
 

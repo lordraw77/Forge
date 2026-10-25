@@ -6,7 +6,7 @@ RUN groupadd --system --gid 10001 forge \
  && useradd --system --uid 10001 --gid forge --home-dir /app --shell /usr/sbin/nologin forge
 WORKDIR /app
 RUN pip install --no-cache-dir "fastapi==0.143.2" "uvicorn==0.54.0" "httpx==0.28.1"
-COPY server.py /app/server.py
+COPY server.py proxy.py /app/
 # The container engine socket must be readable by this user: run with --group-add <docker gid>
 # (Compose: SANDBOX_DOCKER_GID).
 USER forge

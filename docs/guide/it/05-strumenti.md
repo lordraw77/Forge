@@ -83,7 +83,7 @@ Per un piccolo calcolo o una trasformazione che nessuna API offre, scrivi una fu
 2. Dichiara gli **Argomenti** (**Aggiungi argomento**): nome, tipo, descrizione, obbligatorio.
 3. Imposta la **Memoria (MB)** (da 32 a 512).
 
-Il codice gira in un container usa e getta **senza rete, senza file, con la sola libreria standard**, con un limite di memoria e uno di tempo. È pensato per il calcolo puro. I tool Python richiedono il servizio *sandbox*, che abilitano i tuoi amministratori (capitolo 12); senza di esso un tool Python fallisce e segnala che il servizio sandbox non è disponibile o non è configurato.
+Il codice gira in un container usa e getta (isolato con gVisor dove i tuoi amministratori l'hanno abilitato), **senza file, con la sola libreria standard**, con un limite di memoria e uno di tempo, e **senza rete** a meno che tu elenchi degli host in *Accesso alla rete*. Ogni host elencato deve essere anche tra gli **Host consentiti** del progetto; il codice li raggiunge solo via HTTP e HTTPS (il `urllib` di Python lo fa da solo) e tutto il resto, indirizzi privati compresi, viene rifiutato. È pensato per il calcolo e per piccole chiamate a un servizio di cui ti fidi. I tool Python richiedono il servizio *sandbox*, che abilitano i tuoi amministratori (capitolo 12); senza di esso un tool Python fallisce e segnala che il servizio sandbox non è disponibile o non è configurato.
 
 ### Tool MCP
 

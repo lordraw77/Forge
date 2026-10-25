@@ -329,7 +329,7 @@ class UseCaseRuntime:
     ) -> dict[str, Any]:
         kind = payload["kind"]
         if kind == "code":
-            return await self._code(payload)
+            return await self._code(payload, project_id)
         name, version = _split(str(payload["ref"]))
         if kind == "agent":
             return await self._agent(
@@ -383,7 +383,7 @@ class UseCaseRuntime:
             }
         return {"output": (out["output"] or "").strip(), **usage}
 
-    async def _code(self, payload: dict[str, Any]) -> dict[str, Any]:
+    async def _code(self, payload: dict[str, Any], project_id: uuid.UUID) -> dict[str, Any]:
         """A `code` node: inline Python in the sandbox (E3.4); its return value is the output."""
         try:
             res = await self._tools.run_code(
@@ -391,6 +391,8 @@ class UseCaseRuntime:
                 dict(payload.get("args") or {}),
                 timeout_s=int(payload.get("timeout_s") or 10),
                 memory_mb=int(payload.get("memory_mb") or 128),
+                project_id=project_id,
+                allowed_hosts=list(payload.get("allowed_hosts") or []),
             )
         except SandboxUnavailable as exc:
             return {"error_code": "code_sandbox_unavailable", "error": str(exc)}

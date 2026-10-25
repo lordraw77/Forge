@@ -264,6 +264,7 @@ class Engine:
                     "ref": f"code:{nid}",
                     "code": node["code"],
                     "memory_mb": node.get("memory_mb", 128),
+                    "allowed_hosts": node.get("allowed_hosts") or [],
                     "args": g.render(node.get("args") or {}, self.vars),
                 }
             else:
