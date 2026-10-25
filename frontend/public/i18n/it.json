@@ -1268,6 +1268,14 @@
     "8766986604725685506": "Guida utente",
     "5096495468612049743": "Capitoli",
     "3871356154402153903": "Indice",
-    "233412527888530346": "La guida utente non fa parte di questa installazione."
+    "233412527888530346": "La guida utente non fa parte di questa installazione.",
+    "3067265502146011839": " Ogni progetto ha il suo server MCP. I client accedono con un token API del progetto che ha l'ambito “mcp.invoke”; creane uno in {$START_LINK}Projects Studio → Informazioni{$CLOSE_LINK}. Ciò che il server offre è l'elenco {$START_LINK_1}Esposti{$CLOSE_LINK}. ",
+    "8691538488405108408": "Eseguirlo davvero?",
+    "4573136467179401386": " “{$INTERPOLATION}” viene eseguito ora a tuo nome, non è una simulazione: un agente o un prompt consuma token del modello e uno strumento sui dati legge documenti reali. Eseguirlo? ",
+    "8695884875556055135": "Definisci run(args) e restituisci un valore JSON. Nessun file, solo la libreria standard; nessuna rete a meno che elenchi degli host qui sotto.",
+    "3015064585362221284": "Accesso alla rete (un host per riga, facoltativo)",
+    "1169067153364527568": " Ogni host deve essere anche tra gli host consentiti del progetto. Il codice li raggiunge solo via HTTP e HTTPS (urllib usa il proxy da solo); la sandbox rifiuta tutto il resto, indirizzi privati compresi. ",
+    "6412037697526024235": "Python (sandbox: solo libreria standard, nessuna rete a meno che siano elencati degli host)",
+    "5991631501920693607": "Host raggiungibili (uno per riga, tra gli host consentiti)"
   }
 }

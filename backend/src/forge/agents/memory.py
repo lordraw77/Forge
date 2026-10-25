@@ -26,6 +26,7 @@ from forge.core.errors import ProblemError
 from forge.core.logging import get_logger
 from forge.core.models import utcnow
 from forge.gateway.service import Caller, Gateway
+from forge.guardrails.engine import check_pii, check_secrets
 
 log = get_logger(__name__)
 
@@ -53,6 +54,36 @@ Known facts:
 User: {question}
 Assistant: {answer}
 """
+
+
+# Special categories (GDPR art. 9) and identifiers that must never become a stored fact. The
+# prompt already forbids them; this is the check that does not depend on the model obeying.
+SENSITIVE = re.compile(
+    r"\b("
+    r"health|illness|disease|diagnos\w*|cancer|tumou?r|diabet\w*|depress\w*|pregnan\w*|"
+    r"disabilit\w*|medication|therapy|hiv|mental|"
+    r"salute|malatt\w*|diagnosi|tumore|cancro|depression\w*|gravidanza|incinta|disabilit\w*|"
+    r"farmac\w*|terapia|psichiatr\w*|invalidit\w*|"
+    r"religio\w*|christian|catholic|muslim|islam\w*|jewish|atheis\w*|buddhis\w*|"
+    r"cattolic\w*|musulman\w*|ebre\w*|ateo|cristian\w*|"
+    r"politic\w*|vote[sd]?|voting|party member|trade union|"
+    r"vota\w*|partito|sindacat\w*|elettor\w*|"
+    r"sexual orientation|orientamento sessuale|ethnic\w*|etnia|razza|race|"
+    r"criminal record|casellario|precedenti penali|convict\w*|condann\w*"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def screen(fact: str) -> str | None:
+    """Why a fact may not be stored (a short label, never the text), else None."""
+    if check_pii(fact, {}):
+        return "personal_identifier"
+    if check_secrets(fact, {}):
+        return "secret"
+    if SENSITIVE.search(fact):
+        return "sensitive_category"
+    return None
 
 
 class MemoryOut(BaseModel):
@@ -172,6 +203,13 @@ class LongTermMemory:
         )
         choice = ((response.body or {}).get("choices") or [{}])[0]
         facts = parse_facts(str((choice.get("message") or {}).get("content") or ""))
+        kept: list[str] = []
+        for fact in facts:
+            if reason := screen(fact):
+                log.info("agents.memory_fact_dropped", reason=reason, agent=str(agent_id))
+            else:
+                kept.append(fact)
+        facts = kept
         if not facts:
             return 0
         vectors = await self._embed(caller, cfg.embedding_model, facts)

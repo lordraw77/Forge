@@ -214,7 +214,7 @@ def create_app(settings: Settings | None = None, *, gateway_backoff_s: float = 0
             tools=tools,
             usecases=usecases,
             usecase_runs=usecase_runs,
-            triggers=Triggers(app.state.sessions, usecase_runs),
+            triggers=Triggers(app.state.sessions, usecase_runs, app.state.redis),
             memory=LongTermMemory(app.state.sessions, gateway),
             mcp=McpEndpoint(app.state.sessions, agents, rag.studio, prompts),
             mcp_exposures=McpExposures(app.state.sessions),

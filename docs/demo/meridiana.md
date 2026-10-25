@@ -53,7 +53,7 @@ The Super Admin who runs the script owns the project.
 | Data | Collection of 8 documents: Auto and Home conditions, claims guide, FAQ, deductibles table, hail guidelines, privacy notice, and the internal liquidation procedure. The procedure is visible to *Liquidatori Auto* and *Compliance e Legale* only, the hail guidelines to *Liquidatori Auto* and *Contact Center* |
 | RAG | Pipeline *Ricerca condizioni e procedure* (hybrid, top 5), answers with citations |
 | Prompts | Claim classification (JSON), customer letter, case summary, and the instructions of both agents |
-| Tools | `geocodifica_localita` and `meteo_storico` (HTTP, egress allow-list on the two Open-Meteo hosts) |
+| Tools | `geocodifica_localita` and `meteo_storico` (HTTP, egress allow-list on the two Open-Meteo hosts) and `coordinate_comune_python` (Python in the sandbox, network limited to the geocoding host) |
 | Agents | *Assistente liquidatori* (RAG + both tools + clock, long-term memory) and *Assistente portale clienti* (RAG only) |
 | Guardrails | Fiscal code, IBAN, card, phone and email masked before any model; prompt injection and secrets blocked |
 | Use cases | *Istruttoria sinistro con approvazione* (classify, adjuster agent, router on 1,500 euro, human approval by *Liquidatore*, customer letter, DOCX) and *Controllo meteo eventi diffusi* (loop over cities) |
@@ -64,7 +64,7 @@ The Super Admin who runs the script owns the project.
 
 ## A walk through
 
-1. **Sign in as chiara.moretti**, open *Approvals*: one claim (hail in Bologna, 3,200 euro) waits for her. Open it, read the adjuster's proposal and approve or reject.
+1. **Sign in as chiara.moretti**, open *Approvals*: one claim (hail in Bologna, 3,200 euro) waits for her until someone decides it (the seed leaves it pending; run the `usecases` and `activity` stages on a fresh project to get another). Open it, read the adjuster's proposal and approve or reject.
 2. **Use Cases Catalog**: run *Istruttoria sinistro con approvazione* with a small amount (no approval) and with a large one (the run pauses, the approval appears).
 3. **Agentic AI Studio → Chat** with *Assistente liquidatori*: ask about the deductible for a theft, then about hail on 2026-07-02 in Bologna (the agent geocodes and checks the real weather, then compares with the 10 mm / 60 km/h thresholds).
 4. **Sign in as davide.conti** and chat with *Assistente portale clienti*; write a fiscal code in the message and look at *Governance → Guardrails* afterwards: the event is logged, the text never reached the model.
@@ -79,7 +79,7 @@ The Super Admin who runs the script owns the project.
 
 - **E-mail for approvals**: SMTP is a platform setting; configure it in *Super Admin → Email* to receive approval links.
 - **Scheduled RAG sources**: the S3, URL, Git and file-system connectors need a source the demo cannot assume (private hosts are refused by default).
-- **Python and SQL tools, sandbox**: they need the sandbox runner (`make sandbox/up`) and a database to point at.
+- **SQL tools**: they need a database to point at. The widget is attached to the portal agent only because a widget accepts agents that just search documents.
 - **Single sign-on**: needs a directory (`compose --profile idp-test` provides an OpenLDAP).
 
 ## Notes

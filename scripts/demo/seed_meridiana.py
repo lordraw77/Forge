@@ -485,6 +485,33 @@ TOOLS = [
 ]
 
 
+TOOLS.append(
+    {
+        "name": "coordinate_comune_python",
+        "description": "Coordinate di un comune, calcolate in Python nella sandbox (gVisor) con "
+        "accesso di rete limitato al servizio di geocodifica.",
+        "config": {
+            "kind": "python",
+            "code": (
+                "import urllib.request, json\n"
+                "def run(args):\n"
+                '    url = "https://geocoding-api.open-meteo.com/v1/search?count=1&name=" '
+                '+ args["comune"]\n'
+                "    with urllib.request.urlopen(url, timeout=8) as r:\n"
+                '        hit = json.load(r)["results"][0]\n'
+                '    return {"comune": hit["name"], "lat": hit["latitude"], '
+                '"lon": hit["longitude"], "provincia": hit.get("admin2")}\n'
+            ),
+            "allowed_hosts": ["geocoding-api.open-meteo.com"],
+            "params": [
+                {"name": "comune", "type": "string", "required": True,
+                 "description": "Nome del comune"}
+            ],
+        },
+    }
+)
+
+
 def stage_tools(api: Api) -> None:
     print("tools")
     base = STATE["base"]

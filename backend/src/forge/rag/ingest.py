@@ -45,6 +45,12 @@ EMBED_BATCH = 32
 CHUNK_NAMESPACE = uuid.UUID("6f0c2a52-6d0e-4f1f-9d9e-8a3c1f7b2e41")
 # Documents indexed at once while a knowledge base is built (a sliding window, not batches).
 KB_PARALLELISM = 16
+# A knowledge-base build hands documents to the worker in batches: every Temporal round trip and
+# database session per document costs about 100 ms, which dominated one-page documents. A batch
+# runs inside one activity, a few documents at a time; BATCHES batches run in parallel.
+KB_BATCH = 8
+KB_BATCH_INNER = 4
+KB_BATCHES = 4
 
 
 def chunk_id(
@@ -274,6 +280,33 @@ class IngestActivities:
                 )
         return counts
 
+    @activity.defn(name="rag.index_batch")
+    async def index_batch(
+        self, project_id: str, kb_id: str, document_ids: list[str]
+    ) -> dict[str, int]:
+        """Index and settle several documents of a knowledge-base build in one activity. A failing
+        document is marked failed (like `_index` does) and does not stop the others."""
+        window = asyncio.Semaphore(KB_BATCH_INNER)
+        failed = 0
+
+        async def one(d: str) -> None:
+            nonlocal failed
+            async with window:
+                try:
+                    await self.index_document(project_id, d, kb_id, True)
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    failed += 1
+                    await self.mark_ingestion_failed(
+                        project_id, d, kb_id, str(exc) or type(exc).__name__
+                    )
+                await self.finish_document(project_id, d, None)
+                activity.heartbeat(d)
+
+        await asyncio.gather(*(one(d) for d in document_ids))
+        return {"documents": len(document_ids), "failed": failed}
+
     # ------------------------------------------------------------ bookkeeping
     @activity.defn(name="rag.mark_ingestion_failed")
     async def mark_ingestion_failed(
@@ -310,6 +343,15 @@ class IngestActivities:
             else:
                 doc.status, doc.error, doc.failed_at = "ready", None, None
             return str(doc.status)
+
+    @activity.defn(name="rag.finish_ingest")
+    async def finish_ingest(self, project_id: str, document_id: str, kb_ids: list[str]) -> str:
+        """`finish_document`, then `finish_kb` for each knowledge base the document went into:
+        a knowledge base created while the document was parsed may otherwise stay `building`."""
+        status = await self.finish_document(project_id, document_id, None)
+        for kb in kb_ids:
+            await self.finish_kb(project_id, kb)
+        return status
 
     @activity.defn(name="rag.kb_documents")
     async def kb_documents(self, project_id: str, kb_id: str) -> list[str]:
@@ -362,8 +404,10 @@ class IngestActivities:
         return [
             self.parse_document,
             self.index_document,
+            self.index_batch,
             self.mark_ingestion_failed,
             self.finish_document,
+            self.finish_ingest,
             self.kb_documents,
             self.finish_kb,
         ]
@@ -413,6 +457,9 @@ class IngestDocumentWorkflow:
         except ActivityError as err:
             return str(await _run("rag.finish_document", [pid, did, _reason(err)], "quick"))
         await asyncio.gather(*(_index(pid, did, kb) for kb in kb_ids))
+        if workflow.patched("finish-ingest"):
+            # One round trip instead of one per knowledge base plus one for the document
+            return str(await _run("rag.finish_ingest", [pid, did, kb_ids], "quick"))
         status = str(await _run("rag.finish_document", [pid, did, None], "quick"))
         # A knowledge base created while this document was being parsed starts its own workflow,
         # which may end before this index does and leave the base `building`: settle it here.
@@ -427,6 +474,17 @@ class IndexKnowledgeBaseWorkflow:
     async def run(self, payload: dict[str, str]) -> str:
         pid, kid = payload["project_id"], payload["kb_id"]
         docs: list[str] = await _run("rag.kb_documents", [pid, kid], "quick")
+        if workflow.patched("kb-batches"):
+            gate = asyncio.Semaphore(KB_BATCHES)
+
+            async def batch(ids: list[str]) -> None:
+                async with gate:
+                    await _run("rag.index_batch", [pid, kid, ids], "index")
+
+            await asyncio.gather(
+                *(batch(docs[i : i + KB_BATCH]) for i in range(0, len(docs), KB_BATCH))
+            )
+            return str(await _run("rag.finish_kb", [pid, kid], "quick"))
         window = asyncio.Semaphore(KB_PARALLELISM)
 
         async def one(d: str) -> None:

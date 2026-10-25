@@ -116,7 +116,9 @@ test.describe('Phase 3 screens', () => {
     await page.locator('#trg-name').fill('CRM hook');
     await pickOption(page, 'trg-kind', /Inbound URL/);
     await page.getByTestId('trigger-save').click();
-    await expect(page.getByTestId('trigger-url')).toHaveValue(/\/api\/v1\/triggers\/[A-Za-z0-9_-]{20,}/);
+    await expect(page.getByTestId('trigger-url')).toHaveValue(
+      /\/api\/v1\/triggers\/[A-Za-z0-9_-]{20,}/,
+    );
     await page.getByRole('button', { name: 'Done' }).click();
 
     // ---- Pause and resume, rotate, delete
@@ -195,8 +197,12 @@ test.describe('Phase 3 screens', () => {
     await expect(page).toHaveURL(/\/agents\/chat\?agent=[0-9a-f-]+$/);
     const agentId = new URL(page.url()).searchParams.get('agent')!;
     expect(
-      (await api.post(`/api/v1/projects/${projectId}/agents/${agentId}/publish`, { headers, data: {} }))
-        .status(),
+      (
+        await api.post(`/api/v1/projects/${projectId}/agents/${agentId}/publish`, {
+          headers,
+          data: {},
+        })
+      ).status(),
     ).toBe(200);
 
     // ---- Chat memory panel (E3.6): present, empty for a new agent
@@ -232,7 +238,10 @@ test.describe('Phase 3 screens', () => {
     expect(js.headers()['content-type']).toContain('javascript');
     const ok = await anon.get(`/api/v1/widget/${key}/config`, { headers: { Origin: origin } });
     expect(ok.status()).toBe(200);
-    expect(await ok.json()).toMatchObject({ title: 'Returns help', welcome: 'Ask me about returns.' });
+    expect(await ok.json()).toMatchObject({
+      title: 'Returns help',
+      welcome: 'Ask me about returns.',
+    });
     const denied = await anon.get(`/api/v1/widget/${key}/config`, {
       headers: { Origin: 'https://evil.example.com' },
     });
@@ -255,7 +264,11 @@ test.describe('Phase 3 screens', () => {
     // ---- Delete
     await page.goto('/projects/integrations');
     page.once('dialog', (d) => void d.accept());
-    await page.getByRole('row').filter({ hasText: 'Help bubble' }).getByRole('button', { name: 'Delete' }).click();
+    await page
+      .getByRole('row')
+      .filter({ hasText: 'Help bubble' })
+      .getByRole('button', { name: 'Delete' })
+      .click();
     await expect(page.getByText('No widgets yet.')).toBeVisible();
     expect(errors).toEqual([]);
   });

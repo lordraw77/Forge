@@ -12,6 +12,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Any, Literal
 
+import redis.asyncio as redis
 import structlog
 from pydantic import Field, model_validator
 from sqlalchemy import select
@@ -24,6 +25,8 @@ from forge.core.crypto import random_token, sha256
 from forge.core.db import admin_scope, project_scope
 from forge.core.errors import ProblemError
 from forge.core.models import utcnow
+from forge.iam.models import User
+from forge.tenancy.models import Membership, RoleName, RoleType
 from forge.usecases.cron import Cron, CronError
 from forge.usecases.models import UseCase, UseCaseTrigger
 from forge.usecases.runs import UseCaseRuns
@@ -35,6 +38,7 @@ NOT_FOUND = ProblemError(404, "not_found", "Trigger not found")
 TICK_S = 20
 CLAIM_BATCH = 20
 MAX_FAILURES = 5
+WEBHOOK_PER_MINUTE = 30  # calls per minute and token; more answer 429
 TOKEN_PREFIX = "ft_"  # noqa: S105 - a public prefix, not a secret
 
 
@@ -140,7 +144,13 @@ def _describe(exc: ProblemError) -> str:
 
 
 class Triggers:
-    def __init__(self, sessions: async_sessionmaker[AsyncSession], runs: UseCaseRuns) -> None:
+    def __init__(
+        self,
+        sessions: async_sessionmaker[AsyncSession],
+        runs: UseCaseRuns,
+        cache: redis.Redis | None = None,
+    ) -> None:
+        self._redis = cache
         self._sessions = sessions
         self._runs = runs
 
@@ -245,6 +255,8 @@ class Triggers:
             if body.enabled is not None:
                 if body.enabled and not row.enabled:
                     row.failures = 0
+                    if actor.id is not None:
+                        row.created_by = actor.id  # turning it on takes it over
                     schedule_changed = True
                 row.enabled = body.enabled
             if schedule_changed and row.enabled:
@@ -301,8 +313,53 @@ class Triggers:
             return self._out(row, token)
 
     # ------------------------------------------------------------------ firing
+    async def _creator_may_build(self, row: UseCaseTrigger) -> bool:
+        """Whether the user a trigger runs as still exists, is active and may build use cases in
+        the project (a Super Admin always may). Checked at every firing, so a trigger never
+        outlives the access of the person it acts for."""
+        async with admin_scope(self._sessions) as s:
+            user = await s.get(User, row.created_by)
+            if user is None or user.status != "active":
+                return False
+            if user.is_super_admin:
+                return True
+            perms = (
+                await s.execute(
+                    select(RoleType.permissions, RoleName.status)
+                    .join(RoleName, RoleName.role_type_id == RoleType.id)
+                    .join(Membership, Membership.role_name_id == RoleName.id)
+                    .where(Membership.project_id == row.project_id, Membership.user_id == user.id)
+                )
+            ).first()
+        return bool(perms and perms[1] == "active" and "usecase.build" in perms[0])
+
+    async def _limit_webhook(self, row: UseCaseTrigger) -> None:
+        if self._redis is None:
+            return
+        key = f"trigger:rl:{row.id}"
+        try:
+            used = await self._redis.incr(key)
+            if used == 1:
+                await self._redis.expire(key, 60)
+        except redis.RedisError as exc:  # fail open: the platform limits still apply
+            log.warning("usecase.trigger_ratelimit_unavailable", error=str(exc))
+            return
+        if used > WEBHOOK_PER_MINUTE:
+            raise ProblemError(429, "rate_limited", "Too many calls to this trigger; wait a moment")
+
     async def _fire(self, row: UseCaseTrigger, extra: dict[str, Any]) -> uuid.UUID:
         """Start the run. Raises what `UseCaseRuns.start` raises."""
+        if not await self._creator_may_build(row):
+            if row.kind != "webhook":  # a schedule stops at once; an inbound URL just refuses
+                async with admin_scope(self._sessions) as s:
+                    fresh = await s.get(UseCaseTrigger, row.id)
+                    if fresh is not None:
+                        fresh.enabled, fresh.next_run_at = False, None
+            raise ProblemError(
+                409,
+                "trigger_owner_lost_access",
+                "The person this trigger runs as no longer has access; edit it to take it over",
+            )
         actor = Actor(id=row.created_by, label=f"trigger:{row.id}")
         started = await self._runs.start(
             actor,
@@ -372,6 +429,7 @@ class Triggers:
             if row is None or not row.enabled or row.kind != "webhook":
                 raise ProblemError(404, "not_found", "Unknown trigger")
             s.expunge(row)
+        await self._limit_webhook(row)
         return FireOut(run_id=await self._run(row, body.inputs), status="queued")
 
     # ------------------------------------------------------------------ scheduler

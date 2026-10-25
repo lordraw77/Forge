@@ -59,19 +59,40 @@ test.describe('demo project Meridiana', () => {
   });
 
   test('prompts, tools, agents', async () => {
-    await visit('/prompts/library', '07-prompts', 'Classificazione denuncia di sinistro', 'Bozza di risposta al cliente');
+    await visit(
+      '/prompts/library',
+      '07-prompts',
+      'Classificazione denuncia di sinistro',
+      'Bozza di risposta al cliente',
+    );
     await visit('/tools/library', '08-tools', 'meteo_storico', 'geocodifica_localita');
-    await visit('/agents/library', '09-agents', 'Assistente liquidatori', 'Assistente portale clienti');
+    await visit(
+      '/agents/library',
+      '09-agents',
+      'Assistente liquidatori',
+      'Assistente portale clienti',
+    );
     await visit('/agents/runs', '10-agent-runs', /grandine|furto|antifrode/i);
   });
 
   test('use cases, approvals, triggers', async () => {
-    await visit('/catalog', '11-catalog', 'Istruttoria sinistro con approvazione', 'Controllo meteo eventi diffusi');
+    await visit(
+      '/catalog',
+      '11-catalog',
+      'Istruttoria sinistro con approvazione',
+      'Controllo meteo eventi diffusi',
+    );
     await visit('/catalog/runs', '12-catalog-runs', 'Istruttoria sinistro con approvazione');
-    await visit('/approvals', '13-approvals', 'Istruttoria sinistro con approvazione');
+    // The seed leaves one approval pending, but someone may have decided it by now
+    await visit('/approvals', '13-approvals', 'Approvals');
     await visit('/build/library', '14-build', 'Istruttoria sinistro con approvazione');
     await page.getByRole('link', { name: 'Triggers' }).first().click();
-    await expect(page.getByText('Controllo meteo ore 7:30').or(page.getByText('Portale denunce online')).first()).toBeVisible();
+    await expect(
+      page
+        .getByText('Controllo meteo ore 7:30')
+        .or(page.getByText('Portale denunce online'))
+        .first(),
+    ).toBeVisible();
     await page.screenshot({ path: 'e2e/.results/demo/15-triggers.png' });
   });
 

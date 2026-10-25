@@ -186,3 +186,51 @@ def test_schedule_is_disabled_after_repeated_failures(
     assert back["enabled"]
     assert back["failures"] == 0
     assert back["next_run_at"]
+
+
+def test_inbound_url_is_rate_limited(
+    granted: dict[str, Any], client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("forge.usecases.triggers.WEBHOOK_PER_MINUTE", 2)
+    uc = published(granted)
+    t = post(granted, uc["id"], {"name": "limited", "kind": "webhook", "inputs": {"topic": "x"}})
+    anon = new_client(client)
+    assert anon.post(f"/api/v1/triggers/{t['token']}").status_code == 202
+    assert anon.post(f"/api/v1/triggers/{t['token']}").status_code == 202
+    third = anon.post(f"/api/v1/triggers/{t['token']}")
+    assert third.status_code == 429
+    assert third.json()["code"] == "rate_limited"
+
+
+def test_trigger_stops_when_its_owner_loses_the_right_to_build(
+    granted: dict[str, Any], client: TestClient
+) -> None:
+    ctx, b = granted, granted["builder"]
+    uc = published(ctx)
+    schedule = post(ctx, uc["id"], {"name": "s", "kind": "interval", "interval_minutes": 5})
+    hook = post(ctx, uc["id"], {"name": "h", "kind": "webhook", "inputs": {"topic": "x"}})
+    # Hand both to a user who may only run use cases, as if the Builder had been demoted
+    admin_rows(
+        client,
+        f"UPDATE use_case_trigger SET created_by = '{ctx['end_user_id']}' "
+        f"WHERE use_case_id = '{uc['id']}' RETURNING 1",
+    )
+    admin_rows(
+        client,
+        f"UPDATE use_case_trigger SET next_run_at = now() - interval '1 minute' "
+        f"WHERE id = '{schedule['id']}' RETURNING 1",
+    )
+    fire_due(client)
+    rows = {x["id"]: x for x in ok(b.get(f"{ctx['base']}/triggers"))}
+    assert rows[schedule["id"]]["enabled"] is False  # stopped at once, not after five failures
+    assert "no longer has access" in rows[schedule["id"]]["last_error"]
+    anon = new_client(client)
+    refused = anon.post(f"/api/v1/triggers/{hook['token']}")
+    assert refused.status_code == 409
+    assert refused.json()["code"] == "trigger_owner_lost_access"
+    # A Builder who turns it on takes it over and it runs again
+    back = ok(
+        b.patch(f"{ctx['base']}/triggers/{schedule['id']}", headers=csrf(b), json={"enabled": True})
+    )
+    assert back["enabled"]
+    assert back["next_run_at"]
