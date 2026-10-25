@@ -40,3 +40,4 @@ sandbox/proxy.py
 
 # Lab vault: unseal keys and root token
 deploy/vault/init.json
+graphify-out/
