@@ -47,6 +47,8 @@ test.describe('platform core (M1.1)', () => {
     const notice = await page.getByTestId('notice').innerText();
     const temp = notice.split(': ').pop()!.trim();
     expect(temp).toMatch(/^[A-Za-z0-9]{20}$/);
+    // The list shows the first 200 users by name and the dev database holds more: search for it.
+    await page.getByPlaceholder('Search').fill(username);
     await expect(page.locator(`[data-user="${username}"]`)).toBeVisible();
 
     await page.getByTestId('profile-menu').click();

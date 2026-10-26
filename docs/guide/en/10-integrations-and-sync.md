@@ -65,7 +65,7 @@ The tab shows the **Endpoint** (marker 1), the address clients connect to, and r
 
 A **widget** puts a chat bubble on **another website**, connected to **one published agent**. Visitors need no account.
 
-> **Only agents that search documents.** Visitors are strangers and the conversation runs with *your* rights, so a widget accepts only an agent whose tools are document search (RAG) and which has no long-term memory. Forge refuses any other agent when you save the widget (the message names what to remove), and stops answering if the agent is later republished with another tool.
+> **Choose the agent with care.** Visitors are strangers and the conversation runs with *your* rights. Forge accepts any published agent, but an agent with tools that act on someone's behalf can be driven by a stranger, and long-term memory is shared by every visitor. Prefer an agent that only searches public documents.
 
 Open **Projects Studio → Integrations**.
 

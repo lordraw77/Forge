@@ -56,7 +56,7 @@ Measured with `FORGE_PERF=1 scripts/test-integration.sh tests/integration/test_p
 
 ## Security review
 
-Dependency audit (2026-10-21): `pip-audit` found `certifi` (fixed by upgrade) and 8 Pillow CVEs (TIFF, GIF, PPM, EPS decoders) that need Pillow 13; **docling-slim pins `pillow<13`**, so they stay until Docling moves. Exposure: uploads accept only PNG and JPG (content sniffing), so those decoders are not reachable from a file upload. `npm audit` (production): 0. License check: 143 backend and 60 frontend packages pass.
+Dependency audit (2026-10-21): `pip-audit` found `certifi` (fixed by upgrade) and 8 Pillow CVEs (TIFF, GIF, PPM, EPS decoders) that need Pillow 13; **docling-slim pins `pillow<13`**, so they stay until Docling moves (PO, 2026-10-26: accepted as is; upgrade Pillow when Docling allows it). Exposure: uploads accept only PNG and JPG (content sniffing), so those decoders are not reachable from a file upload. `npm audit` (production): 0. License check: 143 backend and 60 frontend packages pass.
 
 Code review of the uncommitted M2.6 work (dashboards, scheduled sources): one finding.
 

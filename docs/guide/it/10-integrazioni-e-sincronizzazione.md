@@ -65,7 +65,7 @@ La scheda mostra l'**Endpoint** (indicatore 1), l'indirizzo a cui si collegano i
 
 Un **widget** mette una bolla di chat in **un altro sito web**, collegata a **un agente pubblicato**. I visitatori non hanno bisogno di un account.
 
-> **Solo agenti che cercano nei documenti.** I visitatori sono sconosciuti e la conversazione gira con *i tuoi* diritti, quindi un widget accetta solo un agente i cui strumenti sono la ricerca nei documenti (RAG) e che non ha memoria a lungo termine. Forge rifiuta qualsiasi altro agente quando salvi il widget (il messaggio dice cosa togliere) e smette di rispondere se l'agente viene ripubblicato con un altro strumento.
+> **Scegli l'agente con attenzione.** I visitatori sono sconosciuti e la conversazione gira con *i tuoi* diritti. Forge accetta qualsiasi agente pubblicato, ma un agente con strumenti che agiscono per conto di qualcuno può essere guidato da un estraneo, e la memoria a lungo termine è condivisa da tutti i visitatori. Preferisci un agente che cerca solo in documenti pubblici.
 
 Apri **Projects Studio → Integrazioni**.
 
