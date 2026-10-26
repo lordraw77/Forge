@@ -942,3 +942,33 @@ def admin_rows_exec(client: TestClient, statement: str) -> None:
             await s.execute(text(statement))
 
     client.portal.call(go)  # type: ignore[attr-defined]
+
+
+def test_builders_chat_on_the_published_version_unless_they_pick_another(
+    env: dict[str, Any],
+) -> None:
+    p = make_prompt(env)
+    a = make_agent(env, p["id"])
+    c, base = env["owner"], env["base"]
+    publish(env, a["id"])
+    ok(
+        c.post(
+            f"{base}/agents/{a['id']}/versions",
+            headers=csrf(c),
+            json={"config": {"prompt": {"prompt_id": p["id"], "version": 1}, "tools": []}},
+        ),
+        201,
+    )
+
+    def open_chat(**extra: Any) -> Any:
+        return ok(
+            c.post(
+                f"{base}/conversations",
+                headers=csrf(c),
+                json={"agent_id": a["id"]} | extra,
+            ),
+            201,
+        )
+
+    assert open_chat()["agent_version"] == 1  # the published one, not the newer draft
+    assert open_chat(version=2)["agent_version"] == 2

@@ -22,6 +22,7 @@ import { firstValueFrom } from 'rxjs';
 import {
   AgentCitation,
   AgentsService,
+  AgentVersionOut,
   AvailableAgent,
   ConversationOut,
   MemoryOut,
@@ -85,6 +86,20 @@ interface Turn {
         <ng-template #noAgents>
           <span class="muted" i18n>No agent is published yet.</span>
         </ng-template>
+        @if (versions().length > 1) {
+          <label for="chat-version" class="muted small" i18n>Version</label>
+          <nz-select
+            nzId="chat-version"
+            data-testid="chat-version"
+            [ngModel]="version()"
+            (ngModelChange)="version.set($event)"
+            [nzDisabled]="!!conversationId()"
+          >
+            @for (v of versions(); track v.version) {
+              <nz-option [nzValue]="v.version" [nzLabel]="versionLabel(v)" />
+            }
+          </nz-select>
+        }
         <button nz-button [disabled]="!agentId()" (click)="newChat()" data-testid="chat-new">
           <nz-icon nzType="plus" /><span i18n>New chat</span>
         </button>
@@ -116,7 +131,7 @@ interface Turn {
             (click)="open(c.id)"
             [attr.data-testid]="'chat-conversation'"
           >
-            {{ c.title || '…' }}
+            {{ c.title || '…' }} <span class="muted small">v{{ c.agent_version }}</span>
           </button>
         }
       </aside>
@@ -322,6 +337,9 @@ export class AgentChat {
   protected readonly agents = signal<AvailableAgent[]>([]);
   protected readonly agentId = signal<string | null>(null);
   protected readonly memories = signal<MemoryOut[]>([]);
+  protected readonly versions = signal<AgentVersionOut[]>([]);
+  /** The version a new chat starts on; Builders only (everyone else gets the published one). */
+  protected readonly version = signal<number | null>(null);
   protected readonly conversations = signal<ConversationOut[]>([]);
   protected readonly conversationId = signal<string | null>(null);
   protected readonly turns = signal<Turn[]>([]);
@@ -401,6 +419,7 @@ export class AgentChat {
     this.busy.set(false);
     const projectId = this.projectId();
     if (!projectId) return;
+    await this.loadVersions(projectId, agentId);
     try {
       const list = await firstValueFrom(
         this.api.listConversations({ projectId, agentId, limit: 30 }),
@@ -411,6 +430,29 @@ export class AgentChat {
     } catch (e) {
       this.message.set({ ok: false, text: problemMessage(e) });
     }
+  }
+
+  private async loadVersions(projectId: string, agentId: string): Promise<void> {
+    this.versions.set([]);
+    this.version.set(null);
+    if (!this.session.can('asset.write')) return;
+    try {
+      const list = await firstValueFrom(this.api.listAgentVersions({ projectId, agentId }));
+      if (this.agentId() !== agentId) return;
+      const sorted = [...list].sort((a, b) => b.version - a.version);
+      this.versions.set(sorted);
+      // Same default as the server: the published version, else the latest.
+      this.version.set(
+        sorted.find((v) => v.tags.includes('prod'))?.version ?? sorted[0]?.version ?? null,
+      );
+    } catch {
+      // the picker is a convenience: without it the server default applies
+    }
+  }
+
+  protected versionLabel(v: AgentVersionOut): string {
+    const tags = v.tags.join(', ');
+    return tags ? `v${v.version} · ${tags}` : `v${v.version}`;
   }
 
   protected newChat(): void {
@@ -430,6 +472,8 @@ export class AgentChat {
         this.api.getConversation({ projectId, conversationId: id }),
       );
       this.conversationId.set(id);
+      const opened = this.conversations().find((c) => c.id === id);
+      if (opened && this.versions().length) this.version.set(opened.agent_version);
       const turns: Turn[] = [];
       for (const m of detail.messages) {
         if (m.role === 'user') {
@@ -480,7 +524,10 @@ export class AgentChat {
       let conversation = this.conversationId();
       if (!conversation) {
         const created = await firstValueFrom(
-          this.api.createConversation({ projectId, conversationIn: { agent_id: agentId } }),
+          this.api.createConversation({
+            projectId,
+            conversationIn: { agent_id: agentId, version: this.version() ?? undefined },
+          }),
         );
         conversation = created.id;
         this.conversationId.set(conversation);

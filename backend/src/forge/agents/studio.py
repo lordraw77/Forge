@@ -826,7 +826,7 @@ class AgentStudio:
             a = await self._agent(s, body.agent_id)
             tags = (await self._tags(s, [a.id]))[a.id]
             if is_builder:
-                number = body.version or a.latest_version
+                number = body.version or tags.get("prod") or a.latest_version
             else:
                 if "prod" not in tags:
                     raise ProblemError(409, "agent_not_published", "The agent is not published yet")

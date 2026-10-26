@@ -207,7 +207,12 @@ class AvailableAgent(Out):
 class ConversationIn(In):
     agent_id: uuid.UUID
     version: int | None = Field(
-        default=None, ge=1, description="Builders may pick a version; others get the published one"
+        default=None,
+        ge=1,
+        description=(
+            "Builders may pick a version (default: the published one, else the latest);"
+            " others get the published one"
+        ),
     )
     title: str = Field(default="", max_length=200)
 
