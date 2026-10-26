@@ -15,6 +15,7 @@ from typing import Any
 import httpx
 
 TERMINAL = frozenset({"succeeded", "failed", "cancelled"})
+TAG_COLLECTIONS = {"prompt": "prompts", "rag": "rag", "agent": "agents"}
 
 
 class ForgeError(Exception):
@@ -197,6 +198,30 @@ class ForgeClient:
             time.sleep(poll)
             run = self.get_run(run["id"])
         return run
+
+    # ---- promotion: the staging / prod tags
+    def set_tag(self, kind: str, asset: str, tag: str, version: int) -> dict[str, Any]:
+        """Move `staging` or `prod` of a prompt, RAG pipeline or agent (by name or id) to a version."""
+        collection = self._tag_collection(kind)
+        return self._request(  # type: ignore[no-any-return]
+            "PUT",
+            self._project(f"/{collection}/{self._asset_id(collection, asset)}/tags/{tag}"),
+            json={"version": version},
+        )
+
+    def remove_tag(self, kind: str, asset: str, tag: str) -> dict[str, Any]:
+        collection = self._tag_collection(kind)
+        return self._request(  # type: ignore[no-any-return]
+            "DELETE", self._project(f"/{collection}/{self._asset_id(collection, asset)}/tags/{tag}")
+        )
+
+    def _tag_collection(self, kind: str) -> str:
+        try:
+            return TAG_COLLECTIONS[kind]
+        except KeyError:
+            raise ForgeError(
+                400, "bad_kind", f"Unknown asset kind '{kind}'", "use prompt, rag or agent"
+            ) from None
 
     # ---- evaluations (E3.2)
     def _asset_id(self, collection: str, name_or_id: str) -> str:

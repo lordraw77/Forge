@@ -3,6 +3,7 @@
     forgectl export DIR           write the project's assets as files (for Git)
     forgectl diff DIR             what applying DIR would change
     forgectl apply DIR            import what changed
+    forgectl publish KIND ASSET   move the staging / prod tag of a prompt, RAG pipeline or agent
     forgectl run USE_CASE         run a published use case
     forgectl eval DATASET TARGET  evaluate a prompt or RAG pipeline on a dataset (CI gate)
     forgectl chat MODEL "text"    one call through the OpenAI-compatible gateway
@@ -109,6 +110,23 @@ def cmd_apply(args: argparse.Namespace, out: TextIO) -> int:
     items = report["items"] if report else []
     failed = [i for i in items if i["action"] in ("error", "forbidden")]
     return 1 if failed else 0
+
+
+def cmd_publish(args: argparse.Namespace, out: TextIO) -> int:
+    if not args.remove and not args.version:
+        raise ForgeError(400, "missing_version", "--version is required (or use --remove)")
+    client = _client(args)
+    if args.remove:
+        detail = client.remove_tag(args.kind, args.asset, args.tag)
+        done = f"removed {args.tag} from {args.asset}"
+    else:
+        detail = client.set_tag(args.kind, args.asset, args.tag, args.version)
+        done = f"{args.asset}: {args.tag} -> v{args.version}"
+    if args.json:
+        _print_json(out, detail)
+    else:
+        out.write(done + "\n")
+    return 0
 
 
 def _parse_inputs(pairs: Sequence[str], json_file: str | None) -> dict[str, Any]:
@@ -236,6 +254,14 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--policy", choices=["new_version", "rename", "skip"], default="new_version")
     a.add_argument("--dry-run", action="store_true", help="report only, change nothing")
     a.set_defaults(func=cmd_apply)
+
+    pb = sub.add_parser("publish", help="move the staging / prod tag of an asset to a version")
+    pb.add_argument("kind", choices=["prompt", "rag", "agent"])
+    pb.add_argument("asset", help="name or id")
+    pb.add_argument("--version", type=int, help="the version the tag should point to")
+    pb.add_argument("--tag", choices=["staging", "prod"], default="prod")
+    pb.add_argument("--remove", action="store_true", help="remove the tag instead of moving it")
+    pb.set_defaults(func=cmd_publish)
 
     r = sub.add_parser("run", help="run a published use case")
     r.add_argument("use_case", help="name or id")

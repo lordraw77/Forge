@@ -214,3 +214,34 @@ def test_missing_settings_and_bad_inputs_exit_2(
     with pytest.raises(ForgeError):
         cli._parse_inputs(["novalue"], None)
     assert cli._parse_inputs(["a=1", "b=x=y"], None) == {"a": "1", "b": "x=y"}
+
+
+def test_publish_moves_and_removes_tags_by_name() -> None:
+    calls: list[tuple[str, str, Any]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append((request.method, request.url.path, json.loads(request.content or "null")))
+        if request.method == "GET":
+            return httpx.Response(200, json={"items": [{"id": "a1", "name": "Triage"}]})
+        return httpx.Response(200, json={"id": "a1"})
+
+    c = client_for(handler)
+    c.set_tag("agent", "Triage", "staging", 3)
+    assert calls[-1] == ("PUT", "/api/v1/projects/p1/agents/a1/tags/staging", {"version": 3})
+    c.remove_tag("agent", "Triage", "prod")
+    assert calls[-1][:2] == ("DELETE", "/api/v1/projects/p1/agents/a1/tags/prod")
+    with pytest.raises(ForgeError, match="Unknown asset kind"):
+        c.set_tag("tool", "x", "prod", 1)
+    with pytest.raises(ForgeError, match="No agents item"):
+        client_for(lambda r: httpx.Response(200, json={"items": []})).set_tag(
+            "agent", "Nope", "prod", 1
+        )
+
+
+def test_publish_command_needs_a_version(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("FORGE_URL", API)
+    monkeypatch.setenv("FORGE_API_KEY", "fk_k")
+    assert cli.main(["publish", "prompt", "P"], io.StringIO()) == 2
+    assert "--version is required" in capsys.readouterr().err

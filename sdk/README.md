@@ -36,7 +36,7 @@ forgectl apply forge/                   # send only what changed
   `diff`. Fields outside the versions (a description, a use case draft) cannot be updated by an
   import; `diff` marks them `differs` and `apply` leaves them.
 - **Tags (`prod`, `staging`) are never moved on an existing item**, so publishing stays a
-  deliberate act in Forge (a `forgectl publish` command is planned).
+  deliberate act: `forgectl publish prompt|rag|agent NAME --version N [--tag staging|prod]` moves them.
 - Files, chunks and embeddings are not part of an export (see ADR-018). No secrets are exported.
 - `--config` adds model aliases, gateway limits, user groups and the guardrail policy; the key
   needs `project.manage`.
